@@ -7,6 +7,7 @@ import NonVegCard from "./NonVegCard";
 import OfferZone from "./OfferZone";
 import MenuSlider from "./MenuSlider";
 import FloatingCartButton from "./FloatingCartButton";
+import VideoSection from "./VideoSection";
 
 const Home = () => {
   const [loading, setLoading] = useState(true);
@@ -100,12 +101,8 @@ const Home = () => {
 
   return (
     <div className="relative overflow-hidden min-h-screen">
-      {/* Refined minimal background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-white to-orange-50/30 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(251,146,60,0.03),transparent_60%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_70%,rgba(251,146,60,0.02),transparent_60%)]"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,rgba(255,255,255,0.5)_100%)]"></div>
-      </div>
+      {/* Pure white background */}
+      <div className="fixed inset-0 bg-white -z-10"></div>
       
       <div className="min-h-screen text-gray-900 pb-30 pt-12 relative">
         <div className="container mx-auto px-4 sm:px-5 lg:px-8 py-5 sm:py-7 lg:py-8">
@@ -171,6 +168,7 @@ const Home = () => {
             </div>
           </div>
         </div>
+        <VideoSection />
 
         {/* Floating Cart Button */}
         <FloatingCartButton cartCount={cart.length} />
