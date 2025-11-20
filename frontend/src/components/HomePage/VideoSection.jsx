@@ -7,29 +7,6 @@ import videoSource from "./Assets/videoplayback.mp4";
 
 gsap.registerPlugin(CustomEase, SplitText, ScrambleTextPlugin);
 
-const BACKGROUND_IMAGES = [
-  {
-    id: "default-bg",
-    className: "default",
-    url: "https://assets.codepen.io/7558/wave-bg-001.webp",
-  },
-  {
-    id: "focus-bg",
-    className: "focus",
-    url: "https://assets.codepen.io/7558/wave-bg-002.webp",
-  },
-  {
-    id: "presence-bg",
-    className: "presence",
-    url: "https://assets.codepen.io/7558/wave-bg-003.webp",
-  },
-  {
-    id: "feel-bg",
-    className: "feel",
-    url: "https://assets.codepen.io/7558/wave-bg-004.webp",
-  },
-];
-
 const BACKGROUND_TEXT_ITEMS = [
   { text: "TASTE", top: "5%", left: "8%" },
   { text: "FLAVOR", top: "5%", left: "15%" },
@@ -113,31 +90,6 @@ export default function MainVideoSection() {
       return container.querySelector(sel);
     }
 
-    const backgroundImages = {};
-    BACKGROUND_IMAGES.forEach(({ id }) => {
-      backgroundImages[id] = qs(`#${id}`);
-    });
-
-    function switchBackgroundImage(id) {
-      Object.values(backgroundImages).forEach((bg) =>
-        gsap.to(bg, { opacity: 0, duration: 0.8, ease: "customEase" })
-      );
-      if (backgroundImages[id]) {
-        gsap.to(backgroundImages[id], {
-          opacity: 1,
-          duration: 0.8,
-          ease: "customEase",
-          delay: 0.2,
-        });
-      } else {
-        gsap.to(backgroundImages.default, {
-          opacity: 1,
-          duration: 0.8,
-          ease: "customEase",
-          delay: 0.2,
-        });
-      }
-    }
 
     const backgroundTextItems = qsa(".text-item");
     backgroundTextItems.forEach((item) => {
@@ -534,7 +486,6 @@ export default function MainVideoSection() {
         const text = row.querySelector(".text-content").dataset.text;
         const chars = splitTexts[rowId].chars;
         const innerSpans = row.querySelectorAll(".char-inner");
-        switchBackgroundImage(rowId);
         startKineticAnimation(text);
         if (state.textRevealAnimation) state.textRevealAnimation.kill();
         state.textRevealAnimation = createTextRevealAnimation(rowId);
@@ -562,7 +513,6 @@ export default function MainVideoSection() {
       if (state.activeRowId !== rowId) return;
       state.activeRowId = null;
       row.classList.remove("active");
-      switchBackgroundImage("default");
       fadeOutKineticAnimation();
       if (state.textRevealAnimation) state.textRevealAnimation.kill();
       state.textRevealAnimation = resetBackgroundTextWithAnimation();
@@ -601,7 +551,6 @@ export default function MainVideoSection() {
       const toChars = splitTexts[toRowId].chars;
       const toInners = toRow.querySelectorAll(".char-inner");
       forceResetKineticAnimation();
-      switchBackgroundImage(toRowId);
       startKineticAnimation(toText);
       if (state.textRevealAnimation) state.textRevealAnimation.kill();
       state.textRevealAnimation = createTextRevealAnimation(toRowId);
@@ -634,7 +583,6 @@ export default function MainVideoSection() {
     // Mouse parallax inside video overlay only
     const parallaxLayers = [0.02, 0.03, 0.04, 0.05];
     const backgroundElements = [
-      ...qsa("[id$='-bg']"),
       ...qsa(".text-background"),
     ];
     backgroundElements.forEach((el, index) => {
@@ -654,7 +602,6 @@ export default function MainVideoSection() {
       const offsetY = (e.clientY - centerY) / (rect.height / 2);
       backgroundElements.forEach((el) => {
         const speed = parseFloat(el.dataset.parallaxSpeed);
-        if (el.id && el.id.endsWith("-bg") && el.style.opacity === "0") return;
         const moveX = offsetX * 100 * speed;
         const moveY = offsetY * 50 * speed;
         gsap.to(el, {
@@ -761,30 +708,6 @@ export default function MainVideoSection() {
             display: "block",
           }}
         />
-
-        {/* Overlay layers, all absolute within the container */}
-        {BACKGROUND_IMAGES.map(({ id, className, url }) => (
-          <div
-            key={id}
-            id={id}
-            className={`background-image ${className}`}
-            style={{
-              backgroundImage: `url(${url})`,
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              opacity: id === "default-bg" ? 1 : 0,
-              zIndex: 5,
-              mixBlendMode: "multiply",
-              transition: "opacity 0.8s ease",
-              pointerEvents: "none",
-            }}
-          />
-        ))}
 
         <div
           className="bottom-gradient"
