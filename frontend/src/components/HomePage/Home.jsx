@@ -162,7 +162,7 @@ const Home = () => {
             <div className="col-span-1 md:col-span-1 flex flex-col gap-2 sm:gap-3 md:gap-0 md:justify-start">
               {/* Menu slider - Mobile: Bottom aligned with offer zone, Desktop: Top aligns with food cards */}
               <div className="md:hidden flex flex-col justify-end">
-                <div className="h-[590px] sm:h-[320px]">
+                <div className="h-[600px] sm:h-[320px]">
                   <MenuSlider 
                     categories={categories} 
                     selectedCategory={selectedCategory}
