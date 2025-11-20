@@ -12,9 +12,12 @@ export const connectDB = async () => {
     }
 
     await mongoose.connect(mongoUri);
+    
     console.log("✅ MongoDB Connected Successfully");
   } catch (err) {
     console.error("❌ DB Connection Failed:", err.message);
     throw err; // Re-throw to allow server to handle the error
   }
 };
+
+
