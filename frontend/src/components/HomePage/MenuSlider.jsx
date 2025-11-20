@@ -577,7 +577,7 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                               
                               {/* Name and Count */}
                               <div className="flex flex-col min-w-0 flex-1">
-                                <span className={`capitalize text-[10px] sm:text-xs md:text-sm font-bold truncate leading-tight
+                                <span className={`capitalize text-xs sm:text-sm md:text-base font-bold truncate leading-tight
                                                 ${isSelected ? "text-white" : "text-white"}`}>
                                   {cat.name}
                                 </span>
