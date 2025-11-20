@@ -60,8 +60,8 @@ connectDB()
 app.use(
   cors({
     origin: [
-      "https://food-fantasy-ten.vercel.app",
-      "https://foodfantasy-in.vercel.app",
+      "https://foodfantasy-com.vercel.app",
+      // "https://foodfantasy-in.vercel.app",
       "http://localhost:5173",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
