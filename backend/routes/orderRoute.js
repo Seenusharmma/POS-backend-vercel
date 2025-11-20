@@ -1,0 +1,81 @@
+import express from "express";
+import {
+  createOrder,
+  getOrders,
+  createMultipleOrders,
+  updateOrderStatus,
+  deleteOrder,
+} from "../controllers/orderController.js";
+import Order from "../models/orderModel.js"; // ✅ Import your Order model
+
+const router = express.Router();
+
+/* ===========================================
+   🧾 Existing Routes
+=========================================== */
+router.get("/", getOrders);
+router.post("/create", createOrder);
+router.post("/create-multiple", createMultipleOrders);
+router.put("/:id", updateOrderStatus);
+router.delete("/:id", deleteOrder);
+
+/* ===========================================
+   🆕 Add Single Food Order (for Menu "Add" button)
+=========================================== */
+router.post("/add", async (req, res) => {
+  try {
+    const {
+      foodName,
+      category,
+      type,
+      quantity,
+      price,
+      userId,
+      userEmail,
+      userName,
+      image,
+    } = req.body;
+
+    // ✅ Validation
+    if (!foodName || !price)
+      return res.status(400).json({ success: false, message: "Missing food details" });
+
+    // ✅ Create new order entry
+    const newOrder = new Order({
+      foodName,
+      category,
+      type,
+      quantity: quantity || 1,
+      price,
+      image,
+      userId,
+      userEmail,
+      userName,
+      tableNumber: 0, // Virtual/default table
+      status: "Pending",
+      paymentStatus: "Unpaid",
+    });
+
+    // ✅ Save to DB
+    const savedOrder = await newOrder.save();
+
+    // ✅ Emit real-time update if socket available
+    if (req.io) {
+      req.io.emit("newOrderPlaced", savedOrder);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Food added successfully!",
+      order: savedOrder,
+    });
+  } catch (error) {
+    console.error("Error adding food:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while adding food",
+    });
+  }
+});
+
+export default router;
