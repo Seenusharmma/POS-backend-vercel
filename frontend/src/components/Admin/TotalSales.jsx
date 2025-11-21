@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { FaDollarSign, FaChartLine, FaCalendarDay, FaCalendarWeek, FaCalendarAlt, FaTrophy, FaArrowUp } from "react-icons/fa";
 import API_BASE from "../../config/api";
+import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import LogoLoader from "../LogoLoader";
 
 const TotalSales = () => {
@@ -40,11 +41,24 @@ const TotalSales = () => {
   };
 
   useEffect(() => {
+    const isServerless = isServerlessPlatform();
+    
     if (!socketRef.current) {
-      socketRef.current = io(API_BASE, {
-        transports: ["websocket"],
-        reconnection: true,
-      });
+      if (isServerless) {
+        // On serverless platforms, create a mock socket
+        socketRef.current = {
+          on: () => {},
+          off: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connect: () => {},
+          connected: false,
+        };
+      } else {
+        // On regular servers, create real socket connection safely
+        const socketConfig = getSocketConfig();
+        socketRef.current = createSocketConnection(API_BASE, socketConfig);
+      }
     }
     const socket = socketRef.current;
     fetchOrders();

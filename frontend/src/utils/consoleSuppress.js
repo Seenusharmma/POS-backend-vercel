@@ -24,18 +24,31 @@ if (typeof window !== "undefined") {
       lowerMessage.includes("websocket") ||
       lowerMessage.includes("socket.io") ||
       lowerMessage.includes("socketio") ||
+      lowerMessage.includes("socket io") ||
       lowerMessage.includes("wss://") ||
       lowerMessage.includes("ws://") ||
       lowerMessage.includes("transport=websocket") ||
+      lowerMessage.includes("transport=ws") ||
       lowerMessage.includes("eio=4") ||
+      lowerMessage.includes("eio=") ||
       lowerMessage.includes("createsocket") ||
       lowerMessage.includes("doopen") ||
       lowerMessage.includes("_open") ||
       lowerMessage.includes("connection to") ||
+      lowerMessage.includes("failed to connect") ||
+      lowerMessage.includes("connection failed") ||
       (lowerMessage.includes("connection") && lowerMessage.includes("failed")) ||
+      (lowerMessage.includes("connection") && lowerMessage.includes("error")) ||
       lowerMessage.includes("closed before") ||
       lowerMessage.includes("websocket is closed") ||
-      lowerMessage.includes("vercel.app") && lowerMessage.includes("socket")
+      lowerMessage.includes("websocket closed") ||
+      lowerMessage.includes("xhr poll error") ||
+      lowerMessage.includes("polling error") ||
+      lowerMessage.includes("transport error") ||
+      lowerMessage.includes("socket connection") ||
+      (lowerMessage.includes("vercel.app") && lowerMessage.includes("socket")) ||
+      (lowerMessage.includes("vercel") && (lowerMessage.includes("socket") || lowerMessage.includes("ws"))) ||
+      lowerMessage.includes("network error") && lowerMessage.includes("socket")
     ) {
       return true;
     }
@@ -73,5 +86,35 @@ if (typeof window !== "undefined") {
   // Also intercept Error objects being logged
   const originalErrorConstructor = Error;
   // Note: We can't override Error constructor, but the console methods above should catch it
+  
+  // Global error handler to catch WebSocket errors
+  window.addEventListener("error", (event) => {
+    const errorMessage = (event.message || "").toLowerCase();
+    if (
+      errorMessage.includes("websocket") ||
+      errorMessage.includes("socket.io") ||
+      errorMessage.includes("wss://") ||
+      errorMessage.includes("ws://") ||
+      errorMessage.includes("connection") && errorMessage.includes("failed")
+    ) {
+      event.preventDefault(); // Prevent error from showing in console
+      return false;
+    }
+  }, true);
+  
+  // Also catch unhandled promise rejections related to WebSockets
+  window.addEventListener("unhandledrejection", (event) => {
+    const errorMessage = (event.reason?.message || String(event.reason) || "").toLowerCase();
+    if (
+      errorMessage.includes("websocket") ||
+      errorMessage.includes("socket.io") ||
+      errorMessage.includes("wss://") ||
+      errorMessage.includes("ws://") ||
+      (errorMessage.includes("connection") && errorMessage.includes("failed"))
+    ) {
+      event.preventDefault(); // Prevent error from showing in console
+      return false;
+    }
+  });
 }
 

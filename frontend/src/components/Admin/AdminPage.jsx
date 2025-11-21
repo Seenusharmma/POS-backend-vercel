@@ -6,7 +6,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import imageCompression from "browser-image-compression";
 import API_BASE from "../../config/api";
-import { getSocketConfig, isServerlessPlatform } from "../../utils/socketConfig";
+import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
 import LogoLoader from "../LogoLoader";
 import TotalSales from "./TotalSales";
@@ -93,21 +93,9 @@ const AdminPage = () => {
           connected: false,
         };
       } else {
-        // On regular servers, create real socket connection
-        try {
-          const socketConfig = getSocketConfig();
-          socketRef.current = io(API_BASE, socketConfig);
-        } catch (error) {
-          // Create a mock socket object to prevent errors
-          socketRef.current = {
-            on: () => {},
-            off: () => {},
-            emit: () => {},
-            disconnect: () => {},
-            connect: () => {},
-            connected: false,
-          };
-        }
+        // On regular servers, create real socket connection safely
+        const socketConfig = getSocketConfig();
+        socketRef.current = createSocketConnection(API_BASE, socketConfig);
       }
     }
     const socket = socketRef.current;

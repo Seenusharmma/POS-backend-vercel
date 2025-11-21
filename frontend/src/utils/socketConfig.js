@@ -1,4 +1,5 @@
 import API_BASE from "../config/api";
+import { io } from "socket.io-client";
 
 /**
  * Check if we're running on a serverless platform (Vercel, etc.)
@@ -21,12 +22,14 @@ export const getSocketConfig = () => {
   const isServerless = isServerlessPlatform();
   
   if (isServerless) {
-    // On serverless, only use polling (no WebSocket)
+    // On serverless, don't even try to connect - return config that prevents connection
     return {
       transports: ["polling"], // Only polling, no websocket
       reconnection: false, // Don't try to reconnect on serverless
       autoConnect: false, // Don't auto-connect on serverless
-      timeout: 5000,
+      timeout: 1000, // Very short timeout
+      forceNew: true,
+      upgrade: false, // Don't try to upgrade to WebSocket
     };
   }
   
@@ -41,5 +44,61 @@ export const getSocketConfig = () => {
     forceNew: false,
     upgrade: true,
   };
+};
+
+/**
+ * Create a socket connection safely (returns mock on serverless)
+ * This prevents WebSocket connection attempts on serverless platforms
+ */
+export const createSocketConnection = (url, config) => {
+  const isServerless = isServerlessPlatform();
+  
+  if (isServerless) {
+    // Return a mock socket that doesn't try to connect
+    // This prevents any WebSocket connection attempts
+    return {
+      on: () => {},
+      off: () => {},
+      emit: () => {},
+      disconnect: () => {},
+      connect: () => {},
+      close: () => {},
+      id: null,
+      connected: false,
+      disconnected: true,
+      io: {
+        reconnecting: false,
+      },
+    };
+  }
+  
+  // On regular servers, create real connection
+  try {
+    const socket = io(url, config);
+    
+    // Suppress connection errors for serverless detection
+    socket.on("connect_error", (error) => {
+      const errorMessage = error.message || "";
+      if (errorMessage.includes("vercel.app") || errorMessage.includes("serverless")) {
+        // Silently handle - don't log
+        return;
+      }
+    });
+    
+    return socket;
+  } catch (error) {
+    // Fallback to mock if import fails
+    return {
+      on: () => {},
+      off: () => {},
+      emit: () => {},
+      disconnect: () => {},
+      connect: () => {},
+      close: () => {},
+      id: null,
+      connected: false,
+      disconnected: true,
+    };
+  }
 };
 

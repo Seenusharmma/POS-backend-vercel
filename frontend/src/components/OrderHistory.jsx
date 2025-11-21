@@ -6,7 +6,7 @@ import toast, { Toaster } from "react-hot-toast";
 import API_BASE from "../config/api";
 import OrderSlip from "./OrderPage/OrderSlip";
 import { FaReceipt } from "react-icons/fa";
-import { getSocketConfig, isServerlessPlatform } from "../utils/socketConfig";
+import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../utils/socketConfig";
 import { pollOrders } from "../utils/polling";
 
 const OrderHistory = () => {
@@ -78,20 +78,9 @@ const OrderHistory = () => {
           connected: false,
         };
       } else {
-        // On regular servers, create real socket connection
-        try {
-          const socketConfig = getSocketConfig();
-          socketRef.current = io(API_BASE, socketConfig);
-        } catch (error) {
-          socketRef.current = {
-            on: () => {},
-            off: () => {},
-            emit: () => {},
-            disconnect: () => {},
-            connect: () => {},
-            connected: false,
-          };
-        }
+        // On regular servers, create real socket connection safely
+        const socketConfig = getSocketConfig();
+        socketRef.current = createSocketConnection(API_BASE, socketConfig);
       }
     }
     const socket = socketRef.current;

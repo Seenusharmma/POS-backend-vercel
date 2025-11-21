@@ -4,6 +4,7 @@ import { io } from "socket.io-client";
 import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
 import API_BASE from "../../config/api";
+import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import LogoLoader from "../LogoLoader";
 import OrderSlip from "../OrderPage/OrderSlip";
 import { FaReceipt } from "react-icons/fa";
@@ -36,13 +37,24 @@ const AdminOrderHistory = () => {
 
   // Real-time socket updates
   useEffect(() => {
+    const isServerless = isServerlessPlatform();
+    
     if (!socketRef.current) {
-      socketRef.current = io(API_BASE, {
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5,
-      });
+      if (isServerless) {
+        // On serverless platforms, create a mock socket
+        socketRef.current = {
+          on: () => {},
+          off: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connect: () => {},
+          connected: false,
+        };
+      } else {
+        // On regular servers, create real socket connection safely
+        const socketConfig = getSocketConfig();
+        socketRef.current = createSocketConnection(API_BASE, socketConfig);
+      }
     }
     const socket = socketRef.current;
 

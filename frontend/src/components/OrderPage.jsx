@@ -8,7 +8,7 @@ import { useAppSelector } from "../store/hooks";
 import { useNavigate } from "react-router-dom";
 import { FaTrashAlt, FaShoppingBag, FaStore, FaHome } from "react-icons/fa";
 import API_BASE from "../config/api";
-import { getSocketConfig, isServerlessPlatform } from "../utils/socketConfig";
+import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../utils/socketConfig";
 import { pollOrders } from "../utils/polling";
 import LogoLoader from "./LogoLoader";
 import TableSelect from "./OrderPage/Tables/TableSelect";
@@ -91,21 +91,9 @@ const OrderPage = () => {
           connected: false,
         };
       } else {
-        // On regular servers, create real socket connection
-        try {
-          const socketConfig = getSocketConfig();
-          socketRef.current = io(API_BASE, socketConfig);
-        } catch (error) {
-          // Create a mock socket object to prevent errors
-          socketRef.current = {
-            on: () => {},
-            off: () => {},
-            emit: () => {},
-            disconnect: () => {},
-            connect: () => {},
-            connected: false,
-          };
-        }
+        // On regular servers, create real socket connection safely
+        const socketConfig = getSocketConfig();
+        socketRef.current = createSocketConnection(API_BASE, socketConfig);
       }
     }
     const socket = socketRef.current;
