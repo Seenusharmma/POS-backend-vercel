@@ -227,8 +227,8 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
   return (
     <div className="flex-1 md:flex h-full">
       <motion.div 
-        className="bg-white/98 backdrop-blur-md border border-gray-200/80 rounded-2xl 
-                    p-3 sm:p-4 w-full flex flex-col h-full shadow-lg hover:shadow-xl 
+        className="bg-white/98 backdrop-blur-md border border-gray-200/80 rounded-lg sm:rounded-xl md:rounded-2xl 
+                    p-1.5 sm:p-2.5 md:p-4 w-full min-w-0 flex flex-col h-full shadow-md sm:shadow-lg hover:shadow-xl 
                     transition-all duration-300 relative overflow-hidden"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -244,28 +244,28 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
         {/* HEADER - with back button when category selected */}
         {selectedCategory && (
           <motion.div 
-            className="mb-2 sm:mb-3 shrink-0 relative z-10"
+            className="mb-1.5 sm:mb-2 md:mb-3 shrink-0 relative z-10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3">
               <motion.button
                 onClick={handleBack}
-                className="p-1.5 rounded-full bg-orange-100 hover:bg-orange-200 text-orange-600 
+                className="p-1.5 sm:p-1.5 md:p-2 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] md:min-w-0 md:min-h-0 rounded-full bg-orange-100 hover:bg-orange-200 text-orange-600 
                          transition-colors duration-200 flex items-center justify-center
-                         hover:scale-110 active:scale-95"
+                         hover:scale-110 active:scale-95 touch-manipulation"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <FaChevronLeft className="text-xs" />
+                <FaChevronLeft className="text-xs sm:text-xs md:text-sm" />
               </motion.button>
-              <div className="flex-1">
-                <h3 className="text-sm sm:text-base font-bold text-gray-800 flex items-center gap-1.5">
-                  <span className="text-lg">{getCategoryIcon(selectedCategory)}</span>
-                  <span className="capitalize">{selectedCategory}</span>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 flex items-center gap-1 sm:gap-1.5 md:gap-2 truncate">
+                  <span className="text-sm sm:text-base md:text-lg shrink-0">{getCategoryIcon(selectedCategory)}</span>
+                  <span className="capitalize truncate">{selectedCategory}</span>
                 </h3>
-                <p className="text-[10px] sm:text-xs text-gray-500">
+                <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-500 mt-0.5">
                   {selectedCategoryFoods.length} {selectedCategoryFoods.length === 1 ? 'item' : 'items'}
                 </p>
               </div>
@@ -278,14 +278,19 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
           ref={menuRef}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
+          onTouchStart={() => setIsPaused(true)}
+          onTouchEnd={() => {
+            setTimeout(() => setIsPaused(false), 2000);
+          }}
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden 
-                     [&::-webkit-scrollbar]:w-2
+                     [&::-webkit-scrollbar]:w-1.5 sm:[&::-webkit-scrollbar]:w-2
                      [&::-webkit-scrollbar-track]:bg-gray-100/50
                      [&::-webkit-scrollbar-track]:rounded-full
-                     [&::-webkit-scrollbar-thumb]:bg-orange-300/50
+                     [&::-webkit-scrollbar-thumb]:bg-orange-300/60 sm:[&::-webkit-scrollbar-thumb]:bg-orange-300/50
                      [&::-webkit-scrollbar-thumb]:rounded-full
                      [&::-webkit-scrollbar-thumb]:hover:bg-orange-400/70
-                     scroll-smooth relative"
+                     [&::-webkit-scrollbar-thumb]:active:bg-orange-500/80
+                     scroll-smooth relative touch-pan-y"
         >
           <AnimatePresence mode="wait">
             {/* Loading State */}
@@ -405,76 +410,84 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.3 }}
-                className="grid grid-cols-1 gap-3 sm:gap-4"
+                className="grid grid-cols-1 gap-1.5 md:gap-2.5 lg:gap-3"
               >
                 {selectedCategoryFoods.length > 0 ? (
                   selectedCategoryFoods.map((food, index) => (
                     <motion.div
                       key={food._id}
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05, duration: 0.3 }}
-                      className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl
-                               border border-gray-100 hover:border-orange-200 transition-all duration-300
-                               hover:-translate-y-1"
+                      transition={{ delay: index * 0.02, duration: 0.25 }}
+                      className="group bg-white rounded-lg md:rounded-xl lg:rounded-2xl overflow-hidden 
+                               border border-gray-100 md:border-gray-200/60 
+                               hover:border-orange-300/80 
+                               shadow-sm hover:shadow-md transition-all duration-200
+                               active:scale-[0.98]"
                     >
-                      <div className="flex gap-3 sm:gap-4 p-3 sm:p-4">
-                        {/* Food Image */}
-                        <div className="relative flex-shrink-0 w-20 sm:w-24 h-20 sm:h-24 rounded-xl overflow-hidden
-                                      bg-gray-100 group-hover:scale-105 transition-transform duration-300">
+                      <div className="flex gap-2 md:gap-3 lg:gap-4 p-2 md:p-3 lg:p-4">
+                        {/* Food Image - Compact on Mobile */}
+                        <div className="relative flex-shrink-0 w-16 h-16 md:w-24 md:h-24 lg:w-28 lg:h-28 
+                                      rounded-lg md:rounded-xl lg:rounded-2xl overflow-hidden
+                                      bg-gray-50 md:bg-gradient-to-br md:from-gray-50 md:to-gray-100 
+                                      group-hover:ring-1 md:group-hover:ring-2 group-hover:ring-orange-200/50 
+                                      transition-all duration-200">
                           <img
                             src={food.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop"}
                             alt={food.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                             onError={(e) => {
                               e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop";
                             }}
                           />
-                          {/* Type Badge */}
-                          <div className={`absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold
-                                         flex items-center gap-1 shadow-md
+                          {/* Type Badge - Minimal & Compact */}
+                          <div className={`absolute top-1 left-1 md:top-2 md:left-2 px-1.5 md:px-2 py-0.5 md:py-1 
+                                         rounded-md md:rounded-lg text-[9px] md:text-[10px] lg:text-xs font-semibold
+                                         flex items-center gap-0.5 md:gap-1 shadow-md md:shadow-lg backdrop-blur-sm
                                          ${food.type === "Veg" 
-                                           ? "bg-green-500 text-white" 
-                                           : "bg-red-500 text-white"
+                                           ? "bg-green-500/95 text-white" 
+                                           : "bg-red-500/95 text-white"
                                          }`}>
                             {food.type === "Veg" ? (
-                              <FaLeaf className="text-[8px]" />
+                              <FaLeaf className="text-[8px] md:text-[9px] lg:text-[10px]" />
                             ) : (
-                              <FaDrumstickBite className="text-[8px]" />
+                              <FaDrumstickBite className="text-[8px] md:text-[9px] lg:text-[10px]" />
                             )}
-                            <span>{food.type}</span>
+                            <span className="hidden md:inline">{food.type}</span>
                           </div>
                         </div>
 
-                        {/* Food Details */}
-                        <div className="flex-1 min-w-0 flex flex-col justify-between">
-                          <div>
-                            <h4 className="font-bold text-sm sm:text-base text-gray-800 mb-1 line-clamp-1 group-hover:text-orange-600 transition-colors">
+                        {/* Food Details - Compact Layout */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-between py-0 md:py-0.5">
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-semibold text-xs md:text-sm lg:text-base xl:text-lg text-gray-900 mb-0.5 md:mb-1 
+                                         group-hover:text-orange-600 transition-colors line-clamp-2 leading-tight md:leading-snug">
                               {food.name}
                             </h4>
-                            <p className="text-xs sm:text-sm text-gray-500 capitalize mb-2">
+                            <p className="text-[10px] md:text-xs lg:text-sm text-gray-400 capitalize mb-1.5 md:mb-2 lg:mb-3 truncate">
                               {food.category}
                             </p>
                           </div>
 
-                          {/* Price and Add Button */}
-                          <div className="flex items-center justify-between gap-2 mt-auto">
-                            <div className="flex items-baseline gap-1">
-                              <span className="text-lg sm:text-xl font-bold text-orange-600">
+                          {/* Price and Add Button - Compact */}
+                          <div className="flex items-center justify-between gap-2 md:gap-3 mt-auto">
+                            <div className="flex flex-col">
+                              <span className="text-sm md:text-base lg:text-lg xl:text-xl font-bold text-orange-600 leading-none">
                                 ₹{food.price}
                               </span>
                             </div>
                             <motion.button
                               onClick={() => onAddToCart && onAddToCart(food)}
-                              className="bg-orange-500 hover:bg-orange-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 
-                                       rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1.5
+                              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 
+                                       active:from-orange-700 active:to-orange-800 text-white 
+                                       w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 rounded-full 
+                                       flex items-center justify-center
                                        shadow-md hover:shadow-lg transition-all duration-200
-                                       active:scale-95"
+                                       active:scale-95 touch-manipulation flex-shrink-0"
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                             >
-                              <FaShoppingCart className="text-[10px] sm:text-xs" />
-                              <span>Add</span>
+                              <FaShoppingCart className="text-xs md:text-sm lg:text-base" />
                             </motion.button>
                           </div>
                         </div>
@@ -502,7 +515,7 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.3 }}
-                className="space-y-2"
+                className="space-y-1.5 sm:space-y-2 md:space-y-2.5"
               >
                 {categories && categories.length > 0 ? (
                   categories.map((cat, index) => {
@@ -514,11 +527,11 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                       <motion.button
                         key={cat.name}
                         onClick={() => onCategoryClick && onCategoryClick(cat.name)}
-                        className={`w-full relative overflow-hidden rounded-xl
-                                 transition-all duration-300 group
+                        className={`w-full relative overflow-hidden rounded-md sm:rounded-lg md:rounded-xl min-h-[48px] sm:min-h-[52px] md:min-h-0
+                                 transition-all duration-300 group touch-manipulation
                                  ${isSelected
-                          ? "ring-2 ring-orange-400 ring-offset-1 shadow-lg scale-[1.01]"
-                          : "hover:shadow-md hover:scale-[1.005]"
+                          ? "ring-1.5 sm:ring-2 ring-orange-400 ring-offset-0.5 sm:ring-offset-1 shadow-md sm:shadow-lg scale-[1.005] sm:scale-[1.01]"
+                          : "hover:shadow-md hover:scale-[1.005] active:scale-[0.98]"
                         }`}
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -530,10 +543,10 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                           stiffness: 100
                         }}
                         whileHover={{ scale: isSelected ? 1.02 : 1.03 }}
-                        whileTap={{ scale: 0.98 }}
+                        whileTap={{ scale: 0.97 }}
                       >
                         {/* Background Image with Overlay */}
-                        <div className="relative h-16 sm:h-18 md:h-20 w-full overflow-hidden rounded-xl">
+                        <div className="relative h-12 sm:h-14 md:h-16 lg:h-20 w-full overflow-hidden rounded-md sm:rounded-lg md:rounded-xl">
                           {/* Image */}
                           <img
                             src={categoryImage}
@@ -553,22 +566,22 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                                          }`}></div>
                           
                           {/* Content */}
-                          <div className="absolute inset-0 flex items-center justify-between px-3 py-2 z-10">
+                          <div className="absolute inset-0 flex items-center justify-between px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 md:py-2.5 z-10">
                             {/* Left: Icon and Name */}
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-2.5 flex-1 min-w-0">
                               {/* Icon */}
-                              <div className={`text-xl sm:text-2xl transition-transform duration-300
+                              <div className={`text-base sm:text-lg md:text-xl lg:text-2xl transition-transform duration-300 shrink-0
                                              ${isSelected ? "scale-110" : "group-hover:scale-110"}`}>
                                 {categoryIcon}
                               </div>
                               
                               {/* Name and Count */}
-                              <div className="flex flex-col min-w-0">
-                                <span className={`capitalize text-xs sm:text-sm font-bold truncate
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className={`capitalize text-xs sm:text-sm md:text-base font-bold truncate leading-tight
                                                 ${isSelected ? "text-white" : "text-white"}`}>
                                   {cat.name}
                                 </span>
-                                <span className={`text-[10px] sm:text-xs font-medium
+                                <span className={`text-[8px] sm:text-[9px] md:text-[10px] lg:text-xs font-medium mt-0.5
                                                 ${isSelected ? "text-white/90" : "text-white/80"}`}>
                                   {cat.count} {cat.count === 1 ? 'item' : 'items'}
                                 </span>
@@ -577,19 +590,19 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                             
                             {/* Right: Arrow Icon */}
                             <motion.div
-                              className={`shrink-0 transition-all duration-300
+                              className={`shrink-0 transition-all duration-300 ml-0.5 sm:ml-1
                                         ${isSelected ? "text-white" : "text-white/70 group-hover:text-white"}`}
                               animate={{ x: isSelected ? 3 : 0 }}
                               transition={{ duration: 0.3 }}
                             >
-                              <FaChevronRight className="text-xs sm:text-sm" />
+                              <FaChevronRight className="text-[10px] sm:text-xs md:text-sm" />
                             </motion.div>
                           </div>
                           
                           {/* Selected Indicator Bar */}
                           {isSelected && (
                             <motion.div
-                              className="absolute bottom-0 left-0 right-0 h-0.5 bg-white"
+                              className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-white"
                               initial={{ scaleX: 0 }}
                               animate={{ scaleX: 1 }}
                               transition={{ duration: 0.3 }}

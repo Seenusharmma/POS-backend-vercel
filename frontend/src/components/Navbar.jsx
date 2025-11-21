@@ -49,7 +49,7 @@ const Navbar = () => {
             to="/"
             className="text-orange-500 text-2xl sm:text-3xl font-bold tracking-wide flex items-center gap-2"
           >
-            .{" "}
+            {" "}
             <span className="text-orange-500 hover:text-orange-600">
               Food Fantasy
             </span>
