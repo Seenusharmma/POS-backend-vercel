@@ -3,6 +3,7 @@ import axios from "axios";
 import { io } from "socket.io-client";
 import toast, { Toaster } from "react-hot-toast";
 import API_BASE from "../../config/api";
+import { getSocketConfig, isServerlessPlatform } from "../../utils/socketConfig";
 
 const AdminPanel = () => {
   const [, setFoods] = useState([]);
@@ -33,31 +34,36 @@ const AdminPanel = () => {
 
   // ✅ Initialize Socket.IO
   useEffect(() => {
-    // Only attempt socket connection if not in production or if WebSocket is supported
-    // Vercel serverless doesn't support WebSockets, so we'll gracefully handle failures
+    // Check if we're on a serverless platform (Vercel, etc.)
+    const isServerless = isServerlessPlatform();
+    
     if (!socketRef.current) {
-      try {
-        socketRef.current = io(API_BASE, {
-          transports: ["websocket", "polling"], // Fallback to polling if websocket fails
-          reconnection: true,
-          reconnectionDelay: 2000,
-          reconnectionAttempts: 5,
-          timeout: 10000,
-          autoConnect: true,
-          forceNew: false,
-          // Suppress connection errors in console
-          upgrade: true,
-        });
-      } catch (error) {
-        console.warn("⚠️ Socket.IO initialization failed:", error);
-        // Create a mock socket object to prevent errors
+      if (isServerless) {
+        // On serverless platforms, create a mock socket (no real connection)
         socketRef.current = {
           on: () => {},
           off: () => {},
           emit: () => {},
           disconnect: () => {},
+          connect: () => {},
           connected: false,
         };
+      } else {
+        // On regular servers, create real socket connection
+        try {
+          const socketConfig = getSocketConfig();
+          socketRef.current = io(API_BASE, socketConfig);
+        } catch (error) {
+          // Create a mock socket object to prevent errors
+          socketRef.current = {
+            on: () => {},
+            off: () => {},
+            emit: () => {},
+            disconnect: () => {},
+            connect: () => {},
+            connected: false,
+          };
+        }
       }
     }
 

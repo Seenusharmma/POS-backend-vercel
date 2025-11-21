@@ -1,17 +1,52 @@
 // Suppress console warnings from browser extensions and expected errors
+// This must run BEFORE any socket.io connections are attempted
 if (typeof window !== "undefined") {
   const originalWarn = console.warn;
   const originalError = console.error;
+  const originalLog = console.log;
+
+  // Helper to check if message should be suppressed
+  const shouldSuppress = (message) => {
+    const lowerMessage = message.toLowerCase();
+    
+    // Suppress LocatorJS warnings/errors
+    if (
+      lowerMessage.includes("locatorjs") ||
+      lowerMessage.includes("unsupported react renderer") ||
+      lowerMessage.includes("bundle type") ||
+      lowerMessage.includes("[locatorjs]")
+    ) {
+      return true;
+    }
+    
+    // Suppress ALL WebSocket/Socket.IO related messages (very aggressive)
+    if (
+      lowerMessage.includes("websocket") ||
+      lowerMessage.includes("socket.io") ||
+      lowerMessage.includes("socketio") ||
+      lowerMessage.includes("wss://") ||
+      lowerMessage.includes("ws://") ||
+      lowerMessage.includes("transport=websocket") ||
+      lowerMessage.includes("eio=4") ||
+      lowerMessage.includes("createsocket") ||
+      lowerMessage.includes("doopen") ||
+      lowerMessage.includes("_open") ||
+      lowerMessage.includes("connection to") ||
+      (lowerMessage.includes("connection") && lowerMessage.includes("failed")) ||
+      lowerMessage.includes("closed before") ||
+      lowerMessage.includes("websocket is closed") ||
+      lowerMessage.includes("vercel.app") && lowerMessage.includes("socket")
+    ) {
+      return true;
+    }
+    
+    return false;
+  };
 
   // Suppress LocatorJS warnings (browser extension)
   console.warn = (...args) => {
     const message = args.join(" ");
-    if (
-      message.includes("locatorjs") ||
-      message.includes("Unsupported React renderer") ||
-      message.includes("bundle type") ||
-      message.includes("[locatorjs]")
-    ) {
+    if (shouldSuppress(message)) {
       return; // Suppress these warnings
     }
     originalWarn.apply(console, args);
@@ -20,35 +55,23 @@ if (typeof window !== "undefined") {
   // Suppress expected WebSocket errors
   console.error = (...args) => {
     const message = args.join(" ");
-    
-    // Suppress LocatorJS errors
-    if (
-      message.includes("locatorjs") ||
-      message.includes("[locatorjs]") ||
-      message.includes("Unsupported React renderer")
-    ) {
-      return;
+    if (shouldSuppress(message)) {
+      return; // Suppress these errors
     }
-    
-    // Suppress WebSocket connection errors
-    if (
-      message.includes("WebSocket connection to") &&
-      (message.includes("failed") || 
-       message.includes("closed before the connection") ||
-       message.includes("WebSocket is closed"))
-    ) {
-      // Suppress if it's a Vercel URL, localhost, or expected error
-      if (
-        message.includes("vercel.app") ||
-        message.includes("localhost") ||
-        message.includes("closed before the connection is established") ||
-        message.includes("WebSocket is closed")
-      ) {
-        return; // Suppress these errors
-      }
-    }
-    
     originalError.apply(console, args);
   };
+
+  // Also suppress WebSocket errors in console.log (some libraries use it)
+  console.log = (...args) => {
+    const message = args.join(" ");
+    if (shouldSuppress(message)) {
+      return; // Suppress WebSocket-related logs
+    }
+    originalLog.apply(console, args);
+  };
+  
+  // Also intercept Error objects being logged
+  const originalErrorConstructor = Error;
+  // Note: We can't override Error constructor, but the console methods above should catch it
 }
 
