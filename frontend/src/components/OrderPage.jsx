@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { FaTrashAlt, FaShoppingBag, FaStore, FaHome } from "react-icons/fa";
 import API_BASE from "../config/api";
 import { getSocketConfig, isServerlessPlatform } from "../utils/socketConfig";
+import { pollOrders } from "../utils/polling";
 import LogoLoader from "./LogoLoader";
 import TableSelect from "./OrderPage/Tables/TableSelect";
 import PaymentModal from "./OrderPage/PaymentModal";
@@ -29,6 +30,7 @@ const OrderPage = () => {
   const [isInRestaurant, setIsInRestaurant] = useState(true); // Toggle for in/out restaurant
   const socketRef = useRef(null);
   const audioRef = useRef(null);
+  const pollingStopRef = useRef(null);
   const navigate = useNavigate();
 
   // 🔊 Play notification sound
@@ -107,6 +109,112 @@ const OrderPage = () => {
       }
     }
     const socket = socketRef.current;
+
+    // ✅ Set up polling for serverless platforms (Vercel)
+    if (isServerless) {
+      const fetchUserOrdersForPolling = async () => {
+        try {
+          const res = await axios.get(`${API_BASE}/api/orders`);
+          return res.data.filter(
+            (o) => (o.userId === user?.uid || o.userEmail === user?.email) && o.status !== "Completed"
+          );
+        } catch (error) {
+          console.error("Error fetching orders for polling:", error);
+          return [];
+        }
+      };
+
+      // Start polling for user orders
+      pollingStopRef.current = pollOrders(
+        fetchUserOrdersForPolling,
+        // onNewOrder callback
+        (newOrder) => {
+          setOrders((prev) => {
+            const exists = prev.find((o) => o._id === newOrder._id);
+            if (!exists) {
+              return [newOrder, ...prev];
+            }
+            return prev;
+          });
+          if (newOrder.tableNumber) {
+            setBookedTables((prev) => {
+              if (!prev.includes(Number(newOrder.tableNumber))) {
+                return [...prev, Number(newOrder.tableNumber)];
+              }
+              return prev;
+            });
+          }
+          toast.success(`📦 Order Placed: ${newOrder.foodName}`, {
+            duration: 4000,
+            position: "top-center",
+          });
+        },
+        // onStatusChange callback
+        (updatedOrder, oldOrder) => {
+          // Play sound for status changes
+          if (updatedOrder.status !== oldOrder.status) {
+            playNotificationSound();
+            
+            if (updatedOrder.status === "Completed") {
+              setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
+              if (updatedOrder.tableNumber) {
+                setBookedTables((prev) =>
+                  prev.filter((t) => t !== Number(updatedOrder.tableNumber))
+                );
+              }
+              toast.success(
+                `🎉 Your order is completed: ${updatedOrder.foodName}`,
+                {
+                  duration: 4000,
+                  position: "top-center",
+                }
+              );
+            } else {
+              setOrders((prev) =>
+                prev.map((o) =>
+                  o._id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o
+                )
+              );
+              
+              const statusMessages = {
+                Pending: "⏳ Your order is pending",
+                Cooking: "👨‍🍳 Your order is being cooked",
+                Ready: "✅ Your order is ready",
+                Served: "🍽️ Your order has been served",
+              };
+              toast.success(
+                `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
+                {
+                  duration: 4000,
+                  position: "top-center",
+                }
+              );
+            }
+          }
+
+          // Handle payment status changes
+          if (updatedOrder.paymentStatus !== oldOrder.paymentStatus && updatedOrder.paymentStatus === "Paid") {
+            setOrders((prev) =>
+              prev.map((o) =>
+                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid" } : o
+              )
+            );
+            toast.success("💰 Payment Done! Your payment has been confirmed by admin.", {
+              duration: 5000,
+              icon: '✅',
+              style: {
+                background: '#10b981',
+                color: '#fff',
+                fontSize: '16px',
+                fontWeight: '600',
+              },
+              position: 'top-center',
+            });
+          }
+        },
+        3000 // Poll every 3 seconds
+      );
+    }
 
     // Connection event listeners for debugging
     socket.on("connect", () => {
@@ -276,6 +384,13 @@ const OrderPage = () => {
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
       socket.off("paymentSuccess");
+      
+      // Stop polling if it's running
+      if (pollingStopRef.current) {
+        pollingStopRef.current();
+        pollingStopRef.current = null;
+      }
+      
       // Don't disconnect on cleanup - let it stay connected for other components
       // if (socket.disconnect) {
       //   socket.disconnect();

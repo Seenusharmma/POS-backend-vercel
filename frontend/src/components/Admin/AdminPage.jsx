@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import imageCompression from "browser-image-compression";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform } from "../../utils/socketConfig";
+import { pollOrders } from "../../utils/polling";
 import LogoLoader from "../LogoLoader";
 import TotalSales from "./TotalSales";
 import AdminOrderHistory from "./AdminOrderHistory";
@@ -35,6 +36,7 @@ const AdminPage = () => {
   const [activeTab, setActiveTab] = useState("orders");
   const socketRef = useRef(null);
   const audioRef = useRef(null);
+  const pollingStopRef = useRef(null);
 
   // 🔊 Play notification sound
   const playNotificationSound = () => {
@@ -110,6 +112,89 @@ const AdminPage = () => {
     }
     const socket = socketRef.current;
     getAllData();
+
+    // ✅ Set up polling for serverless platforms (Vercel)
+    if (isServerless) {
+      const fetchOrdersForPolling = async () => {
+        try {
+          const res = await axios.get(`${API_BASE}/api/orders`);
+          return res.data.filter((o) => o.status !== "Completed");
+        } catch (error) {
+          console.error("Error fetching orders for polling:", error);
+          return [];
+        }
+      };
+
+      // Start polling for orders
+      pollingStopRef.current = pollOrders(
+        fetchOrdersForPolling,
+        // onNewOrder callback
+        (newOrder) => {
+          toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber}`, {
+            duration: 4000,
+            position: "top-right",
+            icon: "🆕",
+          });
+          setOrders((prev) => {
+            const exists = prev.find((o) => o._id === newOrder._id);
+            if (!exists && newOrder.status !== "Completed") {
+              return [newOrder, ...prev];
+            }
+            return prev;
+          });
+          setHighlightedOrder(newOrder._id);
+          setTimeout(() => setHighlightedOrder(null), 3000);
+        },
+        // onStatusChange callback
+        (updatedOrder, oldOrder) => {
+          // Play sound for status changes
+          if (updatedOrder.status !== oldOrder.status) {
+            playNotificationSound();
+            
+            const statusMessages = {
+              Pending: "⏳ Order status: Pending",
+              Cooking: "👨‍🍳 Order is being cooked",
+              Ready: "✅ Order is ready",
+              Served: "🍽️ Order has been served",
+              Completed: "🎉 Order completed",
+            };
+            
+            toast.success(
+              `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
+              {
+                duration: 3000,
+                position: "top-right",
+              }
+            );
+
+            if (updatedOrder.status === "Completed") {
+              setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
+            } else {
+              setOrders((prev) =>
+                prev.map((o) =>
+                  o._id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o
+                )
+              );
+            }
+          }
+
+          // Handle payment status changes
+          if (updatedOrder.paymentStatus !== oldOrder.paymentStatus && updatedOrder.paymentStatus === "Paid") {
+            toast.success(`💰 Payment Confirmed: ${updatedOrder.foodName}`, {
+              duration: 3000,
+              position: "top-right",
+              icon: "✅",
+            });
+            setOrders((prev) =>
+              prev.map((o) =>
+                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
+              )
+            );
+          }
+        },
+        3000 // Poll every 3 seconds
+      );
+    }
 
     // Connection event listeners
     socket.on("connect", () => {
@@ -245,6 +330,13 @@ const AdminPage = () => {
       socket.off("foodUpdated");
       socket.off("newFoodAdded");
       socket.off("foodDeleted");
+      
+      // Stop polling if it's running
+      if (pollingStopRef.current) {
+        pollingStopRef.current();
+        pollingStopRef.current = null;
+      }
+      
       // Don't disconnect on cleanup - let it stay connected for other components
       // if (socket.disconnect) {
       //   socket.disconnect();
