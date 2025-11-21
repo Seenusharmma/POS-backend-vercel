@@ -113,8 +113,12 @@ router.post("/add", upload.single("image"), async (req, res) => {
 
     await food.save();
 
+    // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
-    if (io) io.emit("newFoodAdded", food);
+    if (io && typeof io.emit === "function") {
+      io.emit("newFoodAdded", food);
+      console.log("➕ Emitted newFoodAdded event for food:", food._id);
+    }
 
     res.status(201).json({
       success: true,
@@ -177,8 +181,12 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     if (!updatedFood)
       return res.status(404).json({ success: false, message: "Food not found" });
 
+    // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
-    if (io) io.emit("foodUpdated", updatedFood);
+    if (io && typeof io.emit === "function") {
+      io.emit("foodUpdated", updatedFood);
+      console.log("🍽️ Emitted foodUpdated event for food:", updatedFood._id, "Available:", updatedFood.available);
+    }
 
     res.status(200).json({
       success: true,
@@ -218,8 +226,12 @@ router.delete("/:id", async (req, res) => {
 
     await food.deleteOne();
 
+    // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
-    if (io) io.emit("foodDeleted", id);
+    if (io && typeof io.emit === "function") {
+      io.emit("foodDeleted", id);
+      console.log("🗑️ Emitted foodDeleted event for food:", id);
+    }
 
     res.status(200).json({
       success: true,

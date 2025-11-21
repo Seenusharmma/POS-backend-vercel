@@ -43,8 +43,12 @@ export const addFood = async (req, res) => {
 
     await food.save();
 
+    // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
-    if (io) io.emit("newFoodAdded", food);
+    if (io && typeof io.emit === "function") {
+      io.emit("newFoodAdded", food);
+      console.log("➕ Emitted newFoodAdded event for food:", food._id);
+    }
 
     res.status(201).json({ message: "✅ Food added successfully", food });
   } catch (error) {
@@ -80,8 +84,12 @@ export const updateFood = async (req, res) => {
     const food = await Food.findByIdAndUpdate(id, updateData, { new: true });
     if (!food) return res.status(404).json({ message: "Food not found" });
 
+    // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
-    if (io) io.emit("foodUpdated", food);
+    if (io && typeof io.emit === "function") {
+      io.emit("foodUpdated", food);
+      console.log("🍽️ Emitted foodUpdated event for food:", food._id, "Available:", food.available);
+    }
 
     res.status(200).json({ message: "✅ Food updated successfully", food });
   } catch (error) {
@@ -117,8 +125,12 @@ export const deleteFood = async (req, res) => {
 
     await food.deleteOne();
 
+    // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
-    if (io) io.emit("foodDeleted", id);
+    if (io && typeof io.emit === "function") {
+      io.emit("foodDeleted", id);
+      console.log("🗑️ Emitted foodDeleted event for food:", id);
+    }
 
     res.status(200).json({ message: "✅ Food deleted successfully" });
   } catch (error) {

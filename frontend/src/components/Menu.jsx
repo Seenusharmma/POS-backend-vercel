@@ -7,6 +7,7 @@ import { IoSearch } from "react-icons/io5";
 import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart } from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
 import API_BASE from "../config/api";
+import { getSocketConfig, isServerlessPlatform } from "../utils/socketConfig";
 import LogoLoader from "./LogoLoader";
 import FoodCard from "./FoodCard";
 import { useFoodFilter } from "../store/hooks";
@@ -23,6 +24,26 @@ const Menu = () => {
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
   const socketRef = useRef(null);
+  const audioRef = useRef(null);
+
+  // 🔊 Play notification sound
+  const playNotificationSound = () => {
+    try {
+      // Create audio element if it doesn't exist
+      if (!audioRef.current) {
+        audioRef.current = new Audio("/notify.mp3");
+        audioRef.current.volume = 0.5; // Set volume to 50%
+      }
+      // Reset and play
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch((error) => {
+        // Suppress autoplay errors (browser may block autoplay)
+        console.warn("Could not play notification sound:", error);
+      });
+    } catch (error) {
+      console.warn("Error playing notification sound:", error);
+    }
+  };
 
   // 🥗 Fetch foods
   useEffect(() => {
@@ -86,27 +107,129 @@ const Menu = () => {
   useEffect(() => {
     if (!user) return;
 
+    // Check if we're on a serverless platform (Vercel, etc.)
+    const isServerless = isServerlessPlatform();
+    
     if (!socketRef.current) {
-      socketRef.current = io(API_BASE, {
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5,
-      });
+      if (isServerless) {
+        // On serverless platforms, create a mock socket (no real connection)
+        socketRef.current = {
+          on: () => {},
+          off: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connect: () => {},
+          connected: false,
+        };
+      } else {
+        // On regular servers, create real socket connection
+        try {
+          const socketConfig = getSocketConfig();
+          socketRef.current = io(API_BASE, socketConfig);
+        } catch (error) {
+          // Create a mock socket object to prevent errors
+          socketRef.current = {
+            on: () => {},
+            off: () => {},
+            emit: () => {},
+            disconnect: () => {},
+            connect: () => {},
+            connected: false,
+          };
+        }
+      }
     }
     const socket = socketRef.current;
 
     // Connection event listeners for debugging
     socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
+      console.log("✅ Menu Socket connected:", socket.id);
     });
 
-    socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
+    socket.on("disconnect", (reason) => {
+      if (reason === "io server disconnect") {
+        socket.connect();
+      }
+      console.log("❌ Menu Socket disconnected:", reason);
     });
 
     socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error);
+      // Suppress expected errors
+      const errorMessage = error.message || "";
+      if (!errorMessage.includes("websocket") && !errorMessage.includes("closed")) {
+        console.error("❌ Menu Socket connection error:", error);
+      }
+    });
+
+    // 🔊 Listen for food updates - Real-time notification with sound
+    socket.on("foodUpdated", (updatedFood) => {
+      console.log("🍽️ Food updated:", updatedFood);
+      
+      // Play notification sound
+      playNotificationSound();
+      
+      // Update foods list
+      setFoods((prev) =>
+        prev.map((f) => (f._id === updatedFood._id ? updatedFood : f))
+      );
+      
+      // Show notification based on what changed
+      if (updatedFood.available !== undefined) {
+        if (updatedFood.available) {
+          toast.success(`✅ ${updatedFood.name} is now Available!`, {
+            duration: 4000,
+            position: "top-center",
+            icon: "🍽️",
+          });
+        } else {
+          toast.error(`❌ ${updatedFood.name} is now Out of Stock`, {
+            duration: 4000,
+            position: "top-center",
+            icon: "⚠️",
+          });
+        }
+      } else {
+        // Other updates (price, name, etc.)
+        toast.success(`🔄 ${updatedFood.name} has been updated`, {
+          duration: 3000,
+          position: "top-center",
+          icon: "📝",
+        });
+      }
+    });
+
+    // 🔊 Listen for new food added - Real-time notification with sound
+    socket.on("newFoodAdded", (newFood) => {
+      console.log("➕ New food added:", newFood);
+      
+      // Play notification sound
+      playNotificationSound();
+      
+      // Add to foods list
+      setFoods((prev) => [newFood, ...prev]);
+      
+      toast.success(`🆕 New item added: ${newFood.name}`, {
+        duration: 4000,
+        position: "top-center",
+        icon: "🍕",
+      });
+    });
+
+    // 🔊 Listen for food deleted - Real-time notification with sound
+    socket.on("foodDeleted", (foodId) => {
+      console.log("🗑️ Food deleted:", foodId);
+      
+      // Play notification sound
+      playNotificationSound();
+      
+      // Remove from foods list
+      setFoods((prev) => prev.filter((f) => f._id !== foodId));
+      
+      toast.error(`🗑️ A food item has been removed from the menu`, {
+        duration: 3000,
+        position: "top-center",
+        icon: "⚠️",
+      });
     });
 
     // Listen for new orders (booking) - Real-time notification
@@ -157,12 +280,17 @@ const Menu = () => {
     });
 
     return () => {
+      // Clean up all event listeners
       socket.off("connect");
       socket.off("disconnect");
       socket.off("connect_error");
+      socket.off("foodUpdated");
+      socket.off("newFoodAdded");
+      socket.off("foodDeleted");
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
       socket.off("paymentSuccess");
+      // Don't disconnect on cleanup - let it stay connected for other components
     };
   }, [user]);
 
