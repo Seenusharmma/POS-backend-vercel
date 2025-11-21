@@ -6,6 +6,8 @@ import toast, { Toaster } from "react-hot-toast";
 import API_BASE from "../config/api";
 import OrderSlip from "./OrderPage/OrderSlip";
 import { FaReceipt } from "react-icons/fa";
+import { getSocketConfig, isServerlessPlatform } from "../utils/socketConfig";
+import { pollOrders } from "../utils/polling";
 
 const OrderHistory = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -14,6 +16,7 @@ const OrderHistory = () => {
   const [showOrderSlip, setShowOrderSlip] = useState(false);
   const [selectedOrderGroup, setSelectedOrderGroup] = useState([]);
   const socketRef = useRef(null);
+  const pollingStopRef = useRef(null);
 
   // ✅ Fetch user's completed orders
   const fetchHistory = useCallback(async () => {
@@ -56,17 +59,40 @@ const OrderHistory = () => {
     fetchHistory();
   }, [user, fetchHistory]);
 
-  // Real-time socket notifications
+  // Real-time socket notifications and polling
   useEffect(() => {
     if (!user) return;
 
+    const isServerless = isServerlessPlatform();
+
+    // Set up socket connection (for local development)
     if (!socketRef.current) {
-      socketRef.current = io(API_BASE, {
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5,
-      });
+      if (isServerless) {
+        // On serverless platforms, create a mock socket
+        socketRef.current = {
+          on: () => {},
+          off: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connect: () => {},
+          connected: false,
+        };
+      } else {
+        // On regular servers, create real socket connection
+        try {
+          const socketConfig = getSocketConfig();
+          socketRef.current = io(API_BASE, socketConfig);
+        } catch (error) {
+          socketRef.current = {
+            on: () => {},
+            off: () => {},
+            emit: () => {},
+            disconnect: () => {},
+            connect: () => {},
+            connected: false,
+          };
+        }
+      }
     }
     const socket = socketRef.current;
 
@@ -80,7 +106,15 @@ const OrderHistory = () => {
     });
 
     socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error);
+      const errorMessage = error.message || "";
+      const isExpectedError = 
+        errorMessage.includes("websocket") ||
+        errorMessage.includes("closed before the connection is established") ||
+        API_BASE.includes("vercel.app");
+      
+      if (!isExpectedError) {
+        console.error("❌ Socket connection error:", error);
+      }
     });
 
     // Listen for new orders (booking) - Real-time UI update
@@ -117,7 +151,11 @@ const OrderHistory = () => {
               updated[existingIndex] = { ...updated[existingIndex], status: updatedOrder.status };
               return updated;
             } else {
-              // Add new completed order
+              // Add new completed order to history
+              toast.success(`🎉 Order completed: ${updatedOrder.foodName}`, {
+                duration: 4000,
+                position: "top-center",
+              });
               return [updatedOrder, ...prev];
             }
           });
@@ -129,20 +167,6 @@ const OrderHistory = () => {
             )
           );
         }
-        const statusMessages = {
-          Pending: "⏳ Your order is pending",
-          Cooking: "👨‍🍳 Your order is being cooked",
-          Ready: "✅ Your order is ready",
-          Served: "🍽️ Your order has been served",
-          Completed: "🎉 Your order is completed",
-        };
-        toast.success(
-          `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
-          {
-            duration: 4000,
-            position: "top-center",
-          }
-        );
         fetchHistory();
       }
     });
@@ -171,6 +195,83 @@ const OrderHistory = () => {
       }
     });
 
+    // ✅ Set up polling for serverless platforms (Vercel)
+    if (isServerless) {
+      const fetchCompletedOrdersForPolling = async () => {
+        try {
+          const res = await axios.get(`${API_BASE}/api/orders`);
+          return res.data.filter(
+            (o) => (o.userEmail === user.email || o.userId === user.uid) && o.status === "Completed"
+          );
+        } catch (error) {
+          console.error("Error fetching completed orders for polling:", error);
+          return [];
+        }
+      };
+
+      // Start polling for completed orders
+      pollingStopRef.current = pollOrders(
+        fetchCompletedOrdersForPolling,
+        // onNewOrder callback (when a new completed order appears)
+        (newOrder) => {
+          setOrders((prev) => {
+            const exists = prev.find((o) => o._id === newOrder._id);
+            if (!exists) {
+              toast.success(`🎉 Order completed: ${newOrder.foodName}`, {
+                duration: 4000,
+                position: "top-center",
+              });
+              return [newOrder, ...prev];
+            }
+            return prev;
+          });
+        },
+        // onStatusChange callback (when order status changes to Completed)
+        (updatedOrder, oldOrder) => {
+          // When order becomes completed, add it to history
+          if (updatedOrder.status === "Completed" && oldOrder.status !== "Completed") {
+            setOrders((prev) => {
+              const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
+              if (existingIndex >= 0) {
+                // Update existing order
+                const updated = [...prev];
+                updated[existingIndex] = { ...updated[existingIndex], status: updatedOrder.status };
+                return updated;
+              } else {
+                // Add new completed order to history
+                toast.success(`🎉 Order completed: ${updatedOrder.foodName}`, {
+                  duration: 4000,
+                  position: "top-center",
+                });
+                return [updatedOrder, ...prev];
+              }
+            });
+          }
+
+          // Handle payment status changes
+          if (updatedOrder.paymentStatus !== oldOrder.paymentStatus && updatedOrder.paymentStatus === "Paid") {
+            setOrders((prev) =>
+              prev.map((o) =>
+                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid" } : o
+              )
+            );
+            toast.success("💰 Payment Done! Your payment has been confirmed.", {
+              duration: 5000,
+              icon: "✅",
+              style: {
+                background: "#10b981",
+                color: "#fff",
+                fontSize: "16px",
+                fontWeight: "600",
+              },
+              position: "top-center",
+            });
+          }
+        },
+        3000 // Poll every 3 seconds
+      );
+    }
+
     return () => {
       socket.off("connect");
       socket.off("disconnect");
@@ -178,6 +279,12 @@ const OrderHistory = () => {
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
       socket.off("paymentSuccess");
+      
+      // Stop polling if it's running
+      if (pollingStopRef.current) {
+        pollingStopRef.current();
+        pollingStopRef.current = null;
+      }
     };
   }, [user, fetchHistory]);
 
