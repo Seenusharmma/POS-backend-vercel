@@ -60,8 +60,9 @@ router.post("/add", async (req, res) => {
     const savedOrder = await newOrder.save();
 
     // ✅ Emit real-time update if socket available
-    if (req.io) {
+    if (req.io && typeof req.io.emit === "function") {
       req.io.emit("newOrderPlaced", savedOrder);
+      console.log("📦 Emitted newOrderPlaced event for order:", savedOrder._id);
     }
 
     res.status(200).json({

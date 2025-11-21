@@ -86,17 +86,9 @@ const PaymentModal = ({
       console.log("Created orders for slip:", orders); // Debug log
       setCreatedOrders(orders);
       
-      // Emit new order placed event
-      if (parentSocketRef?.current) {
-        parentSocketRef.current.emit("newOrderPlaced");
-        
-        // Emit payment success for each order
-        if (orders.length > 0) {
-          orders.forEach((order) => {
-            parentSocketRef.current.emit("paymentSuccess", order);
-          });
-        }
-      }
+      // Socket events are already emitted by backend when orders are created
+      // Backend automatically emits "newOrderPlaced" for each order
+      // No need to emit from frontend - backend is the single source of truth
 
       // Show success toast
       const orderTypeText = isInRestaurant 

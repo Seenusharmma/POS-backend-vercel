@@ -33,16 +33,84 @@ const AdminPanel = () => {
 
   // ✅ Initialize Socket.IO
   useEffect(() => {
+    // Only attempt socket connection if not in production or if WebSocket is supported
+    // Vercel serverless doesn't support WebSockets, so we'll gracefully handle failures
     if (!socketRef.current) {
-      socketRef.current = io(API_BASE, {
-        transports: ["websocket"],
-        withCredentials: false,
-        reconnection: true,
-      });
+      try {
+        socketRef.current = io(API_BASE, {
+          transports: ["websocket", "polling"], // Fallback to polling if websocket fails
+          reconnection: true,
+          reconnectionDelay: 2000,
+          reconnectionAttempts: 5,
+          timeout: 10000,
+          autoConnect: true,
+          forceNew: false,
+          // Suppress connection errors in console
+          upgrade: true,
+        });
+      } catch (error) {
+        console.warn("⚠️ Socket.IO initialization failed:", error);
+        // Create a mock socket object to prevent errors
+        socketRef.current = {
+          on: () => {},
+          off: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connected: false,
+        };
+      }
     }
 
     const socket = socketRef.current;
     getAllData();
+
+    // Connection event listeners
+    socket.on("connect", () => {
+      console.log("✅ AdminPanel Socket connected:", socket.id);
+    });
+
+    socket.on("disconnect", (reason) => {
+      if (reason === "io server disconnect") {
+        // Server disconnected the socket, try to reconnect
+        socket.connect();
+      }
+      console.log("❌ AdminPanel Socket disconnected:", reason);
+    });
+
+    socket.on("connect_error", (error) => {
+      // Suppress error logging for expected failures
+      const errorMessage = error.message || "";
+      const isExpectedError = 
+        errorMessage.includes("websocket") ||
+        errorMessage.includes("closed before the connection is established") ||
+        errorMessage.includes("xhr poll error") ||
+        API_BASE.includes("vercel.app"); // Vercel doesn't support WebSockets
+      
+      if (!isExpectedError) {
+        console.error("❌ AdminPanel Socket connection error:", error);
+      }
+      // Silently handle expected errors - don't spam console
+    });
+
+    socket.on("reconnect_attempt", () => {
+      console.log("🔄 Attempting to reconnect socket...");
+    });
+
+    socket.on("reconnect", (attemptNumber) => {
+      console.log("✅ Socket reconnected after", attemptNumber, "attempts");
+    });
+
+    socket.on("reconnect_error", (error) => {
+      // Suppress reconnection errors
+      const errorMessage = error.message || "";
+      if (!errorMessage.includes("websocket") && !errorMessage.includes("closed")) {
+        console.warn("⚠️ Socket reconnection error:", error);
+      }
+    });
+
+    socket.on("reconnect_failed", () => {
+      console.warn("⚠️ Socket reconnection failed. Falling back to polling or manual refresh.");
+    });
 
     socket.on("newOrderPlaced", (newOrder) => {
       setOrders((prev) => [newOrder, ...prev]);
@@ -78,11 +146,24 @@ const AdminPanel = () => {
     });
 
     return () => {
+      // Clean up all event listeners
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("connect_error");
+      socket.off("reconnect_attempt");
+      socket.off("reconnect");
+      socket.off("reconnect_error");
+      socket.off("reconnect_failed");
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
+      socket.off("paymentSuccess");
       socket.off("newFoodAdded");
       socket.off("foodUpdated");
       socket.off("foodDeleted");
+      // Don't disconnect on cleanup - let it stay connected for other components
+      // if (socket.disconnect) {
+      //   socket.disconnect();
+      // }
     };
   }, []);
 

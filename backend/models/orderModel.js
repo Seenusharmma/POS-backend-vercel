@@ -44,6 +44,28 @@ const orderSchema = new mongoose.Schema(
       enum: ["Pending", "Cooking", "Ready", "Served", "Completed"],
       default: "Pending",
     },
+    paymentStatus: {
+      type: String,
+      enum: ["Unpaid", "Paid"],
+      default: "Unpaid",
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["UPI", "Cash", "Other"],
+      default: "UPI",
+    },
+    userId: {
+      type: String,
+      default: "",
+    },
+    image: {
+      type: String,
+      default: "",
+    },
+    isInRestaurant: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true } // ✅ adds createdAt & updatedAt automatically
 );

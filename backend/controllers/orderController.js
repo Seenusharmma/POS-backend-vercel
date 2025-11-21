@@ -37,8 +37,9 @@ export const createOrder = async (req, res) => {
 
     // ✅ Emit new order to Admin (real-time)
     const io = req.app.get("io");
-    if (io) {
+    if (io && typeof io.emit === "function") {
       io.emit("newOrderPlaced", order);
+      console.log("📦 Emitted newOrderPlaced event for order:", order._id);
     }
 
     res.status(201).json({
@@ -83,8 +84,11 @@ export const createMultipleOrders = async (req, res) => {
 
     // ✅ Emit socket event for each new order to Admin
     const io = req.app.get("io");
-    if (io) {
-      orders.forEach((order) => io.emit("newOrderPlaced", order));
+    if (io && typeof io.emit === "function") {
+      orders.forEach((order) => {
+        io.emit("newOrderPlaced", order);
+        console.log("📦 Emitted newOrderPlaced event for order:", order._id);
+      });
     }
 
     res.status(201).json({
@@ -105,25 +109,53 @@ export const createMultipleOrders = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, paymentStatus, paymentMethod } = req.body;
 
-    // ✅ Validation
-    if (!status) {
+    // ✅ Build update object
+    const updateData = {};
+    
+    if (status) {
+      const validStatuses = ["Pending", "Cooking", "Ready", "Served", "Completed"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Status must be one of: ${validStatuses.join(", ")}`,
+        });
+      }
+      updateData.status = status;
+    }
+
+    if (paymentStatus) {
+      const validPaymentStatuses = ["Unpaid", "Paid"];
+      if (!validPaymentStatuses.includes(paymentStatus)) {
+        return res.status(400).json({
+          success: false,
+          message: `Payment status must be one of: ${validPaymentStatuses.join(", ")}`,
+        });
+      }
+      updateData.paymentStatus = paymentStatus;
+    }
+
+    if (paymentMethod) {
+      const validPaymentMethods = ["UPI", "Cash", "Other"];
+      if (!validPaymentMethods.includes(paymentMethod)) {
+        return res.status(400).json({
+          success: false,
+          message: `Payment method must be one of: ${validPaymentMethods.join(", ")}`,
+        });
+      }
+      updateData.paymentMethod = paymentMethod;
+    }
+
+    // ✅ At least one field must be provided
+    if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Status is required",
+        message: "Please provide status, paymentStatus, or paymentMethod to update",
       });
     }
 
-    const validStatuses = ["Pending", "Cooking", "Ready", "Served", "Completed"];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Status must be one of: ${validStatuses.join(", ")}`,
-      });
-    }
-
-    const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
+    const order = await Order.findByIdAndUpdate(id, updateData, { new: true });
 
     if (!order) {
       return res
@@ -131,22 +163,31 @@ export const updateOrderStatus = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
 
-    // ✅ Emit socket event for live updates to user & admin
+    // ✅ Emit socket events for live updates
     const io = req.app.get("io");
-    if (io) {
-      io.emit("orderStatusChanged", order);
+    if (io && typeof io.emit === "function") {
+      // Emit order status change
+      if (updateData.status) {
+        io.emit("orderStatusChanged", order);
+        console.log("🔄 Emitted orderStatusChanged event for order:", order._id, "Status:", order.status);
+      }
+      // Emit payment success if payment status changed to Paid
+      if (updateData.paymentStatus === "Paid") {
+        io.emit("paymentSuccess", order);
+        console.log("💰 Emitted paymentSuccess event for order:", order._id);
+      }
     }
 
     res.status(200).json({
       success: true,
-      message: "Order status updated successfully",
+      message: "Order updated successfully",
       order,
     });
   } catch (error) {
     console.error("Error updating order:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to update order status",
+      message: "Failed to update order",
     });
   }
 };
@@ -173,8 +214,9 @@ export const deleteOrder = async (req, res) => {
 
     // ✅ Emit delete event for real-time sync (to admin + other clients)
     const io = req.app.get("io");
-    if (io) {
+    if (io && typeof io.emit === "function") {
       io.emit("orderDeleted", id);
+      console.log("🗑️ Emitted orderDeleted event for order:", id);
     }
 
     res.status(200).json({

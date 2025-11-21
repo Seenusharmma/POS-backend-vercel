@@ -33,6 +33,26 @@ const AdminPage = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("orders");
   const socketRef = useRef(null);
+  const audioRef = useRef(null);
+
+  // 🔊 Play notification sound
+  const playNotificationSound = () => {
+    try {
+      // Create audio element if it doesn't exist
+      if (!audioRef.current) {
+        audioRef.current = new Audio("/notify.mp3");
+        audioRef.current.volume = 0.5; // Set volume to 50%
+      }
+      // Reset and play
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch((error) => {
+        // Suppress autoplay errors (browser may block autoplay)
+        console.warn("Could not play notification sound:", error);
+      });
+    } catch (error) {
+      console.warn("Error playing notification sound:", error);
+    }
+  };
 
   /* ================================
      🔌 Socket.IO + Fetch Data
@@ -55,14 +75,83 @@ const AdminPage = () => {
   };
 
   useEffect(() => {
+    // Only attempt socket connection if not in production or if WebSocket is supported
+    // Vercel serverless doesn't support WebSockets, so we'll gracefully handle failures
     if (!socketRef.current) {
-      socketRef.current = io(API_BASE, {
-        transports: ["websocket"],
-        reconnection: true,
-      });
+      try {
+        socketRef.current = io(API_BASE, {
+          transports: ["websocket", "polling"], // Fallback to polling if websocket fails
+          reconnection: true,
+          reconnectionDelay: 2000,
+          reconnectionAttempts: 5,
+          timeout: 10000,
+          autoConnect: true,
+          forceNew: false,
+          // Suppress connection errors in console
+          upgrade: true,
+        });
+      } catch (error) {
+        console.warn("⚠️ Socket.IO initialization failed:", error);
+        // Create a mock socket object to prevent errors
+        socketRef.current = {
+          on: () => {},
+          off: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connected: false,
+        };
+      }
     }
     const socket = socketRef.current;
     getAllData();
+
+    // Connection event listeners
+    socket.on("connect", () => {
+      console.log("✅ Admin Socket connected:", socket.id);
+    });
+
+    socket.on("disconnect", (reason) => {
+      if (reason === "io server disconnect") {
+        // Server disconnected the socket, try to reconnect
+        socket.connect();
+      }
+      console.log("❌ Admin Socket disconnected:", reason);
+    });
+
+    socket.on("connect_error", (error) => {
+      // Suppress error logging for expected failures
+      const errorMessage = error.message || "";
+      const isExpectedError = 
+        errorMessage.includes("websocket") ||
+        errorMessage.includes("closed before the connection is established") ||
+        errorMessage.includes("xhr poll error") ||
+        API_BASE.includes("vercel.app"); // Vercel doesn't support WebSockets
+      
+      if (!isExpectedError) {
+        console.error("❌ Admin Socket connection error:", error);
+      }
+      // Silently handle expected errors - don't spam console
+    });
+
+    socket.on("reconnect_attempt", () => {
+      console.log("🔄 Attempting to reconnect socket...");
+    });
+
+    socket.on("reconnect", (attemptNumber) => {
+      console.log("✅ Socket reconnected after", attemptNumber, "attempts");
+    });
+
+    socket.on("reconnect_error", (error) => {
+      // Suppress reconnection errors
+      const errorMessage = error.message || "";
+      if (!errorMessage.includes("websocket") && !errorMessage.includes("closed")) {
+        console.warn("⚠️ Socket reconnection error:", error);
+      }
+    });
+
+    socket.on("reconnect_failed", () => {
+      console.warn("⚠️ Socket reconnection failed. Falling back to polling or manual refresh.");
+    });
 
     socket.on("newOrderPlaced", (newOrder) => {
       toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber}`, {
@@ -86,6 +175,10 @@ const AdminPage = () => {
         Served: "🍽️ Order has been served",
         Completed: "🎉 Order completed",
       };
+      
+      // 🔊 Play notification sound
+      playNotificationSound();
+      
       toast.success(
         `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
         {
@@ -107,6 +200,7 @@ const AdminPage = () => {
     });
 
     socket.on("paymentSuccess", (orderData) => {
+      console.log("💰 Admin received paymentSuccess event:", orderData);
       toast.success(`💰 Payment Confirmed: ${orderData.foodName}`, {
         duration: 3000,
         position: "top-right",
@@ -114,7 +208,7 @@ const AdminPage = () => {
       });
       setOrders((prev) =>
         prev.map((o) =>
-          o._id === orderData._id ? { ...o, paymentStatus: "Paid" } : o
+          o._id === orderData._id ? { ...o, paymentStatus: "Paid", paymentMethod: orderData.paymentMethod || "UPI" } : o
         )
       );
     });
@@ -130,7 +224,26 @@ const AdminPage = () => {
       setFoods((prev) => prev.filter((f) => f._id !== id))
     );
 
-    return () => socket.disconnect();
+    return () => {
+      // Clean up all event listeners
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("connect_error");
+      socket.off("reconnect_attempt");
+      socket.off("reconnect");
+      socket.off("reconnect_error");
+      socket.off("reconnect_failed");
+      socket.off("newOrderPlaced");
+      socket.off("orderStatusChanged");
+      socket.off("paymentSuccess");
+      socket.off("foodUpdated");
+      socket.off("newFoodAdded");
+      socket.off("foodDeleted");
+      // Don't disconnect on cleanup - let it stay connected for other components
+      // if (socket.disconnect) {
+      //   socket.disconnect();
+      // }
+    };
   }, []);
 
   /* ================================
@@ -286,6 +399,10 @@ const AdminPage = () => {
     try {
       const res = await axios.put(`${API_BASE}/api/orders/${id}`, { status });
       socketRef.current.emit("orderUpdated", res.data);
+      
+      // 🔊 Play notification sound when admin updates order status
+      playNotificationSound();
+      
       toast(`Order marked as "${status}"`, { icon: "✅" });
       getAllData();
     } catch {
@@ -299,11 +416,8 @@ const AdminPage = () => {
         paymentStatus: "Paid",
       });
       
-      // Socket event is already emitted by backend
-      // The response should have the order in res.data.order
-      if (socketRef.current && res.data?.order) {
-        socketRef.current.emit("paymentSuccess", res.data.order);
-      }
+      // Socket event is already emitted by backend in updateOrderStatus
+      // No need to emit again from frontend
       
       toast.success("💰 Payment Successful!");
       getAllData();
