@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import cloudinary from "../config/cloudinary.js";
 import Food from "../models/foodModel.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
@@ -14,11 +15,32 @@ const upload = multer({ storage });
 ================================ */
 router.get("/", async (req, res) => {
   try {
+    // Check database connection
+    if (mongoose.connection.readyState !== 1) {
+      console.error("❌ Database not connected. ReadyState:", mongoose.connection.readyState);
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database connection unavailable. Please try again later." 
+      });
+    }
+
     const foods = await Food.find().sort({ createdAt: -1 });
     res.status(200).json(foods);
   } catch (err) {
     console.error("❌ Error fetching foods:", err);
-    res.status(500).json({ success: false, message: "Failed to fetch foods" });
+    // Provide more detailed error information
+    const errorMessage = err.message || "Unknown error";
+    console.error("Error details:", {
+      message: errorMessage,
+      stack: err.stack,
+      name: err.name
+    });
+    
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch foods",
+      error: process.env.NODE_ENV === "development" ? errorMessage : undefined
+    });
   }
 });
 
