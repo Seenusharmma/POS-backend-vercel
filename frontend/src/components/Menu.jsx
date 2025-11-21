@@ -2,14 +2,12 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 // eslint-disable-next-line no-unused-vars
-import { motion } from "framer-motion";
-import { IoSearch } from "react-icons/io5";
+import { motion, AnimatePresence } from "framer-motion";
 import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart } from "react-icons/fa";
+import { IoSearch } from "react-icons/io5";
 import toast, { Toaster } from "react-hot-toast";
 import API_BASE from "../config/api";
-import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../utils/socketConfig";
 import LogoLoader from "./LogoLoader";
-import FoodCard from "./FoodCard";
 import { useFoodFilter } from "../store/hooks";
 import { useAppSelector } from "../store/hooks";
 
@@ -20,30 +18,9 @@ const Menu = () => {
   const [filteredFoods, setFilteredFoods] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
-  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]);
   const socketRef = useRef(null);
-  const audioRef = useRef(null);
-
-  // 🔊 Play notification sound
-  const playNotificationSound = () => {
-    try {
-      // Create audio element if it doesn't exist
-      if (!audioRef.current) {
-        audioRef.current = new Audio("/notify.mp3");
-        audioRef.current.volume = 0.5; // Set volume to 50%
-      }
-      // Reset and play
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch((error) => {
-        // Suppress autoplay errors (browser may block autoplay)
-        console.warn("Could not play notification sound:", error);
-      });
-    } catch (error) {
-      console.warn("Error playing notification sound:", error);
-    }
-  };
 
   // 🥗 Fetch foods
   useEffect(() => {
@@ -76,22 +53,6 @@ const Menu = () => {
     setFilteredFoods(updated);
   }, [categoryFilter, searchQuery, foods, applyGlobalFilter]);
 
-  // 🔎 Live Search Suggestions
-  const handleSearchChange = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    if (query.trim()) {
-      const matched = foods
-        .filter((f) => f.name.toLowerCase().includes(query.toLowerCase()))
-        .slice(0, 5);
-      setSuggestions(matched);
-    } else setSuggestions([]);
-  };
-
-  const handleSuggestionClick = (name) => {
-    setSearchQuery(name);
-    setSuggestions([]);
-  };
 
   // 🛒 Cart Logic (localStorage)
   useEffect(() => {
@@ -107,117 +68,27 @@ const Menu = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Check if we're on a serverless platform (Vercel, etc.)
-    const isServerless = isServerlessPlatform();
-    
     if (!socketRef.current) {
-      if (isServerless) {
-        // On serverless platforms, create a mock socket (no real connection)
-        socketRef.current = {
-          on: () => {},
-          off: () => {},
-          emit: () => {},
-          disconnect: () => {},
-          connect: () => {},
-          connected: false,
-        };
-      } else {
-        // On regular servers, create real socket connection safely
-        const socketConfig = getSocketConfig();
-        socketRef.current = createSocketConnection(API_BASE, socketConfig);
-      }
+      socketRef.current = io(API_BASE, {
+        transports: ["websocket"],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+      });
     }
     const socket = socketRef.current;
 
     // Connection event listeners for debugging
     socket.on("connect", () => {
-      console.log("✅ Menu Socket connected:", socket.id);
+      console.log("✅ Socket connected:", socket.id);
     });
 
-    socket.on("disconnect", (reason) => {
-      if (reason === "io server disconnect") {
-        socket.connect();
-      }
-      console.log("❌ Menu Socket disconnected:", reason);
+    socket.on("disconnect", () => {
+      console.log("❌ Socket disconnected");
     });
 
     socket.on("connect_error", (error) => {
-      // Suppress expected errors
-      const errorMessage = error.message || "";
-      if (!errorMessage.includes("websocket") && !errorMessage.includes("closed")) {
-        console.error("❌ Menu Socket connection error:", error);
-      }
-    });
-
-    // 🔊 Listen for food updates - Real-time notification with sound
-    socket.on("foodUpdated", (updatedFood) => {
-      console.log("🍽️ Food updated:", updatedFood);
-      
-      // Play notification sound
-      playNotificationSound();
-      
-      // Update foods list
-      setFoods((prev) =>
-        prev.map((f) => (f._id === updatedFood._id ? updatedFood : f))
-      );
-      
-      // Show notification based on what changed
-      if (updatedFood.available !== undefined) {
-        if (updatedFood.available) {
-          toast.success(`✅ ${updatedFood.name} is now Available!`, {
-            duration: 4000,
-            position: "top-center",
-            icon: "🍽️",
-          });
-        } else {
-          toast.error(`❌ ${updatedFood.name} is now Out of Stock`, {
-            duration: 4000,
-            position: "top-center",
-            icon: "⚠️",
-          });
-        }
-      } else {
-        // Other updates (price, name, etc.)
-        toast.success(`🔄 ${updatedFood.name} has been updated`, {
-          duration: 3000,
-          position: "top-center",
-          icon: "📝",
-        });
-      }
-    });
-
-    // 🔊 Listen for new food added - Real-time notification with sound
-    socket.on("newFoodAdded", (newFood) => {
-      console.log("➕ New food added:", newFood);
-      
-      // Play notification sound
-      playNotificationSound();
-      
-      // Add to foods list
-      setFoods((prev) => [newFood, ...prev]);
-      
-      toast.success(`🆕 New item added: ${newFood.name}`, {
-        duration: 4000,
-        position: "top-center",
-        icon: "🍕",
-      });
-    });
-
-    // 🔊 Listen for food deleted - Real-time notification with sound
-    socket.on("foodDeleted", (foodId) => {
-      console.log("🗑️ Food deleted:", foodId);
-      
-      // Play notification sound
-      playNotificationSound();
-      
-      // Remove from foods list
-      setFoods((prev) => prev.filter((f) => f._id !== foodId));
-      
-      toast.error(`🗑️ A food item has been removed from the menu`, {
-        duration: 3000,
-        position: "top-center",
-        icon: "⚠️",
-      });
+      console.error("❌ Socket connection error:", error);
     });
 
     // Listen for new orders (booking) - Real-time notification
@@ -268,17 +139,12 @@ const Menu = () => {
     });
 
     return () => {
-      // Clean up all event listeners
       socket.off("connect");
       socket.off("disconnect");
       socket.off("connect_error");
-      socket.off("foodUpdated");
-      socket.off("newFoodAdded");
-      socket.off("foodDeleted");
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
       socket.off("paymentSuccess");
-      // Don't disconnect on cleanup - let it stay connected for other components
     };
   }, [user]);
 
@@ -297,75 +163,143 @@ const Menu = () => {
     }
   };
 
+
   if (loading) return <LogoLoader />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#fff8f3] to-white pb-24 md:pb-12 ">
+    <div className="min-h-screen bg-gradient-to-b from-[#fff8f3] to-white pb-24 md:pb-12 pt-16">
       <Toaster />
-      {/* 🍔 Hero Section */}
-      <section className="relative bg-gradient-to-r from-[#ffecd2] to-[#fcb69f] py-12 sm:py-16 md:py-20 shadow-md text-center px-4">
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-gray-800"
-        >
-          Delicious Food, Delivered Fast 🚀
-        </motion.h1>
-        <p className="text-gray-600 mt-2 sm:mt-3 text-sm sm:text-base md:text-lg px-4">
-          Discover top-rated dishes near you from Food Fantasy 🍱
-        </p>
 
-        {/* 🔍 Search Bar */}
-        <div className="relative w-full sm:w-5/6 md:w-2/3 lg:w-1/2 mx-auto mt-4 sm:mt-6">
-          <div className="flex items-center bg-white shadow-xl rounded-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-200">
-            <IoSearch className="text-gray-500 text-lg sm:text-xl mr-2 flex-shrink-0" />
-            <input
-              type="text"
-              placeholder="Search for food, dishes or cuisines..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="flex-1 p-1 sm:p-2 outline-none text-gray-700 text-sm sm:text-base bg-transparent"
-            />
-          </div>
-          {suggestions.length > 0 && (
-            <ul className="absolute w-full bg-white border border-gray-200 rounded-lg mt-2 shadow-xl z-20 max-h-60 overflow-y-auto">
-              {suggestions.map((s) => (
-                <li
-                  key={s._id}
-                  onClick={() => handleSuggestionClick(s.name)}
-                  className="px-3 sm:px-4 py-2 hover:bg-red-50 cursor-pointer text-gray-700 text-sm sm:text-base"
-                >
-                  {s.name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      {/* 🎛 Filters */}
-      <div className="flex flex-col gap-4 sm:gap-5 py-4 sm:py-6 md:py-8 px-3 sm:px-4 md:px-6 lg:px-10 bg-white shadow-sm sticky top-0 z-10">
-        {/* Category Filter */}
-        <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scroll-smooth scrollbar-hide" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
-          {categories.map((cat) => (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              key={cat}
-              onClick={() => setCategoryFilter(cat)}
-              className={`px-4 sm:px-6 py-1.5 sm:py-2 rounded-full font-semibold border text-xs sm:text-sm md:text-base transition-all whitespace-nowrap shrink-0 ${
-                categoryFilter === cat
-                  ? "bg-yellow-500 text-white border-yellow-500 shadow"
-                  : "border-gray-300 text-gray-700 hover:bg-yellow-50"
-              }`}
+      {/* 🔍 Search Bar & Category Stripe - Theme + Advanced Animations */}
+      <motion.div 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="sticky top-16 z-40 bg-white/98 backdrop-blur-xl border-b border-gray-100/80 shadow-sm"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4">
+            {/* Search Bar - Advanced Focus Animation */}
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full sm:flex-1 max-w-xl order-2 sm:order-1"
             >
-              {cat}
-            </motion.button>
-          ))}
+              <motion.div
+                whileFocus={{ scale: 1.01 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="relative group"
+              >
+                <motion.div
+                  animate={{
+                    borderColor: searchQuery ? "#ea580c" : undefined,
+                    backgroundColor: searchQuery ? "#fff7ed" : undefined,
+                  }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  className="flex items-center bg-gray-50/90 backdrop-blur-sm border-2 rounded-2xl px-4 py-2.5 transition-all duration-300 focus-within:bg-white focus-within:border-orange-500/60 focus-within:shadow-lg focus-within:shadow-orange-500/10"
+                >
+                  <motion.div
+                    animate={{
+                      color: searchQuery ? "#ea580c" : undefined,
+                      scale: searchQuery ? 1.1 : 1,
+                    }}
+                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                  >
+                    <IoSearch className="text-gray-400 text-base mr-2.5 shrink-0" />
+                  </motion.div>
+                  <input
+                    type="text"
+                    placeholder="Search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1 outline-none text-gray-900 text-sm bg-transparent placeholder:text-gray-400 font-light tracking-wide"
+                  />
+                  {searchQuery && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                      onClick={() => setSearchQuery("")}
+                      className="cursor-pointer text-gray-400 hover:text-orange-500 ml-2"
+                    >
+                      ✕
+                    </motion.div>
+                  )}
+                </motion.div>
+              </motion.div>
+            </motion.div>
+
+            {/* Category Buttons - Staggered Entrance + Advanced Hover */}
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full sm:w-auto order-1 sm:order-2 overflow-x-auto scrollbar-hide relative z-10" 
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              <div className="flex gap-2 sm:gap-2.5 items-center relative">
+                <AnimatePresence mode="wait">
+                  {categories.map((cat, index) => (
+                    <motion.button
+                      key={cat}
+                      initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                      animate={{ 
+                        opacity: 1, 
+                        scale: 1, 
+                        y: 0 
+                      }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{
+                        duration: 0.4,
+                        delay: index * 0.05,
+                        type: "spring",
+                        stiffness: 300,
+                        damping: 20
+                      }}
+                      whileHover={{ 
+                        scale: 1.05,
+                        y: -2,
+                        transition: { type: "spring", stiffness: 400, damping: 15 }
+                      }}
+                      whileTap={{ 
+                        scale: 0.95,
+                        transition: { duration: 0.1 }
+                      }}
+                      onClick={() => setCategoryFilter(cat)}
+                      className={`relative px-4 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium tracking-tight whitespace-nowrap shrink-0 overflow-visible transition-all duration-300 z-10 hover:z-20 active:z-20 ${
+                        categoryFilter === cat
+                          ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm z-20"
+                          : "bg-gray-100 text-gray-600 hover:bg-orange-50 hover:text-orange-600"
+                      }`}
+                    >
+                      {/* Text */}
+                      <span className="relative z-10">
+                        {cat}
+                      </span>
+                      
+                      {/* Active Indicator Dot */}
+                      {categoryFilter === cat && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.1 }}
+                          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full mb-0.5 z-10"
+                        />
+                      )}
+                    </motion.button>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* 🍕 Food Cards Grid */}
-      <div className="px-3 sm:px-4 md:px-6 lg:px-10 py-6 sm:py-8 md:py-10">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-7 py-6 sm:py-8 md:py-10">
         {filteredFoods.length === 0 ? (
           <motion.p
             initial={{ opacity: 0 }}
@@ -376,57 +310,78 @@ const Menu = () => {
           </motion.p>
         ) : (
           <motion.div
-            layout
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5"
           >
-            {filteredFoods.map((food) => (
-              <motion.div
-                key={food._id}
-                whileHover={{ scale: 1.02 }}
-                className="bg-white border rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl overflow-hidden flex flex-col"
-              >
-                <div className="relative">
-                  <img
-                    src={food.image || "https://via.placeholder.com/400x300"}
-                    alt={food.name}
-                    className="w-full h-40 sm:h-48 object-cover"
-                  />
-                  <span
-                    className={`absolute top-2 sm:top-3 left-2 sm:left-3 text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md ${
-                      food.type === "Veg"
-                        ? "bg-green-100 text-green-700 border border-green-500"
-                        : "bg-red-100 text-red-700 border border-red-500"
-                    }`}
-                  >
-                    {food.type}
-                  </span>
+            <AnimatePresence mode="wait">
+              {filteredFoods.map((food, index) => (
+                <motion.div
+                  key={food._id}
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -20 }}
+                  transition={{ 
+                    duration: 0.3, 
+                    delay: index * 0.03,
+                    ease: [0.16, 1, 0.3, 1]
+                  }}
+                  whileHover={{ scale: 1.02 }}
+                  className="flex flex-col cursor-pointer"
+                >
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-md hover:shadow-xl overflow-hidden">
+                  <div className="relative">
+                    <img
+                      src={food.image || "https://via.placeholder.com/400x300"}
+                      alt={food.name}
+                      className="w-full h-36 sm:h-40 object-cover"
+                    />
+                    {/* Black gradient overlay from bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent pointer-events-none"></div>
+                    
+                    {/* Veg/Non-Veg Badge */}
+                    <span
+                      className={`absolute top-2 sm:top-3 left-2 sm:left-3 text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md z-10 ${
+                        food.type === "Veg"
+                          ? "bg-green-100 text-green-700 border border-green-500"
+                          : "bg-red-100 text-red-700 border border-red-500"
+                      }`}
+                    >
+                      {food.type}
+                    </span>
+
+                    {/* Dish Name on Gradient */}
+                    <h3 className="absolute bottom-0 left-0 right-0 px-3 sm:px-4 pb-3 sm:pb-4 font-bold text-white text-base sm:text-lg z-10 drop-shadow-lg">
+                      {food.name}
+                    </h3>
+                  </div>
                 </div>
 
-                <div className="p-3 sm:p-4 flex flex-col flex-grow">
-                  <h3 className="font-bold text-gray-800 text-base sm:text-lg mb-1">{food.name}</h3>
-                  <p className="text-xs sm:text-sm text-gray-500 capitalize mb-2">
-                    {food.category}
-                  </p>
-                  <div className="flex items-center gap-1.5 sm:gap-2 text-yellow-500 mb-2">
-                    <FaStar className="text-sm sm:text-base" />
-                    <span className="text-gray-700 text-xs sm:text-sm">
-                      {food.rating || "4.3"} • {Math.floor(Math.random() * 30 + 10)} min
-                    </span>
+                <div className="px-3 sm:px-4 pt-2 pb-3 sm:pb-4 flex flex-col">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs sm:text-sm text-gray-500 capitalize">
+                      {food.category}
+                    </p>
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-yellow-500">
+                      <FaStar className="text-sm sm:text-base" />
+                      <span className="text-gray-700 text-xs sm:text-sm">
+                        {food.rating || "4.3"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center mt-auto pt-2">
-                    <span className="text-base sm:text-lg font-bold text-red-600">
+                  <div className="flex justify-between items-center mt-auto pt-1">
+                    <span className="text-base sm:text-lg font-bold text-orange-600">
                       ₹{food.price}
                     </span>
                     <button
                       onClick={() => addToCart(food)}
-                      className="bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1"
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1"
                     >
                       <FaShoppingCart className="text-xs sm:text-sm" /> Add
                     </button>
                   </div>
                 </div>
               </motion.div>
-            ))}
+              ))}
+            </AnimatePresence>
           </motion.div>
         )}
       </div>
