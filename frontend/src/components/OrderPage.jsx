@@ -53,13 +53,29 @@ const OrderPage = () => {
   }, [user]);
 
   useEffect(() => {
+    // Only attempt socket connection if not in production or if WebSocket is supported
+    // Vercel serverless doesn't support WebSockets, so we'll gracefully handle failures
     if (!socketRef.current) {
-      socketRef.current = io(API_BASE, {
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5,
-      });
+      try {
+        socketRef.current = io(API_BASE, {
+          transports: ["websocket", "polling"], // Fallback to polling if websocket fails
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionAttempts: 3, // Reduced attempts to avoid spam
+          timeout: 5000,
+          autoConnect: true,
+        });
+      } catch (error) {
+        console.warn("⚠️ Socket.IO initialization failed (this is expected on Vercel):", error);
+        // Create a mock socket object to prevent errors
+        socketRef.current = {
+          on: () => {},
+          off: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connected: false,
+        };
+      }
     }
     const socket = socketRef.current;
 
@@ -73,7 +89,12 @@ const OrderPage = () => {
     });
 
     socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error);
+      // Suppress error logging for expected failures (Vercel serverless)
+      if (error.message && error.message.includes("websocket")) {
+        console.warn("⚠️ WebSocket connection unavailable (expected on serverless platforms)");
+      } else {
+        console.error("❌ Socket connection error:", error);
+      }
     });
 
     // Listen for new orders (booking) - Real-time UI update

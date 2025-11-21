@@ -17,7 +17,8 @@ export const createOrder = async (req, res) => {
     // ✅ Validation
     const { userEmail, tableNumber, foodName, quantity, price } = req.body;
     
-    if (!userEmail || !tableNumber || !foodName || !quantity || !price) {
+    // Allow tableNumber to be 0 for takeaway/delivery orders
+    if (!userEmail || (tableNumber === undefined || tableNumber === null) || !foodName || !quantity || !price) {
       return res.status(400).json({
         success: false,
         message: "Please provide userEmail, tableNumber, foodName, quantity, and price",
@@ -62,7 +63,8 @@ export const createMultipleOrders = async (req, res) => {
 
     // ✅ Validate each order
     for (const order of req.body) {
-      if (!order.userEmail || !order.tableNumber || !order.foodName || !order.quantity || !order.price) {
+      // Allow tableNumber to be 0 for takeaway/delivery orders
+      if (!order.userEmail || (order.tableNumber === undefined || order.tableNumber === null) || !order.foodName || !order.quantity || !order.price) {
         return res.status(400).json({
           success: false,
           message: "Each order must have userEmail, tableNumber, foodName, quantity, and price",

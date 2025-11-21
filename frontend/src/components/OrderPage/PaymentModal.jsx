@@ -56,23 +56,28 @@ const PaymentModal = ({
     // Now create orders AFTER payment is confirmed
     setIsCreatingOrder(true);
     try {
-      // Create orders with paymentStatus: "Paid" since payment is already done
-      const payload = cartData.map((i) => ({
-        foodName: i.name,
-        category: i.category,
-        type: i.type,
-        tableNumber: Number(tableNumber),
-        isInRestaurant: isInRestaurant, // Include restaurant status
-        quantity: i.quantity,
-        price: i.price * i.quantity,
-        userId: user.uid,
-        userEmail: user.email,
-        userName: user.displayName || "Guest User",
-        paymentStatus: "Paid", // Payment is already done, so mark as Paid
-        paymentMethod: selectedPaymentMethod, // Include payment method (UPI or Cash)
+      // Ensure tableNumber is properly set (0 for takeaway, actual number for in-restaurant)
+      const finalTableNumber = isInRestaurant ? Number(tableNumber) : 0;
+      
+      // Validate and prepare payload before sending
+      const validatedPayload = cartData.map((i) => ({
+        foodName: i.name || i.foodName,
+        category: i.category || "Uncategorized",
+        type: i.type || "Veg",
+        tableNumber: finalTableNumber,
+        quantity: Number(i.quantity) || 1,
+        price: Number(i.price) * Number(i.quantity) || 0,
+        userId: user?.uid || "",
+        userEmail: user?.email || "",
+        userName: user?.displayName || "Guest User",
+        paymentStatus: "Paid",
+        paymentMethod: selectedPaymentMethod,
+        image: i.image || "",
       }));
 
-      const response = await axios.post(`${API_BASE}/api/orders/create-multiple`, payload);
+      console.log("Sending order payload:", validatedPayload); // Debug log
+      
+      const response = await axios.post(`${API_BASE}/api/orders/create-multiple`, validatedPayload);
       
       console.log("Order creation response:", response.data); // Debug log
       
@@ -117,7 +122,27 @@ const PaymentModal = ({
       }
     } catch (error) {
       console.error("Error creating order after payment:", error);
-      toast.error("Failed to place order! Please try again.");
+      
+      // Provide more detailed error message
+      let errorMessage = "Failed to place order! Please try again.";
+      if (error.response) {
+        // Server responded with error status
+        const serverError = error.response.data;
+        errorMessage = serverError?.message || `Server error: ${error.response.status}`;
+        console.error("Server error details:", serverError);
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = "Network error. Please check your connection and try again.";
+        console.error("Network error:", error.request);
+      } else {
+        // Something else happened
+        errorMessage = error.message || "An unexpected error occurred.";
+      }
+      
+      toast.error(errorMessage, {
+        duration: 5000,
+        position: "top-center",
+      });
       setPaymentConfirmed(false);
       setIsCreatingOrder(false);
     }
