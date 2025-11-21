@@ -41,14 +41,38 @@ export const connectDB = async () => {
     // Connection options optimized for serverless (Vercel)
     // Note: retryWrites and w should be in URI, not options
     const options = {
-      serverSelectionTimeoutMS: 10000, // Timeout after 10s
+      serverSelectionTimeoutMS: 15000, // Increased timeout for serverless (15s)
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-      connectTimeoutMS: 10000, // Connection timeout
+      connectTimeoutMS: 15000, // Increased connection timeout (15s)
       maxPoolSize: 10, // Maintain up to 10 socket connections
       minPoolSize: 1, // Maintain at least 1 socket connection
     };
 
     // If connection exists but is not connected, close it first
+    // readyState: 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+    if (mongoose.connection.readyState === 2) {
+      // Connection is in progress, wait for it
+      console.log("⏳ Connection in progress, waiting...");
+      await new Promise((resolve) => {
+        const checkConnection = () => {
+          if (mongoose.connection.readyState === 1) {
+            console.log("✅ Connection completed");
+            resolve();
+          } else if (mongoose.connection.readyState !== 2) {
+            resolve();
+          } else {
+            setTimeout(checkConnection, 100);
+          }
+        };
+        checkConnection();
+      });
+      
+      if (mongoose.connection.readyState === 1) {
+        cachedConnection = mongoose.connection;
+        return cachedConnection;
+      }
+    }
+    
     if (mongoose.connection.readyState !== 0 && mongoose.connection.readyState !== 1) {
       try {
         await mongoose.connection.close();
@@ -60,12 +84,16 @@ export const connectDB = async () => {
     // Connect to MongoDB
     cachedConnection = await mongoose.connect(mongoUri, options);
     
-    // Wait a moment to ensure connection is fully established
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait a bit longer to ensure connection is fully established (especially for serverless)
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Verify connection is actually ready
     if (mongoose.connection.readyState !== 1) {
-      throw new Error(`Connection established but not ready. ReadyState: ${mongoose.connection.readyState}`);
+      // Try one more time after a short delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (mongoose.connection.readyState !== 1) {
+        throw new Error(`Connection established but not ready. ReadyState: ${mongoose.connection.readyState}`);
+      }
     }
     
     console.log("✅ MongoDB Connected Successfully. ReadyState:", mongoose.connection.readyState);
