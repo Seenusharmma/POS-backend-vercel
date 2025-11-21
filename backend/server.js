@@ -105,9 +105,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ API Routes
-app.use("/api/foods", foodRoutes);
-app.use("/api/orders", orderRoutes);
+// ✅ API Routes (with error handling)
+try {
+  app.use("/api/foods", foodRoutes);
+  app.use("/api/orders", orderRoutes);
+} catch (error) {
+  console.error("❌ Error setting up routes:", error);
+}
 
 // ✅ Socket.IO Event Handling (only in local development)
 if (!isVercel && io) {
@@ -143,6 +147,16 @@ app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: `API route not found: ${req.originalUrl}`,
+  });
+});
+
+// ✅ Global error handler for unhandled errors
+app.use((err, req, res, next) => {
+  console.error("❌ Unhandled error:", err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal server error",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack })
   });
 });
 

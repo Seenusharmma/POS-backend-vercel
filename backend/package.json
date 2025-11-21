@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "build": "echo 'Build complete'"
+    "build": "echo 'Build complete'",
+    "vercel-build": "echo 'Vercel build complete'",
+    "postinstall": "echo 'Dependencies installed successfully'"
   },
   "keywords": [],
   "author": "",
