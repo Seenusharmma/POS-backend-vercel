@@ -30,6 +30,13 @@ router.post("/add", async (req, res) => {
     if (mongoose.default.connection.readyState !== 1) {
       console.log("🔄 Establishing database connection for add order...");
       await connectDB();
+      
+      if (mongoose.default.connection.readyState !== 1) {
+        return res.status(503).json({ 
+          success: false,
+          message: "Database connection unavailable. Please try again later." 
+        });
+      }
     }
 
     const {

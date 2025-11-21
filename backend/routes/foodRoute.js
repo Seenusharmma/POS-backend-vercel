@@ -93,13 +93,41 @@ router.get("/", async (req, res) => {
 ================================ */
 router.get("/:id", async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    const { connectDB } = await import("../config/db.js");
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for get single food...");
+      await connectDB();
+      
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ 
+          success: false, 
+          message: "Database connection unavailable. Please try again later." 
+        });
+      }
+    }
+
     const food = await Food.findById(req.params.id);
     if (!food)
       return res.status(404).json({ success: false, message: "Food not found" });
     res.status(200).json(food);
   } catch (err) {
     console.error("❌ Error fetching single food:", err);
-    res.status(500).json({ success: false, message: "Failed to fetch food" });
+    
+    // Check if it's a database connection error
+    if (err.name === "MongoServerSelectionError" || err.message.includes("connection")) {
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database connection error. Please try again later.",
+        error: process.env.NODE_ENV === "development" ? err.message : undefined
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch food",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined
+    });
   }
 });
 

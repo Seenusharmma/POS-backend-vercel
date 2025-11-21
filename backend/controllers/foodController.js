@@ -1,16 +1,45 @@
 import Food from "../models/foodModel.js";
 import { v2 as cloudinary } from "cloudinary";
+import mongoose from "mongoose";
+import { connectDB } from "../config/db.js";
 
 /* ================================
    🥗 GET - All Foods
 ================================ */
 export const getFoods = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for getFoods...");
+      await connectDB();
+      
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ 
+          success: false,
+          message: "Database connection unavailable. Please try again later." 
+        });
+      }
+    }
+
     const foods = await Food.find().sort({ createdAt: -1 });
     res.status(200).json(foods);
   } catch (error) {
     console.error("❌ Error fetching foods:", error);
-    res.status(500).json({ message: "Failed to fetch foods" });
+    
+    // Check if it's a database connection error
+    if (error.name === "MongoServerSelectionError" || error.message.includes("connection")) {
+      return res.status(503).json({ 
+        success: false,
+        message: "Database connection error. Please try again later.",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to fetch foods",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 };
 
@@ -19,6 +48,19 @@ export const getFoods = async (req, res) => {
 ================================ */
 export const addFood = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for addFood...");
+      await connectDB();
+      
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ 
+          success: false,
+          message: "Database connection unavailable. Please try again later." 
+        });
+      }
+    }
+
     const { name, category, type, price, available } = req.body;
     let imageUrl = null;
 
@@ -62,6 +104,19 @@ export const addFood = async (req, res) => {
 ================================ */
 export const updateFood = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for updateFood...");
+      await connectDB();
+      
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ 
+          success: false,
+          message: "Database connection unavailable. Please try again later." 
+        });
+      }
+    }
+
     const { id } = req.params;
     const updateData = { ...req.body };
 
@@ -103,6 +158,19 @@ export const updateFood = async (req, res) => {
 ================================ */
 export const deleteFood = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for deleteFood...");
+      await connectDB();
+      
+      if (mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ 
+          success: false,
+          message: "Database connection unavailable. Please try again later." 
+        });
+      }
+    }
+
     const { id } = req.params;
     console.log("🗑️ DELETE request for food:", id);
 

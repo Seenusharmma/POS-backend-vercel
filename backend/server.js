@@ -142,21 +142,21 @@ app.get("/", (req, res) => {
   res.send("🍽️ Food Fantasy Backend is running successfully!");
 });
 
-// ✅ 404 Handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `API route not found: ${req.originalUrl}`,
-  });
-});
-
-// ✅ Global error handler for unhandled errors
+// ✅ Global error handler for unhandled errors (must be before 404 handler)
 app.use((err, req, res, next) => {
   console.error("❌ Unhandled error:", err);
   res.status(err.status || 500).json({
     success: false,
     message: err.message || "Internal server error",
     ...(process.env.NODE_ENV === "development" && { stack: err.stack })
+  });
+});
+
+// ✅ 404 Handler (must be last)
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `API route not found: ${req.originalUrl}`,
   });
 });
 

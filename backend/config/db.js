@@ -14,10 +14,10 @@ export const connectDB = async () => {
       return cachedConnection;
     }
 
-    let mongoUri = process.env.MONGODB_URI || "mongodb+srv://roshansharma7250:v5xmJvpbsxEYW1ek@cluster0.l4oud1b.mongodb.net/";
+    let mongoUri = process.env.MONGODB_URI;
     
     if (!mongoUri) {
-      throw new Error("MongoDB URI is not defined. Please set MONGODB_URI in your .env file");
+      throw new Error("MongoDB URI is not defined. Please set MONGODB_URI in your environment variables");
     }
 
     // Ensure MongoDB URI has database name and proper query parameters
