@@ -51,10 +51,33 @@ if (!isVercel) {
   console.log("⚠️ Running on Vercel - Socket.IO WebSocket features disabled");
 }
 
-// ✅ MongoDB Connection
-connectDB()
-  .then(() => console.log("✅ MongoDB connected successfully"))
-  .catch((err) => console.error("❌ MongoDB connection failed:", err));
+// ✅ MongoDB Connection (non-blocking for serverless)
+// On Vercel, connections are established per request, so we don't block startup
+if (!isVercel) {
+  // Local development: Connect immediately
+  connectDB()
+    .then((result) => {
+      if (result) {
+        console.log("✅ MongoDB connected successfully");
+      } else {
+        console.warn("⚠️ MongoDB connection returned null, will retry on first request");
+      }
+    })
+    .catch((err) => console.error("❌ MongoDB connection failed:", err));
+} else {
+  // Vercel: Connection will be established on first request
+  console.log("⚠️ Running on Vercel - MongoDB connection will be established per request");
+  // Try to establish connection in background (non-blocking)
+  connectDB()
+    .then((result) => {
+      if (result) {
+        console.log("✅ MongoDB pre-connected successfully");
+      }
+    })
+    .catch((err) => {
+      console.warn("⚠️ MongoDB pre-connection failed, will retry on first request:", err.message);
+    });
+}
 
 // ✅ Middleware
 app.use(
@@ -69,7 +92,9 @@ app.use(
   })
 );
 
-app.use(express.json());
+// ✅ Body parser with increased limits for file uploads
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ✅ Store Socket.IO instance in app for route access
 app.set("io", io);

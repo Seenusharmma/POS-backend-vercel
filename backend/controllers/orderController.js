@@ -1,19 +1,59 @@
 import Order from "../models/orderModel.js";
+import mongoose from "mongoose";
+import { connectDB } from "../config/db.js";
 
 // 📦 Get all orders
 export const getOrders = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for getOrders...");
+      const connectionResult = await connectDB();
+      
+      // Wait a moment for connection to be fully established
+      if (!connectionResult || mongoose.connection.readyState !== 1) {
+        // Retry once
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (mongoose.connection.readyState !== 1) {
+          console.error("❌ Database connection failed for getOrders");
+          return res.status(503).json({ 
+            success: false,
+            message: "Database connection unavailable. Please try again later."
+          });
+        }
+      }
+    }
+
+    // Verify connection is ready before querying
+    if (mongoose.connection.readyState !== 1) {
+      console.error("❌ Database not connected. ReadyState:", mongoose.connection.readyState);
+      return res.status(503).json({ 
+        success: false,
+        message: "Database connection unavailable. Please try again later."
+      });
+    }
+
     const orders = await Order.find().sort({ createdAt: -1 });
     res.status(200).json(orders);
   } catch (error) {
     console.error("Error fetching orders:", error);
-    res.status(500).json({ message: "Failed to fetch orders" });
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to fetch orders",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
+    });
   }
 };
 
 // ➕ Create single order
 export const createOrder = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for createOrder...");
+      await connectDB();
+    }
+
     // ✅ Validation
     const { userEmail, tableNumber, foodName, quantity, price } = req.body;
     
@@ -56,6 +96,12 @@ export const createOrder = async (req, res) => {
 // ➕ Create multiple orders (used in multi-food checkout)
 export const createMultipleOrders = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for createMultipleOrders...");
+      await connectDB();
+    }
+
     if (!Array.isArray(req.body) || req.body.length === 0) {
       return res
         .status(400)
@@ -108,6 +154,12 @@ export const createMultipleOrders = async (req, res) => {
 // 🔄 Update order status (Admin)
 export const updateOrderStatus = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for updateOrderStatus...");
+      await connectDB();
+    }
+
     const { id } = req.params;
     const { status, paymentStatus, paymentMethod } = req.body;
 
@@ -195,6 +247,12 @@ export const updateOrderStatus = async (req, res) => {
 // ❌ Delete completed order (User)
 export const deleteOrder = async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for deleteOrder...");
+      await connectDB();
+    }
+
     const { id } = req.params;
 
     const order = await Order.findById(id);

@@ -24,6 +24,14 @@ router.delete("/:id", deleteOrder);
 =========================================== */
 router.post("/add", async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    const mongoose = await import("mongoose");
+    const { connectDB } = await import("../config/db.js");
+    if (mongoose.default.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for add order...");
+      await connectDB();
+    }
+
     const {
       foodName,
       category,

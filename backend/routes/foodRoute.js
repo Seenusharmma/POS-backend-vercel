@@ -15,7 +15,37 @@ const upload = multer({ storage });
 ================================ */
 router.get("/", async (req, res) => {
   try {
-    // Check database connection
+    // Ensure database connection (for serverless)
+    const { connectDB } = await import("../config/db.js");
+    
+    // Check connection state and connect if needed (with retry)
+    let retries = 0;
+    const maxRetries = 2;
+    
+    while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
+      console.log(`🔄 Establishing database connection... (Attempt ${retries + 1}/${maxRetries})`);
+      const connectionResult = await connectDB();
+      
+      // Wait a bit before checking connection state
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (mongoose.connection.readyState === 1) {
+        console.log("✅ Database connection established");
+        break;
+      }
+      
+      retries++;
+      
+      if (retries >= maxRetries) {
+        console.error("❌ Database connection failed after retries");
+        return res.status(503).json({ 
+          success: false, 
+          message: "Database connection unavailable. Please try again later." 
+        });
+      }
+    }
+
+    // Verify connection is ready before querying
     if (mongoose.connection.readyState !== 1) {
       console.error("❌ Database not connected. ReadyState:", mongoose.connection.readyState);
       return res.status(503).json({ 
@@ -24,17 +54,31 @@ router.get("/", async (req, res) => {
       });
     }
 
+    // Query foods
     const foods = await Food.find().sort({ createdAt: -1 });
+    console.log(`✅ Fetched ${foods.length} foods successfully`);
     res.status(200).json(foods);
   } catch (err) {
     console.error("❌ Error fetching foods:", err);
     // Provide more detailed error information
     const errorMessage = err.message || "Unknown error";
+    const errorName = err.name || "Error";
+    
     console.error("Error details:", {
       message: errorMessage,
+      name: errorName,
       stack: err.stack,
-      name: err.name
+      readyState: mongoose.connection.readyState
     });
+    
+    // Check if it's a database connection error
+    if (errorName === "MongoServerSelectionError" || errorMessage.includes("connection")) {
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database connection error. Please try again later.",
+        error: process.env.NODE_ENV === "development" ? errorMessage : undefined
+      });
+    }
     
     res.status(500).json({ 
       success: false, 
@@ -64,6 +108,13 @@ router.get("/:id", async (req, res) => {
 ================================ */
 router.post("/add", upload.single("image"), async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    const { connectDB } = await import("../config/db.js");
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for add food...");
+      await connectDB();
+    }
+
     // ✅ Validation
     const { name, category, type, price } = req.body;
     
@@ -136,6 +187,13 @@ router.post("/add", upload.single("image"), async (req, res) => {
 ================================ */
 router.put("/:id", upload.single("image"), async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    const { connectDB } = await import("../config/db.js");
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for update food...");
+      await connectDB();
+    }
+
     const { id } = req.params;
     let updateData = { ...req.body };
 
@@ -204,6 +262,13 @@ router.put("/:id", upload.single("image"), async (req, res) => {
 ================================ */
 router.delete("/:id", async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    const { connectDB } = await import("../config/db.js");
+    if (mongoose.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for delete food...");
+      await connectDB();
+    }
+
     const { id } = req.params;
     console.log("🗑️ DELETE request for food:", id); // ✅ Helpful for Render logs
 
