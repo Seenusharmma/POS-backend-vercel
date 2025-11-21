@@ -24,10 +24,17 @@ const OrderHistory = () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/orders`);
+      // Filter for user's completed orders (check both email and userId)
       const userOrders = res.data.filter(
-        (o) => o.userEmail === user.email && o.status === "Completed"
+        (o) => 
+          (o.userEmail === user.email || o.userId === user.uid) && 
+          o.status === "Completed"
       );
-      setOrders(userOrders.reverse());
+      // Sort by creation date (newest first)
+      const sortedOrders = userOrders.sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      setOrders(sortedOrders);
     } catch (err) {
       toast.error("Failed to fetch order history!");
       console.error(err);
@@ -135,9 +142,9 @@ const OrderHistory = () => {
           setOrders((prev) => {
             const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
             if (existingIndex >= 0) {
-              // Update existing order
+              // Update existing order with all fields
               const updated = [...prev];
-              updated[existingIndex] = { ...updated[existingIndex], status: updatedOrder.status };
+              updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
               return updated;
             } else {
               // Add new completed order to history
@@ -148,6 +155,8 @@ const OrderHistory = () => {
               return [updatedOrder, ...prev];
             }
           });
+          // Always refresh history when order is completed to ensure it's saved
+          fetchHistory();
         } else {
           // Update status for existing orders
           setOrders((prev) =>
@@ -156,7 +165,6 @@ const OrderHistory = () => {
             )
           );
         }
-        fetchHistory();
       }
     });
 
@@ -217,14 +225,14 @@ const OrderHistory = () => {
         },
         // onStatusChange callback (when order status changes to Completed)
         (updatedOrder, oldOrder) => {
-          // When order becomes completed, add it to history
+          // When order becomes completed, add it to history immediately
           if (updatedOrder.status === "Completed" && oldOrder.status !== "Completed") {
             setOrders((prev) => {
               const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
               if (existingIndex >= 0) {
                 // Update existing order
                 const updated = [...prev];
-                updated[existingIndex] = { ...updated[existingIndex], status: updatedOrder.status };
+                updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
                 return updated;
               } else {
                 // Add new completed order to history
@@ -235,13 +243,15 @@ const OrderHistory = () => {
                 return [updatedOrder, ...prev];
               }
             });
+            // Refresh history to ensure all completed orders are shown
+            fetchHistory();
           }
 
           // Handle payment status changes
           if (updatedOrder.paymentStatus !== oldOrder.paymentStatus && updatedOrder.paymentStatus === "Paid") {
             setOrders((prev) =>
               prev.map((o) =>
-                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid" } : o
+                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod } : o
               )
             );
             toast.success("💰 Payment Done! Your payment has been confirmed.", {
@@ -255,6 +265,8 @@ const OrderHistory = () => {
               },
               position: "top-center",
             });
+            // Refresh history after payment update
+            fetchHistory();
           }
         },
         3000 // Poll every 3 seconds

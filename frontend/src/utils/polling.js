@@ -78,7 +78,7 @@ export const pollOrders = (fetchOrders, onNewOrder, onStatusChange, interval = 3
 
     const newOrderIds = new Set(newOrders.map(o => o._id));
     
-    // Check for new orders
+    // Check for new orders (orders that weren't in the previous list)
     newOrders.forEach(order => {
       if (!lastOrderIds.has(order._id)) {
         if (onNewOrder) {
@@ -91,7 +91,7 @@ export const pollOrders = (fetchOrders, onNewOrder, onStatusChange, interval = 3
     newOrders.forEach(newOrder => {
       const oldOrder = lastOrders.find(o => o._id === newOrder._id);
       if (oldOrder) {
-        // Check status changes
+        // Check status changes (especially when order becomes Completed)
         if (oldOrder.status !== newOrder.status) {
           if (onStatusChange) {
             onStatusChange(newOrder, oldOrder);
@@ -103,6 +103,12 @@ export const pollOrders = (fetchOrders, onNewOrder, onStatusChange, interval = 3
           if (onStatusChange) {
             onStatusChange(newOrder, oldOrder);
           }
+        }
+      } else {
+        // Order exists in new list but not in old list
+        // This could be a newly completed order that just appeared
+        if (newOrder.status === "Completed" && onNewOrder) {
+          onNewOrder(newOrder);
         }
       }
     });

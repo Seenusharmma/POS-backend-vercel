@@ -289,6 +289,7 @@ const OrderPage = () => {
         playNotificationSound();
         
         // If order is completed, remove it from user's live orders
+        // (It will now appear in Order History page)
         if (updatedOrder.status === "Completed") {
           setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
           
@@ -300,9 +301,9 @@ const OrderPage = () => {
           }
           
           toast.success(
-            `🎉 Your order is completed: ${updatedOrder.foodName}`,
+            `🎉 Your order is completed: ${updatedOrder.foodName}. Check Order History to view it!`,
             {
-              duration: 4000,
+              duration: 5000,
               position: "top-center",
             }
           );
