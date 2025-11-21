@@ -116,13 +116,25 @@ const AdminPage = () => {
       // Start polling for orders
       pollingStopRef.current = pollOrders(
         fetchOrdersForPolling,
-        // onNewOrder callback
+        // onNewOrder callback - when a new order appears
         (newOrder) => {
-          toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber}`, {
-            duration: 4000,
+          // 🔊 Play notification sound for new orders
+          playNotificationSound();
+          
+          // Show notification toast
+          toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber || "Takeaway"}`, {
+            duration: 5000,
             position: "top-right",
             icon: "🆕",
+            style: {
+              background: "#10b981",
+              color: "#fff",
+              fontSize: "16px",
+              fontWeight: "600",
+            },
           });
+          
+          // Add order to list if not completed
           setOrders((prev) => {
             const exists = prev.find((o) => o._id === newOrder._id);
             if (!exists && newOrder.status !== "Completed") {
@@ -130,8 +142,13 @@ const AdminPage = () => {
             }
             return prev;
           });
+          
+          // Highlight the new order
           setHighlightedOrder(newOrder._id);
           setTimeout(() => setHighlightedOrder(null), 3000);
+          
+          // Refresh data to ensure consistency
+          getAllData();
         },
         // onStatusChange callback
         (updatedOrder, oldOrder) => {
@@ -147,11 +164,18 @@ const AdminPage = () => {
               Completed: "🎉 Order completed",
             };
             
+            // Show notification toast
             toast.success(
               `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
               {
-                duration: 3000,
+                duration: 4000,
                 position: "top-right",
+                style: {
+                  background: "#3b82f6",
+                  color: "#fff",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                },
               }
             );
 
@@ -160,24 +184,39 @@ const AdminPage = () => {
             } else {
               setOrders((prev) =>
                 prev.map((o) =>
-                  o._id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o
+                  o._id === updatedOrder._id ? { ...o, ...updatedOrder } : o
                 )
               );
             }
+            
+            // Refresh data to ensure consistency
+            getAllData();
           }
 
           // Handle payment status changes
           if (updatedOrder.paymentStatus !== oldOrder.paymentStatus && updatedOrder.paymentStatus === "Paid") {
+            // 🔊 Play notification sound for payment
+            playNotificationSound();
+            
             toast.success(`💰 Payment Confirmed: ${updatedOrder.foodName}`, {
-              duration: 3000,
+              duration: 4000,
               position: "top-right",
               icon: "✅",
+              style: {
+                background: "#10b981",
+                color: "#fff",
+                fontSize: "16px",
+                fontWeight: "600",
+              },
             });
             setOrders((prev) =>
               prev.map((o) =>
                 o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
               )
             );
+            
+            // Refresh data to ensure consistency
+            getAllData();
           }
         },
         3000 // Poll every 3 seconds
@@ -233,17 +272,39 @@ const AdminPage = () => {
     });
 
     socket.on("newOrderPlaced", (newOrder) => {
-      toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber}`, {
-        duration: 4000,
+      // 🔊 Play notification sound for new orders
+      playNotificationSound();
+      
+      // Show notification toast
+      toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber || "Takeaway"}`, {
+        duration: 5000,
         position: "top-right",
         icon: "🆕",
+        style: {
+          background: "#10b981",
+          color: "#fff",
+          fontSize: "16px",
+          fontWeight: "600",
+        },
       });
+      
       // Only add if order is not completed
       if (newOrder.status !== "Completed") {
-        setOrders((prev) => [newOrder, ...prev]);
+        setOrders((prev) => {
+          const exists = prev.find((o) => o._id === newOrder._id);
+          if (!exists) {
+            return [newOrder, ...prev];
+          }
+          return prev;
+        });
       }
+      
+      // Highlight the new order
       setHighlightedOrder(newOrder._id);
       setTimeout(() => setHighlightedOrder(null), 3000);
+      
+      // Refresh data to ensure consistency
+      getAllData();
     });
 
     socket.on("orderStatusChanged", (updatedOrder) => {
@@ -255,16 +316,24 @@ const AdminPage = () => {
         Completed: "🎉 Order completed",
       };
       
-      // 🔊 Play notification sound
+      // 🔊 Play notification sound for status changes
       playNotificationSound();
       
+      // Show notification toast
       toast.success(
         `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
         {
-          duration: 3000,
+          duration: 4000,
           position: "top-right",
+          style: {
+            background: "#3b82f6",
+            color: "#fff",
+            fontSize: "16px",
+            fontWeight: "600",
+          },
         }
       );
+      
       // If order is completed, remove it from active orders view
       if (updatedOrder.status === "Completed") {
         setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
@@ -272,36 +341,112 @@ const AdminPage = () => {
         // Update order status if not completed
         setOrders((prev) =>
           prev.map((o) =>
-            o._id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o
+            o._id === updatedOrder._id ? { ...o, ...updatedOrder } : o
           )
         );
       }
+      
+      // Refresh data to ensure consistency
+      getAllData();
     });
 
     socket.on("paymentSuccess", (orderData) => {
       console.log("💰 Admin received paymentSuccess event:", orderData);
+      
+      // 🔊 Play notification sound for payment
+      playNotificationSound();
+      
+      // Show notification toast
       toast.success(`💰 Payment Confirmed: ${orderData.foodName}`, {
-        duration: 3000,
+        duration: 4000,
         position: "top-right",
         icon: "✅",
+        style: {
+          background: "#10b981",
+          color: "#fff",
+          fontSize: "16px",
+          fontWeight: "600",
+        },
       });
+      
+      // Update order payment status
       setOrders((prev) =>
         prev.map((o) =>
           o._id === orderData._id ? { ...o, paymentStatus: "Paid", paymentMethod: orderData.paymentMethod || "UPI" } : o
         )
       );
+      
+      // Refresh data to ensure consistency
+      getAllData();
     });
 
     socket.on("foodUpdated", (updatedFood) => {
+      // 🔊 Play notification sound
+      playNotificationSound();
+      
+      toast.success(`🍽️ Food Updated: ${updatedFood.name}`, {
+        duration: 3000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#3b82f6",
+          color: "#fff",
+          fontSize: "16px",
+          fontWeight: "600",
+        },
+      });
+      
       setFoods((prev) =>
         prev.map((f) => (f._id === updatedFood._id ? updatedFood : f))
       );
+      
+      // Refresh data
+      getAllData();
     });
 
-    socket.on("newFoodAdded", (food) => setFoods((prev) => [...prev, food]));
-    socket.on("foodDeleted", (id) =>
-      setFoods((prev) => prev.filter((f) => f._id !== id))
-    );
+    socket.on("newFoodAdded", (food) => {
+      // 🔊 Play notification sound
+      playNotificationSound();
+      
+      toast.success(`➕ New Food Added: ${food.name}`, {
+        duration: 3000,
+        position: "top-right",
+        icon: "🆕",
+        style: {
+          background: "#10b981",
+          color: "#fff",
+          fontSize: "16px",
+          fontWeight: "600",
+        },
+      });
+      
+      setFoods((prev) => [...prev, food]);
+      
+      // Refresh data
+      getAllData();
+    });
+    
+    socket.on("foodDeleted", (id) => {
+      // 🔊 Play notification sound
+      playNotificationSound();
+      
+      toast.success("🗑️ Food Deleted", {
+        duration: 3000,
+        position: "top-right",
+        icon: "🗑️",
+        style: {
+          background: "#ef4444",
+          color: "#fff",
+          fontSize: "16px",
+          fontWeight: "600",
+        },
+      });
+      
+      setFoods((prev) => prev.filter((f) => f._id !== id));
+      
+      // Refresh data
+      getAllData();
+    });
 
     return () => {
       // Clean up all event listeners
