@@ -81,6 +81,29 @@ if (!isVercel) {
     });
 }
 
+// ✅ Security Headers Middleware (must be before CORS)
+app.use((req, res, next) => {
+  // ✅ Security Headers to prevent dangerous site warnings
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  
+  // ✅ Strict Transport Security (HSTS) - force HTTPS
+  if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
+  
+  // ✅ Content Security Policy
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https: wss:; frame-ancestors 'none';"
+  );
+  
+  next();
+});
+
 // ✅ Middleware
 app.use(
   cors({
