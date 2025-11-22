@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import { io } from "socket.io-client";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart } from "react-icons/fa";
@@ -10,6 +9,7 @@ import API_BASE from "../config/api";
 import LogoLoader from "./LogoLoader";
 import { useFoodFilter } from "../store/hooks";
 import { useAppSelector } from "../store/hooks";
+import { getSocketConfig, createSocketConnection, isServerlessPlatform } from "../utils/socketConfig";
 
 const Menu = () => {
   const { filterFoods: applyGlobalFilter } = useFoodFilter();
@@ -64,32 +64,50 @@ const Menu = () => {
     localStorage.setItem("cartItems", JSON.stringify(cart));
   }, [cart]);
 
-  // Real-time socket notifications
+  // ✅ Real-time socket notifications with optimized configuration
   useEffect(() => {
     if (!user) return;
 
+    const isServerless = isServerlessPlatform();
+    
     if (!socketRef.current) {
-      socketRef.current = io(API_BASE, {
-        transports: ["websocket"],
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: 5,
-      });
+      if (isServerless) {
+        // On serverless platforms, create a mock socket
+        socketRef.current = {
+          on: () => {},
+          off: () => {},
+          emit: () => {},
+          disconnect: () => {},
+          connected: false,
+          metrics: { quality: "unavailable" },
+        };
+      } else {
+        // ✅ Create optimized socket connection as user
+        const socketConfig = getSocketConfig({
+          type: "user",
+          userId: user?.uid || null,
+          autoConnect: true,
+        });
+        
+        socketRef.current = createSocketConnection(API_BASE, socketConfig);
+      }
     }
     const socket = socketRef.current;
 
-    // Connection event listeners for debugging
-    socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
-    });
+    // Connection event listeners (silent)
+    if (socket.on && socket.connected) {
+      socket.on("connect", () => {
+        // Silently connected
+      });
 
-    socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
-    });
+      socket.on("disconnect", () => {
+        // Silently disconnected
+      });
 
-    socket.on("connect_error", (error) => {
-      console.error("❌ Socket connection error:", error);
-    });
+      socket.on("connect_error", (error) => {
+        // Suppress expected errors - silently handle
+      });
+    }
 
     // Listen for new orders (booking) - Real-time notification
     socket.on("newOrderPlaced", (newOrder) => {

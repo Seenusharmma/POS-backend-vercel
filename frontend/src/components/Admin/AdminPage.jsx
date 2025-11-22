@@ -92,10 +92,16 @@ const AdminPage = () => {
           disconnect: () => {},
           connect: () => {},
           connected: false,
+          metrics: { quality: "unavailable" },
         };
       } else {
-        // On regular servers, create real socket connection safely
-        const socketConfig = getSocketConfig();
+        // ✅ On regular servers, create optimized socket connection as admin
+        const socketConfig = getSocketConfig({
+          type: "admin",
+          userId: null,
+          autoConnect: true,
+        });
+        
         socketRef.current = createSocketConnection(API_BASE, socketConfig);
       }
     }
@@ -131,12 +137,10 @@ const AdminPage = () => {
     // Initial check
     checkSocketConnection();
 
-    // If socket hasn't connected after 5 seconds on regular servers, log it
+    // Socket connection timeout check (silent)
     if (!isServerless) {
       socketConnectionTimeoutRef.current = setTimeout(() => {
-        if (!socketConnectedRef.current) {
-          console.log("⚠️ Socket connection delayed, relying on polling for real-time updates");
-        }
+        // Silently rely on polling if socket connection is delayed
       }, 5000);
     }
 
@@ -250,7 +254,6 @@ const AdminPage = () => {
 
     // Connection event listeners
     socket.on("connect", () => {
-      console.log("✅ Admin Socket connected:", socket.id);
       socketConnectedRef.current = true;
       checkSocketConnection();
     });
@@ -261,7 +264,6 @@ const AdminPage = () => {
         // Server disconnected the socket, try to reconnect
         socket.connect();
       }
-      console.log("❌ Admin Socket disconnected:", reason);
     });
 
     socket.on("connect_error", (error) => {
@@ -273,18 +275,15 @@ const AdminPage = () => {
         errorMessage.includes("xhr poll error") ||
         API_BASE.includes("vercel.app"); // Vercel doesn't support WebSockets
       
-      if (!isExpectedError) {
-        console.error("❌ Admin Socket connection error:", error);
-      }
-      // Silently handle expected errors - don't spam console
+      // Silently handle expected errors
     });
 
     socket.on("reconnect_attempt", () => {
-      console.log("🔄 Attempting to reconnect socket...");
+      // Silently attempt reconnection
     });
 
     socket.on("reconnect", (attemptNumber) => {
-      console.log("✅ Socket reconnected after", attemptNumber, "attempts");
+      // Silently reconnected
     });
 
     socket.on("reconnect_error", (error) => {
@@ -379,7 +378,6 @@ const AdminPage = () => {
     });
 
     socket.on("paymentSuccess", (orderData) => {
-      console.log("💰 Admin received paymentSuccess event:", orderData);
       
       // 🔊 Play notification sound for payment
       playNotificationSound();

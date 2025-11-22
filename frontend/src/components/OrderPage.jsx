@@ -89,10 +89,16 @@ const OrderPage = () => {
           disconnect: () => {},
           connect: () => {},
           connected: false,
+          metrics: { quality: "unavailable" },
         };
       } else {
-        // On regular servers, create real socket connection safely
-        const socketConfig = getSocketConfig();
+        // ✅ On regular servers, create optimized socket connection as user
+        const socketConfig = getSocketConfig({
+          type: "user",
+          userId: user?.uid || null,
+          autoConnect: true,
+        });
+        
         socketRef.current = createSocketConnection(API_BASE, socketConfig);
       }
     }
@@ -204,9 +210,9 @@ const OrderPage = () => {
       );
     }
 
-    // Connection event listeners for debugging
+    // Connection event listeners (silent)
     socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
+      // Silently connected
     });
 
     socket.on("disconnect", (reason) => {
@@ -214,11 +220,10 @@ const OrderPage = () => {
         // Server disconnected the socket, try to reconnect
         socket.connect();
       }
-      console.log("❌ Socket disconnected:", reason);
     });
 
     socket.on("connect_error", (error) => {
-      // Suppress error logging for expected failures
+      // Suppress error logging for expected failures - silently handle
       const errorMessage = error.message || "";
       const isExpectedError = 
         errorMessage.includes("websocket") ||
@@ -226,26 +231,21 @@ const OrderPage = () => {
         errorMessage.includes("xhr poll error") ||
         API_BASE.includes("vercel.app"); // Vercel doesn't support WebSockets
       
-      if (!isExpectedError) {
-        console.error("❌ Socket connection error:", error);
-      }
-      // Silently handle expected errors - don't spam console
+      // Silently handle expected errors
     });
 
     socket.on("reconnect_attempt", () => {
-      console.log("🔄 Attempting to reconnect socket...");
+      // Silently attempt reconnection
     });
 
     socket.on("reconnect", (attemptNumber) => {
-      console.log("✅ Socket reconnected after", attemptNumber, "attempts");
+      // Silently reconnected
     });
 
     socket.on("reconnect_error", (error) => {
-      // Suppress reconnection errors
+      // Suppress reconnection errors - silently handle
       const errorMessage = error.message || "";
-      if (!errorMessage.includes("websocket") && !errorMessage.includes("closed")) {
-        console.warn("⚠️ Socket reconnection error:", error);
-      }
+      // Silently handle expected errors
     });
 
     socket.on("reconnect_failed", () => {
@@ -283,7 +283,6 @@ const OrderPage = () => {
 
     // Listen for status changes - Real-time UI update
     socket.on("orderStatusChanged", (updatedOrder) => {
-      console.log("🔄 Received orderStatusChanged event:", updatedOrder);
       if (user && (updatedOrder.userEmail === user.email || updatedOrder.userId === user.uid)) {
         // 🔊 Play notification sound when order status changes
         playNotificationSound();
@@ -336,7 +335,6 @@ const OrderPage = () => {
     
     // Listen for payment success - Real-time UI update
     socket.on("paymentSuccess", (orderData) => {
-      console.log("💰 Received paymentSuccess event:", orderData);
       // Check if this order belongs to the current user
       if (user && orderData && (orderData.userId === user.uid || orderData.userEmail === user.email)) {
         // Update UI immediately

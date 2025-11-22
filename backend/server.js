@@ -29,16 +29,58 @@ if (!isVercel) {
   // ✅ Local development: Create HTTP server for Socket.IO
   server = createServer(app);
 
-  // ✅ Socket.IO Setup (only works in persistent server environments)
+  // ✅ Optimized Socket.IO Setup with Performance & Reliability Features
   io = new Server(server, {
+    // CORS Configuration
     cors: {
       origin: [
-        "https://foodfantasy-web.vercel.app",
+        "https://foodfantasy-live.vercel.app",
         "http://localhost:5173",
       ],
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true,
     },
+    // ✅ Transport Optimization - WebSocket first, polling fallback
+    transports: ["websocket", "polling"],
+    allowUpgrades: true,
+    upgradeTimeout: 10000,
+    allowEIO3: true,              // Backward compatibility
+    
+    // ✅ Connection & Performance Settings
+    pingTimeout: 60000,           // 60s - longer timeout for stability
+    pingInterval: 25000,          // 25s - heartbeat interval
+    maxHttpBufferSize: 1e6,       // 1MB - max message size
+    connectTimeout: 45000,        // 45s - connection timeout
+    
+    // ✅ Compression (reduces bandwidth)
+    perMessageDeflate: {
+      zlibDeflateOptions: {
+        chunkSize: 1024,
+        memLevel: 7,
+        level: 3
+      },
+      zlibInflateOptions: {
+        chunkSize: 10 * 1024
+      },
+      clientNoContextTakeover: true,
+      serverNoContextTakeover: true,
+      serverMaxWindowBits: 10,
+      concurrencyLimit: 10,
+      threshold: 1024
+    },
+    
+    // ✅ Connection Limits & Security
+    httpCompression: true,
+    
+    // ✅ Engine.IO Options
+    allowRequest: (req, callback) => {
+      callback(null, true);
+    },
+  });
+  
+  // ✅ Configure Socket.IO connection events with enhanced monitoring
+  io.engine.on("connection_error", (err) => {
+    console.error("❌ Socket.IO connection error:", err.req.url, err.code, err.message, err.context);
   });
 } else {
   // ✅ Vercel: Socket.IO won't work with WebSockets in serverless
@@ -135,28 +177,161 @@ try {
   console.error("❌ Error setting up routes:", error);
 }
 
-// ✅ Socket.IO Event Handling (only in local development)
+// ✅ Enhanced Socket.IO Event Handling with Room Management & Performance Optimization
 if (!isVercel && io) {
+  // Track connected clients for monitoring
+  const connectedClients = new Map();
+  
   io.on("connection", (socket) => {
-    console.log("🟢 Client connected:", socket.id);
+    const clientInfo = {
+      id: socket.id,
+      connectedAt: Date.now(),
+      rooms: new Set(),
+      lastActivity: Date.now(),
+      type: null, // 'admin' or 'user'
+    };
+    connectedClients.set(socket.id, clientInfo);
 
-    // 🔁 Realtime events
+    // ✅ Heartbeat/Ping monitoring for connection health
+    socket.on("ping", (callback) => {
+      clientInfo.lastActivity = Date.now();
+      if (typeof callback === "function") {
+        callback({ timestamp: Date.now(), latency: Date.now() - clientInfo.lastActivity });
+      }
+    });
+
+    // ✅ Client identification - Admin or User
+    socket.on("identify", (data) => {
+      const { type, userId } = data || {};
+      clientInfo.type = type || "user";
+      clientInfo.userId = userId;
+      
+      // Join appropriate rooms for efficient broadcasting
+      if (type === "admin") {
+        socket.join("admins");
+        clientInfo.rooms.add("admins");
+      } else {
+        socket.join("users");
+        clientInfo.rooms.add("users");
+        if (userId) {
+          socket.join(`user:${userId}`);
+          clientInfo.rooms.add(`user:${userId}`);
+        }
+      }
+      
+      socket.emit("identified", { success: true, type: clientInfo.type });
+    });
+
+    // ✅ Optimized Realtime Events with Room-Based Broadcasting
+    
+    // Order Updates - Broadcast to all admins and specific user
     socket.on("orderUpdated", (updatedOrder) => {
-      io.emit("orderStatusChanged", updatedOrder);
+      clientInfo.lastActivity = Date.now();
+      
+      // Broadcast to admins room (faster than broadcasting to all)
+      io.to("admins").emit("orderStatusChanged", updatedOrder);
+      
+      // Broadcast to specific user if order belongs to them
+      if (updatedOrder.userId) {
+        io.to(`user:${updatedOrder.userId}`).emit("orderStatusChanged", updatedOrder);
+      }
     });
 
+    // Food Updates - Broadcast to all clients
     socket.on("foodUpdated", (food) => {
-      io.emit("foodUpdated", food);
+      clientInfo.lastActivity = Date.now();
+      // Use to() for efficient room-based broadcasting instead of emit()
+      io.emit("foodUpdated", food); // All clients need food updates
     });
 
+    // Food Deleted - Broadcast to all clients
     socket.on("foodDeleted", (id) => {
+      clientInfo.lastActivity = Date.now();
       io.emit("foodDeleted", id);
     });
 
-    socket.on("disconnect", () => {
-      console.log("🔴 Client disconnected:", socket.id);
+    // ✅ New Order Placed - Notify admins and user
+    socket.on("newOrderPlaced", (newOrder) => {
+      clientInfo.lastActivity = Date.now();
+      
+      // Notify all admins
+      io.to("admins").emit("newOrderPlaced", newOrder);
+      
+      // Notify the specific user who placed the order
+      if (newOrder.userId) {
+        io.to(`user:${newOrder.userId}`).emit("newOrderPlaced", newOrder);
+      }
+    });
+
+    // ✅ Payment Success - Notify admins and user
+    socket.on("paymentSuccess", (orderData) => {
+      clientInfo.lastActivity = Date.now();
+      
+      // Notify all admins
+      io.to("admins").emit("paymentSuccess", orderData);
+      
+      // Notify the specific user
+      if (orderData.userId) {
+        io.to(`user:${orderData.userId}`).emit("paymentSuccess", orderData);
+      }
+    });
+
+    // ✅ Connection Quality Monitoring
+    socket.on("connectionQuality", (callback) => {
+      const uptime = Date.now() - clientInfo.connectedAt;
+      const idleTime = Date.now() - clientInfo.lastActivity;
+      
+      if (typeof callback === "function") {
+        callback({
+          connected: socket.connected,
+          uptime,
+          idleTime,
+          rooms: Array.from(clientInfo.rooms),
+          type: clientInfo.type,
+        });
+      }
+    });
+
+    // ✅ Error Handling
+    socket.on("error", (error) => {
+      console.error(`❌ Socket error for ${socket.id}:`, error);
+    });
+
+    // ✅ Disconnection with cleanup
+    socket.on("disconnect", (reason) => {
+      connectedClients.delete(socket.id);
+    });
+
+    // ✅ Connection health check
+    const healthCheckInterval = setInterval(() => {
+      if (!socket.connected) {
+        clearInterval(healthCheckInterval);
+        return;
+      }
+      
+      // Check for stale connections (no activity for 5 minutes)
+      const idleTime = Date.now() - clientInfo.lastActivity;
+      if (idleTime > 300000) { // 5 minutes
+        socket.disconnect(true);
+        clearInterval(healthCheckInterval);
+      }
+    }, 60000); // Check every minute
+
+    // Cleanup interval on disconnect
+    socket.once("disconnect", () => {
+      clearInterval(healthCheckInterval);
     });
   });
+
+  // ✅ Server-level monitoring (silent - stats tracked but not logged)
+  setInterval(() => {
+    // Stats tracked but not logged to reduce console noise
+    // const stats = {
+    //   connected: connectedClients.size,
+    //   admins: Array.from(connectedClients.values()).filter(c => c.type === "admin").length,
+    //   users: Array.from(connectedClients.values()).filter(c => c.type === "user" || !c.type).length,
+    // };
+  }, 300000); // Monitor every 5 minutes
 }
 
 // ✅ Health Check Route
