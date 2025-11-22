@@ -8,14 +8,19 @@ import OfferZone from "../features/home/OfferZone";
 import MenuSlider from "../features/home/MenuSlider";
 import FloatingCartButton from "../features/home/FloatingCartButton";
 import VideoSection from "../features/home/VideoSection";
+import { useAppSelector, useAppDispatch } from "../store/hooks";
+import { addToCartAsync } from "../store/slices/cartSlice";
+import toast from "react-hot-toast";
 
 const Home = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  const cart = useAppSelector((state) => state.cart.items);
+  const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(true);
   const [foods, setFoods] = useState([]);
   const [vegFoods, setVegFoods] = useState([]);
   const [nonVegFoods, setNonVegFoods] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
 
   // Fetch foods
@@ -61,28 +66,28 @@ const Home = () => {
     fetchFoods();
   }, []);
 
-  // Cart logic
-  useEffect(() => {
-    const savedCart = localStorage.getItem("cartItems");
-    if (savedCart) setCart(JSON.parse(savedCart));
-  }, []);
+  const addToCart = async (food) => {
+    if (!user || !user.email) {
+      toast.error("Please login to add items to cart!");
+      return;
+    }
 
-  useEffect(() => {
-    localStorage.setItem("cartItems", JSON.stringify(cart));
-  }, [cart]);
-
-  const addToCart = (food) => {
-    const existing = cart.find((item) => item._id === food._id);
-    if (existing) {
-      setCart(
-        cart.map((item) =>
-          item._id === food._id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      );
-    } else {
-      setCart([...cart, { ...food, quantity: 1 }]);
+    try {
+      await dispatch(
+        addToCartAsync({
+          userData: user,
+          food,
+          quantity: 1,
+        })
+      ).unwrap();
+      
+      toast.success(`${food.name} added to cart! 🛒`, {
+        duration: 2000,
+        position: "top-center",
+      });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error("Failed to add item to cart. Please try again.");
     }
   };
 

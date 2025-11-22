@@ -7,18 +7,20 @@ import { IoSearch } from "react-icons/io5";
 import toast, { Toaster } from "react-hot-toast";
 import API_BASE from "../../config/api";
 import LogoLoader from "../../components/ui/LogoLoader";
-import { useFoodFilter, useAppSelector } from "../../store/hooks";
+import { useFoodFilter, useAppSelector, useAppDispatch } from "../../store/hooks";
+import { addToCartAsync } from "../../store/slices/cartSlice";
 import { getSocketConfig, createSocketConnection, isServerlessPlatform } from "../../utils/socketConfig";
 
 const Menu = () => {
   const { filterFoods: applyGlobalFilter } = useFoodFilter();
   const { user } = useAppSelector((state) => state.auth);
+  const cart = useAppSelector((state) => state.cart.items);
+  const dispatch = useAppDispatch();
   const [foods, setFoods] = useState([]);
   const [filteredFoods, setFilteredFoods] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [loading, setLoading] = useState(true);
-  const [cart, setCart] = useState([]);
   const socketRef = useRef(null);
 
   // 🥗 Fetch foods
@@ -53,15 +55,7 @@ const Menu = () => {
   }, [categoryFilter, searchQuery, foods, applyGlobalFilter]);
 
 
-  // 🛒 Cart Logic (localStorage)
-  useEffect(() => {
-    const savedCart = localStorage.getItem("cartItems");
-    if (savedCart) setCart(JSON.parse(savedCart));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("cartItems", JSON.stringify(cart));
-  }, [cart]);
+  // Cart is now managed by Redux and synced with backend
 
   // ✅ Real-time socket notifications with optimized configuration
   useEffect(() => {
@@ -165,18 +159,28 @@ const Menu = () => {
     };
   }, [user]);
 
-  const addToCart = (food) => {
-    const existing = cart.find((item) => item._id === food._id);
-    if (existing) {
-      setCart(
-        cart.map((item) =>
-          item._id === food._id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      );
-    } else {
-      setCart([...cart, { ...food, quantity: 1 }]);
+  const addToCart = async (food) => {
+    if (!user || !user.email) {
+      toast.error("Please login to add items to cart!");
+      return;
+    }
+
+    try {
+      await dispatch(
+        addToCartAsync({
+          userData: user,
+          food,
+          quantity: 1,
+        })
+      ).unwrap();
+      
+      toast.success(`${food.name} added to cart! 🛒`, {
+        duration: 2000,
+        position: "top-center",
+      });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error("Failed to add item to cart. Please try again.");
     }
   };
 

@@ -4,7 +4,8 @@ import { io } from "socket.io-client";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
-import { useAppSelector } from "../../store/hooks";
+import { useAppSelector, useAppDispatch } from "../../store/hooks";
+import { updateQuantityAsync, removeFromCartAsync, clearCartAsync } from "../../store/slices/cartSlice";
 import { useNavigate } from "react-router-dom";
 import { FaTrashAlt, FaShoppingBag, FaStore, FaHome } from "react-icons/fa";
 import API_BASE from "../../config/api";
@@ -18,12 +19,13 @@ const TOTAL_TABLES = 40;
 
 const OrderPage = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const cart = useAppSelector((state) => state.cart.items);
+  const cartTotal = useAppSelector((state) => state.cart.total);
+  const dispatch = useAppDispatch();
   const [orders, setOrders] = useState([]);
   const [bookedTables, setBookedTables] = useState([]);
   const [tableNumber, setTableNumber] = useState("");
   const [selectedChairsCount, setSelectedChairsCount] = useState(1);
-  const [cart, setCart] = useState([]);
-  const [total, setTotal] = useState(0);
   const [pageLoading, setPageLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showTableModal, setShowTableModal] = useState(false);
@@ -34,6 +36,8 @@ const OrderPage = () => {
   const [isGettingLocation, setIsGettingLocation] = useState(false); // Loading state for location
   const [locationType, setLocationType] = useState("live"); // "live" or "manual"
   const [manualLocation, setManualLocation] = useState(""); // Manual location address input
+  const [locationPermission, setLocationPermission] = useState(null); // "granted", "denied", "prompt", or null
+  const [showPermissionInfo, setShowPermissionInfo] = useState(false); // Show permission info modal
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const pollingStopRef = useRef(null);
@@ -516,39 +520,68 @@ const OrderPage = () => {
     fetchAllOrders();
   }, [fetchAllOrders]);
 
-  /* ===========================
-      🛒 CART LOGIC
-  ============================ */
+  // Check initial location permission status
   useEffect(() => {
-    const saved = localStorage.getItem("cartItems");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setCart(parsed);
-      calculateTotal(parsed);
+    if (navigator.permissions && navigator.permissions.query && locationType === "live") {
+      navigator.permissions.query({ name: 'geolocation' })
+        .then((permission) => {
+          setLocationPermission(permission.state);
+          
+          // Listen for permission changes
+          permission.onchange = () => {
+            setLocationPermission(permission.state);
+          };
+        })
+        .catch((error) => {
+          console.warn("Could not check location permission:", error);
+        });
     }
-  }, []);
+  }, [locationType]);
 
-  const calculateTotal = (items) => {
-    const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const gst = subtotal * 0.05;
-    setTotal(subtotal + gst);
+  /* ===========================
+      🛒 CART LOGIC (Redux + Backend Sync)
+  ============================ */
+  // Calculate total with GST (cartTotal is subtotal from Redux)
+  const total = cartTotal + (cartTotal * 0.05);
+
+  const updateQuantity = async (id, newQty) => {
+    if (!user || !user.email) {
+      toast.error("Please login to update cart!");
+      return;
+    }
+
+    try {
+      await dispatch(
+        updateQuantityAsync({
+          userEmail: user.email,
+          foodId: id,
+          quantity: Math.max(newQty, 1),
+        })
+      ).unwrap();
+    } catch (error) {
+      console.error("Error updating cart:", error);
+      toast.error("Failed to update cart. Please try again.");
+    }
   };
 
-  const updateQuantity = (id, newQty) => {
-    let updated = [...cart].map((item) =>
-      item._id === id ? { ...item, quantity: Math.max(newQty, 1) } : item
-    );
-    setCart(updated);
-    localStorage.setItem("cartItems", JSON.stringify(updated));
-    calculateTotal(updated);
-  };
+  const removeItem = async (id) => {
+    if (!user || !user.email) {
+      toast.error("Please login to remove items!");
+      return;
+    }
 
-  const removeItem = (id) => {
-    const updated = cart.filter((i) => i._id !== id);
-    setCart(updated);
-    localStorage.setItem("cartItems", JSON.stringify(updated));
-    calculateTotal(updated);
-    toast.success("Item removed from cart 🗑️");
+    try {
+      await dispatch(
+        removeFromCartAsync({
+          userEmail: user.email,
+          foodId: id,
+        })
+      ).unwrap();
+      toast.success("Item removed from cart 🗑️");
+    } catch (error) {
+      console.error("Error removing from cart:", error);
+      toast.error("Failed to remove item. Please try again.");
+    }
   };
 
   /* ===========================
@@ -595,10 +628,15 @@ const OrderPage = () => {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentComplete = () => {
-    // Clear cart and reset after payment is completed
-    setCart([]);
-    localStorage.removeItem("cartItems");
+  const handlePaymentComplete = async () => {
+    // Clear cart from backend and reset after payment is completed
+    if (user && user.email) {
+      try {
+        await dispatch(clearCartAsync(user.email)).unwrap();
+      } catch (error) {
+        console.error("Error clearing cart:", error);
+      }
+    }
     setTableNumber("");
     setSelectedChairsCount(1);
     setShowPaymentModal(false);
@@ -830,15 +868,87 @@ const OrderPage = () => {
                   {/* Live Location Option */}
                   {locationType === "live" && (
                     <div>
+                      {/* Permission Info Banner */}
+                      {!deliveryLocation && (
+                        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-xs text-gray-700 mb-2">
+                            <strong>📍 Location Access Required</strong>
+                          </p>
+                          <p className="text-xs text-gray-600 mb-2">
+                            We need your location to deliver your order. When you click "Share Live Location", 
+                            your browser will ask for permission to access your location.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowPermissionInfo(!showPermissionInfo)}
+                            className="text-xs text-blue-600 hover:text-blue-800 underline"
+                          >
+                            {showPermissionInfo ? "Hide" : "Show"} instructions
+                          </button>
+                          {showPermissionInfo && (
+                            <div className="mt-2 p-2 bg-white rounded border border-blue-100">
+                              <p className="text-xs text-gray-700 font-semibold mb-1">📱 For Mobile Devices:</p>
+                              <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                                <li>Tap "Share Live Location" button</li>
+                                <li>When prompted, tap "Allow" or "Allow location access"</li>
+                                <li>Make sure location/GPS is enabled in your device settings</li>
+                                <li>If denied, go to browser settings and enable location permissions</li>
+                              </ul>
+                              <p className="text-xs text-gray-700 font-semibold mt-2 mb-1">💻 For Desktop:</p>
+                              <ul className="text-xs text-gray-600 space-y-1 list-disc list-inside">
+                                <li>Click "Share Live Location" button</li>
+                                <li>Click "Allow" when browser asks for permission</li>
+                                <li>Check browser address bar for location icon if needed</li>
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <button
                         type="button"
                         onClick={async () => {
                           if (!navigator.geolocation) {
-                            toast.error("Geolocation is not supported by your browser");
+                            toast.error("Geolocation is not supported by your browser. Please use manual entry instead.");
                             return;
+                          }
+
+                          // Check if permissions API is available (modern browsers)
+                          let permissionStatus = null;
+                          if (navigator.permissions && navigator.permissions.query) {
+                            try {
+                              const permission = await navigator.permissions.query({ name: 'geolocation' });
+                              permissionStatus = permission.state;
+                              setLocationPermission(permissionStatus);
+                              
+                              // Listen for permission changes
+                              permission.onchange = () => {
+                                setLocationPermission(permission.state);
+                              };
+                            } catch (error) {
+                              console.warn("Permission API not fully supported:", error);
+                            }
+                          }
+
+                          // If permission was previously denied, show helpful message
+                          if (permissionStatus === 'denied') {
+                            toast.error(
+                              "Location access was denied. Please enable location permissions in your browser settings, or use manual entry instead.",
+                              { duration: 5000 }
+                            );
+                            return;
+                          }
+
+                          // Show permission request message
+                          if (permissionStatus === 'prompt' || permissionStatus === null) {
+                            toast.info(
+                              "Please allow location access when prompted by your browser.",
+                              { duration: 3000, icon: "📍" }
+                            );
                           }
                           
                           setIsGettingLocation(true);
+                          
                           navigator.geolocation.getCurrentPosition(
                             async (position) => {
                               const { latitude, longitude } = position.coords;
@@ -863,17 +973,38 @@ const OrderPage = () => {
                                 longitude,
                                 address: address || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
                               });
+                              setLocationPermission('granted');
                               setIsGettingLocation(false);
+                              setShowPermissionInfo(false);
                               toast.success("Location shared successfully! 📍");
                             },
                             (error) => {
                               setIsGettingLocation(false);
                               console.error("Error getting location:", error);
-                              toast.error("Failed to get your location. Please allow location access.");
+                              
+                              // Provide specific error messages based on error code
+                              let errorMessage = "Failed to get your location. ";
+                              switch (error.code) {
+                                case error.PERMISSION_DENIED:
+                                  errorMessage += "Location access was denied. Please enable location permissions in your browser settings, or use manual entry instead.";
+                                  setLocationPermission('denied');
+                                  break;
+                                case error.POSITION_UNAVAILABLE:
+                                  errorMessage += "Location information is unavailable. Please check your device's location settings.";
+                                  break;
+                                case error.TIMEOUT:
+                                  errorMessage += "Location request timed out. Please try again or use manual entry.";
+                                  break;
+                                default:
+                                  errorMessage += "Please allow location access or use manual entry instead.";
+                                  break;
+                              }
+                              
+                              toast.error(errorMessage, { duration: 5000 });
                             },
                             {
                               enableHighAccuracy: true,
-                              timeout: 10000,
+                              timeout: 15000, // Increased timeout for mobile devices
                               maximumAge: 0,
                             }
                           );
@@ -884,25 +1015,45 @@ const OrderPage = () => {
                             ? "bg-green-100 text-green-700 border border-green-300"
                             : isGettingLocation
                             ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                            : locationPermission === 'denied'
+                            ? "bg-red-100 text-red-700 border border-red-300"
                             : "bg-blue-600 text-white hover:bg-blue-700"
                         }`}
                       >
                         {isGettingLocation ? (
                           <span className="flex items-center justify-center gap-2">
                             <span className="animate-spin">⏳</span>
-                            Getting location...
+                            Requesting location access...
                           </span>
                         ) : deliveryLocation ? (
                           <span className="flex items-center justify-center gap-2">
                             ✅ Location Shared
                             <span className="text-xs">({deliveryLocation.address.substring(0, 30)}...)</span>
                           </span>
+                        ) : locationPermission === 'denied' ? (
+                          <span className="flex items-center justify-center gap-2">
+                            ❌ Location Access Denied
+                            <span className="text-xs">(Use manual entry)</span>
+                          </span>
                         ) : (
                           <span className="flex items-center justify-center gap-2">
                             📍 Share Live Location
+                            <span className="text-xs">(Permission required)</span>
                           </span>
                         )}
                       </button>
+                      
+                      {/* Permission Status Indicator */}
+                      {locationPermission && !deliveryLocation && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                          <p className="text-xs text-gray-600">
+                            {locationPermission === 'granted' && "✅ Location permission granted"}
+                            {locationPermission === 'denied' && "❌ Location permission denied - Please use manual entry or enable in browser settings"}
+                            {locationPermission === 'prompt' && "⏳ Waiting for permission..."}
+                          </p>
+                        </div>
+                      )}
+
                       {deliveryLocation && deliveryLocation.latitude && (
                         <div className="mt-2 p-2 bg-white rounded border border-green-200">
                           <p className="text-xs text-gray-600 mb-1">
@@ -939,21 +1090,11 @@ const OrderPage = () => {
 
             <div className="flex justify-between text-gray-700 mb-2 text-sm sm:text-base">
               <span>Subtotal</span>
-              <span>
-                ₹
-                {cart
-                  .reduce((sum, i) => sum + i.price * i.quantity, 0)
-                  .toFixed(2)}
-              </span>
+              <span>₹{cartTotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-700 mb-2 text-sm sm:text-base">
               <span>GST (5%)</span>
-              <span>
-                ₹
-                {(
-                  cart.reduce((sum, i) => sum + i.price * i.quantity, 0) * 0.05
-                ).toFixed(2)}
-              </span>
+              <span>₹{(cartTotal * 0.05).toFixed(2)}</span>
             </div>
             <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between font-bold text-gray-800 text-base sm:text-lg">
               <span>Total</span>

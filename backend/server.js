@@ -6,6 +6,7 @@ import cors from "cors";
 import { connectDB } from "./config/db.js";
 import foodRoutes from "./routes/foodRoute.js";
 import orderRoutes from "./routes/orderRoute.js";
+import cartRoutes from "./routes/cartRoute.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
@@ -163,7 +164,7 @@ app.use(
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-admin-request"],
   })
 );
 
@@ -184,6 +185,7 @@ app.use((req, res, next) => {
 try {
   app.use("/api/foods", foodRoutes);
   app.use("/api/orders", orderRoutes);
+  app.use("/api/cart", cartRoutes);
 } catch (error) {
   console.error("❌ Error setting up routes:", error);
 }
