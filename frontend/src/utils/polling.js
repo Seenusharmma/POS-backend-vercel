@@ -23,22 +23,40 @@ export const createPolling = (fetchFunction, interval = 3000, onUpdate, compareF
     try {
       const newData = await fetchFunction();
       
+      // ✅ Validate that newData is valid
+      if (!newData) {
+        return;
+      }
+      
       // Compare data if compare function provided
       if (compareFn && lastData !== null) {
         const hasChanged = compareFn(lastData, newData);
         if (hasChanged && onUpdate) {
           onUpdate(newData, lastData);
         }
-      } else if (lastData === null || JSON.stringify(lastData) !== JSON.stringify(newData)) {
-        // Simple comparison if no compare function
+      } else if (lastData === null) {
+        // First poll - always call onUpdate with null as oldData
         if (onUpdate) {
-          onUpdate(newData, lastData);
+          onUpdate(newData, null);
+        }
+      } else {
+        // ✅ Simple comparison - always update if different
+        // Use JSON.stringify for deep comparison
+        if (JSON.stringify(lastData) !== JSON.stringify(newData)) {
+          if (onUpdate) {
+            onUpdate(newData, lastData);
+          }
         }
       }
       
       lastData = newData;
     } catch (error) {
-      console.error("Polling error:", error);
+      // ✅ Silent error handling - don't spam console on serverless
+      // Only log if it's not a network error (which is expected on serverless)
+      const errorMessage = error?.message || "";
+      if (!errorMessage.includes("network") && !errorMessage.includes("fetch")) {
+        console.warn("Polling error:", errorMessage);
+      }
     } finally {
       isPolling = false;
     }
@@ -62,60 +80,95 @@ export const createPolling = (fetchFunction, interval = 3000, onUpdate, compareF
 };
 
 /**
- * Poll for orders and detect new/updated orders
+ * ✅ Poll for orders and detect new/updated orders
+ * Optimized for both serverless (Vercel) and regular servers
  */
 export const pollOrders = (fetchOrders, onNewOrder, onStatusChange, interval = 3000) => {
   let lastOrders = [];
   let lastOrderIds = new Set();
+  let lastOrderMap = new Map(); // Map for faster lookups
 
   const onUpdate = (newOrders, oldOrders) => {
+    // ✅ Handle first load - initialize tracking
     if (!oldOrders || oldOrders.length === 0) {
-      // First load, just store the data
-      lastOrders = newOrders;
-      lastOrderIds = new Set(newOrders.map(o => o._id));
+      lastOrders = Array.isArray(newOrders) ? [...newOrders] : [];
+      lastOrderIds = new Set(lastOrders.map(o => o._id));
+      lastOrderMap = new Map(lastOrders.map(o => [o._id, o]));
+      return;
+    }
+
+    // ✅ Validate newOrders is an array
+    if (!Array.isArray(newOrders)) {
       return;
     }
 
     const newOrderIds = new Set(newOrders.map(o => o._id));
+    const newOrderMap = new Map(newOrders.map(o => [o._id, o]));
     
-    // Check for new orders (orders that weren't in the previous list)
+    // ✅ Check for new orders (orders that weren't in the previous list)
     newOrders.forEach(order => {
+      if (!order || !order._id) return; // Skip invalid orders
+      
       if (!lastOrderIds.has(order._id)) {
-        if (onNewOrder) {
+        // This is a completely new order
+        if (onNewOrder && order.status !== "Completed") {
           onNewOrder(order);
         }
       }
     });
 
-    // Check for status changes and payment status changes
+    // ✅ Check for removed orders (orders that were in old list but not in new)
+    lastOrders.forEach(oldOrder => {
+      if (!newOrderIds.has(oldOrder._id)) {
+        // Order was removed (likely completed)
+        if (oldOrder.status !== "Completed" && onStatusChange) {
+          // Treat as completed
+          onStatusChange({ ...oldOrder, status: "Completed" }, oldOrder);
+        }
+      }
+    });
+
+    // ✅ Check for status changes and payment status changes
     newOrders.forEach(newOrder => {
-      const oldOrder = lastOrders.find(o => o._id === newOrder._id);
+      if (!newOrder || !newOrder._id) return; // Skip invalid orders
+      
+      const oldOrder = lastOrderMap.get(newOrder._id);
+      
       if (oldOrder) {
-        // Check status changes (especially when order becomes Completed)
+        // ✅ Check status changes
         if (oldOrder.status !== newOrder.status) {
           if (onStatusChange) {
             onStatusChange(newOrder, oldOrder);
           }
         }
         
-        // Check payment status changes
+        // ✅ Check payment status changes
         if (oldOrder.paymentStatus !== newOrder.paymentStatus && newOrder.paymentStatus === "Paid") {
           if (onStatusChange) {
             onStatusChange(newOrder, oldOrder);
           }
         }
-      } else {
-        // Order exists in new list but not in old list
-        // This could be a newly completed order that just appeared
-        if (newOrder.status === "Completed" && onNewOrder) {
+        
+        // ✅ Check other field changes (quantity, price, etc.)
+        if (JSON.stringify(oldOrder) !== JSON.stringify(newOrder)) {
+          // Order was updated but no specific handler - still call statusChange if status changed
+          if (oldOrder.status === newOrder.status && onStatusChange) {
+            onStatusChange(newOrder, oldOrder);
+          }
+        }
+      } else if (!lastOrderIds.has(newOrder._id)) {
+        // ✅ Order is brand new (not in previous poll)
+        // This handles orders that appear between polls
+        if (onNewOrder && newOrder.status !== "Completed") {
           onNewOrder(newOrder);
         }
       }
     });
 
-    // Update stored data
-    lastOrders = newOrders;
+    // ✅ Update stored data for next comparison
+    lastOrders = [...newOrders];
     lastOrderIds = newOrderIds;
+    lastOrderMap = newOrderMap;
   };
 
   return createPolling(

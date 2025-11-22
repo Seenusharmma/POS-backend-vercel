@@ -143,13 +143,39 @@ const AdminPage = () => {
     // Initial check
     checkSocketConnection();
 
-    // Socket connection timeout check (silent)
+    // ✅ CRITICAL for Vercel: Always check if socket is actually working
+    // On Vercel, socket might appear "connected" but doesn't actually receive events
+    // So we always enable polling as primary mechanism on serverless
+    const shouldUsePollingAsPrimary = isServerless;
+    
+    // ✅ Socket connection timeout check
     if (!isServerless) {
+      // On regular servers, check socket connection after 5 seconds
       socketConnectionTimeoutRef.current = setTimeout(() => {
-        // Silently rely on polling if socket connection is delayed
+        // If socket doesn't connect within 5 seconds, rely on polling
+        if (!socketConnectedRef.current) {
+          socketConnectedRef.current = false;
+          // Force polling to take over
+        }
       }, 5000);
+    } else {
+      // ✅ On serverless (Vercel), immediately force polling mode
+      // Socket.IO doesn't work on Vercel, so polling is the ONLY mechanism
+      socketConnectedRef.current = false;
+    }
+    
+    // ✅ CRITICAL: Also check socket connection status periodically on Vercel
+    // Even if socket appears "connected", it won't receive events on serverless
+    if (isServerless && socket && typeof socket.connected !== 'undefined') {
+      // Force socket to be considered disconnected on serverless
+      socketConnectedRef.current = false;
     }
 
+    // ✅ CRITICAL: Start polling with optimized interval
+    // - Serverless (Vercel): Poll every 2 seconds (aggressive for real-time feel)
+    // - Regular server: Poll every 3 seconds (backup when socket fails)
+    const pollingInterval = isServerless ? 2000 : 3000;
+    
     pollingStopRef.current = pollOrders(
       fetchOrdersForPolling,
       // onNewOrder callback - when a new order appears
@@ -159,8 +185,11 @@ const AdminPage = () => {
           return;
         }
         
-        // Only show notification if socket isn't connected (avoid duplicate notifications)
-        if (!socketConnectedRef.current) {
+        // ✅ On serverless OR if socket not connected, show notifications
+        // This ensures notifications work on Vercel
+        const shouldShowNotification = shouldUsePollingAsPrimary || !socketConnectedRef.current;
+        
+        if (shouldShowNotification) {
           // 🔊 Play notification sound for new orders
           playNotificationSound();
           
@@ -209,12 +238,12 @@ const AdminPage = () => {
       },
       // onStatusChange callback
       (updatedOrder, oldOrder) => {
-        // Only show notifications if socket isn't connected (avoid duplicates)
-        // But always update state to keep UI in sync
-
-        // Play sound for status changes
+        // ✅ CRITICAL: On serverless OR if socket not connected, show notifications
+        const shouldShowNotification = shouldUsePollingAsPrimary || !socketConnectedRef.current;
+        
+        // ✅ Handle status changes
         if (updatedOrder.status !== oldOrder?.status) {
-          if (!socketConnectedRef.current) {
+          if (shouldShowNotification) {
             playNotificationSound();
             
             const statusMessages = {
@@ -225,7 +254,7 @@ const AdminPage = () => {
               Completed: "🎉 Order completed",
             };
             
-            // Show notification toast (only if socket isn't handling it)
+            // Show notification toast
             toast.success(
               `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
               {
@@ -241,6 +270,7 @@ const AdminPage = () => {
             );
           }
 
+          // ✅ Always update state regardless of notification
           if (updatedOrder.status === "Completed") {
             setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
           } else {
@@ -252,9 +282,9 @@ const AdminPage = () => {
           }
         }
 
-        // Handle payment status changes
+        // ✅ Handle payment status changes
         if (updatedOrder.paymentStatus !== oldOrder?.paymentStatus && updatedOrder.paymentStatus === "Paid") {
-          if (!socketConnectedRef.current) {
+          if (shouldShowNotification) {
             // 🔊 Play notification sound for payment
             playNotificationSound();
             
@@ -277,22 +307,30 @@ const AdminPage = () => {
           );
         }
       },
-      isServerless ? 3000 : 5000 // Poll every 3s on serverless, 5s as backup on regular servers
+      pollingInterval // Use optimized interval (2s on serverless, 3s on regular)
     );
 
     // Connection event listeners
     socket.on("connect", () => {
-      socketConnectedRef.current = true;
-      checkSocketConnection();
-      
-      // ✅ CRITICAL: Identify as admin immediately after connection
-      // This ensures admin joins "admins" room and receives newOrderPlaced events
-      // The socketConfig already sends identify in auth, but we ensure it here too
-      if (socket && typeof socket.emit === "function") {
-        // Small delay to ensure socket is fully ready
-        setTimeout(() => {
-          socket.emit("identify", { type: "admin", userId: null });
-        }, 100);
+      // ✅ CRITICAL: On Vercel, socket might appear "connected" but won't receive events
+      // So we still consider polling as primary on serverless platforms
+      if (!isServerless) {
+        socketConnectedRef.current = true;
+        checkSocketConnection();
+        
+        // ✅ CRITICAL: Identify as admin immediately after connection
+        // This ensures admin joins "admins" room and receives newOrderPlaced events
+        // The socketConfig already sends identify in auth, but we ensure it here too
+        if (socket && typeof socket.emit === "function") {
+          // Small delay to ensure socket is fully ready
+          setTimeout(() => {
+            socket.emit("identify", { type: "admin", userId: null });
+          }, 100);
+        }
+      } else {
+        // ✅ On serverless, don't trust socket connection - keep polling as primary
+        // Socket.IO doesn't work reliably on Vercel, so polling handles everything
+        socketConnectedRef.current = false;
       }
     });
 
