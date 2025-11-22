@@ -675,9 +675,9 @@ const OrderPage = () => {
           </button>
         </motion.div>
       ) : (
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 items-start">
           {/* 🧺 Cart Items */}
-          <div className="lg:col-span-2 bg-white shadow-lg rounded-xl sm:rounded-2xl p-4 sm:p-6">
+          <div className="lg:col-span-2 bg-white shadow-lg rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full">
             {cart.map((item, i) => (
               <motion.div
                 key={item._id}
@@ -861,7 +861,7 @@ const OrderPage = () => {
                           : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                       }`}
                     >
-                      ✏️ Manual Entry
+                      Manual Entry
                     </button>
                   </div>
 
@@ -1116,7 +1116,7 @@ const OrderPage = () => {
       {/* ===== LIVE ORDERS SECTION ===== */}
       {orders.length > 0 && (
         <div className="mt-8 sm:mt-12 md:mt-16 max-w-6xl mx-auto">
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-5 text-gray-800 px-2">📦 Your Live Orders</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-5 text-gray-800 px-2">Your Live Orders</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {orders.map((order) => {
               return (
