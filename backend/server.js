@@ -33,8 +33,10 @@ if (!isVercel) {
   io = new Server(server, {
     cors: {
       origin: [
+        "https://foodfantasy-cgu.vercel.app",
         "https://food-fantasy-ten.vercel.app",
         "https://foodfantasy-in.vercel.app",
+        "https://foodfantasy-com.vercel.app",
         "http://localhost:5173",
       ],
       methods: ["GET", "POST", "PUT", "DELETE"],
@@ -83,12 +85,15 @@ if (!isVercel) {
 app.use(
   cors({
     origin: [
-      "foodfantasy-cgu.vercel.app",
-      // "https://foodfantasy-in.vercel.app",
+      "https://foodfantasy-cgu.vercel.app",
+      "https://food-fantasy-ten.vercel.app",
+      "https://foodfantasy-in.vercel.app",
+      "https://foodfantasy-com.vercel.app",
       "http://localhost:5173",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
