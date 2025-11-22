@@ -23,7 +23,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
-  const ADMIN_EMAIL = "roshansharma7250@gmail.com";
+  const ADMIN_EMAIL = "roshansharma7250@gmail.com, ";
 
   // ✅ Show logo loader when page first loads
   useEffect(() => {

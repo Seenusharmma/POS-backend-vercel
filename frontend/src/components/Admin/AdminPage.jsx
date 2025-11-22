@@ -37,6 +37,7 @@ const AdminPage = () => {
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const pollingStopRef = useRef(null);
+  const socketConnectionTimeoutRef = useRef(null);
 
   // 🔊 Play notification sound
   const playNotificationSound = () => {
@@ -101,23 +102,50 @@ const AdminPage = () => {
     const socket = socketRef.current;
     getAllData();
 
-    // ✅ Set up polling for serverless platforms (Vercel)
-    if (isServerless) {
-      const fetchOrdersForPolling = async () => {
-        try {
-          const res = await axios.get(`${API_BASE}/api/orders`);
-          return res.data.filter((o) => o.status !== "Completed");
-        } catch (error) {
-          console.error("Error fetching orders for polling:", error);
-          return [];
-        }
-      };
+    // ✅ Set up polling as a fallback for real-time updates
+    // This works on both serverless platforms and as a backup when sockets fail
+    const fetchOrdersForPolling = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/orders`);
+        return res.data.filter((o) => o.status !== "Completed");
+      } catch (error) {
+        console.error("Error fetching orders for polling:", error);
+        return [];
+      }
+    };
 
-      // Start polling for orders
-      pollingStopRef.current = pollOrders(
-        fetchOrdersForPolling,
-        // onNewOrder callback - when a new order appears
-        (newOrder) => {
+    // Track socket connection status
+    const socketConnectedRef = { current: false };
+
+    // Check socket connection status
+    const checkSocketConnection = () => {
+      if (socket && typeof socket.connected !== 'undefined') {
+        socketConnectedRef.current = socket.connected;
+        if (socketConnectedRef.current && socketConnectionTimeoutRef.current) {
+          clearTimeout(socketConnectionTimeoutRef.current);
+          socketConnectionTimeoutRef.current = null;
+        }
+      }
+    };
+
+    // Initial check
+    checkSocketConnection();
+
+    // If socket hasn't connected after 5 seconds on regular servers, log it
+    if (!isServerless) {
+      socketConnectionTimeoutRef.current = setTimeout(() => {
+        if (!socketConnectedRef.current) {
+          console.log("⚠️ Socket connection delayed, relying on polling for real-time updates");
+        }
+      }, 5000);
+    }
+
+    pollingStopRef.current = pollOrders(
+      fetchOrdersForPolling,
+      // onNewOrder callback - when a new order appears
+      (newOrder) => {
+          // Only show notification if socket isn't connected (avoid duplicate notifications)
+        if (!socketConnectedRef.current) {
           // 🔊 Play notification sound for new orders
           playNotificationSound();
           
@@ -133,27 +161,28 @@ const AdminPage = () => {
               fontWeight: "600",
             },
           });
-          
-          // Add order to list if not completed
-          setOrders((prev) => {
-            const exists = prev.find((o) => o._id === newOrder._id);
-            if (!exists && newOrder.status !== "Completed") {
-              return [newOrder, ...prev];
-            }
-            return prev;
-          });
-          
-          // Highlight the new order
-          setHighlightedOrder(newOrder._id);
-          setTimeout(() => setHighlightedOrder(null), 3000);
-          
-          // Refresh data to ensure consistency
-          getAllData();
-        },
-        // onStatusChange callback
-        (updatedOrder, oldOrder) => {
-          // Play sound for status changes
-          if (updatedOrder.status !== oldOrder.status) {
+        }
+        
+        // Always update state to ensure UI is in sync
+        setOrders((prev) => {
+          const exists = prev.find((o) => o._id === newOrder._id);
+          if (!exists && newOrder.status !== "Completed") {
+            // Highlight the new order
+            setHighlightedOrder(newOrder._id);
+            setTimeout(() => setHighlightedOrder(null), 3000);
+            return [newOrder, ...prev];
+          }
+          return prev;
+        });
+      },
+      // onStatusChange callback
+      (updatedOrder, oldOrder) => {
+        // Only show notifications if socket isn't connected (avoid duplicates)
+        // But always update state to keep UI in sync
+
+        // Play sound for status changes
+        if (updatedOrder.status !== oldOrder?.status) {
+          if (!socketConnectedRef.current) {
             playNotificationSound();
             
             const statusMessages = {
@@ -164,7 +193,7 @@ const AdminPage = () => {
               Completed: "🎉 Order completed",
             };
             
-            // Show notification toast
+            // Show notification toast (only if socket isn't handling it)
             toast.success(
               `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
               {
@@ -178,23 +207,22 @@ const AdminPage = () => {
                 },
               }
             );
-
-            if (updatedOrder.status === "Completed") {
-              setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
-            } else {
-              setOrders((prev) =>
-                prev.map((o) =>
-                  o._id === updatedOrder._id ? { ...o, ...updatedOrder } : o
-                )
-              );
-            }
-            
-            // Refresh data to ensure consistency
-            getAllData();
           }
 
-          // Handle payment status changes
-          if (updatedOrder.paymentStatus !== oldOrder.paymentStatus && updatedOrder.paymentStatus === "Paid") {
+          if (updatedOrder.status === "Completed") {
+            setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
+          } else {
+            setOrders((prev) =>
+              prev.map((o) =>
+                o._id === updatedOrder._id ? { ...o, ...updatedOrder } : o
+              )
+            );
+          }
+        }
+
+        // Handle payment status changes
+        if (updatedOrder.paymentStatus !== oldOrder?.paymentStatus && updatedOrder.paymentStatus === "Paid") {
+          if (!socketConnectedRef.current) {
             // 🔊 Play notification sound for payment
             playNotificationSound();
             
@@ -209,26 +237,26 @@ const AdminPage = () => {
                 fontWeight: "600",
               },
             });
-            setOrders((prev) =>
-              prev.map((o) =>
-                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
-              )
-            );
-            
-            // Refresh data to ensure consistency
-            getAllData();
           }
-        },
-        3000 // Poll every 3 seconds
-      );
-    }
+          setOrders((prev) =>
+            prev.map((o) =>
+              o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
+            )
+          );
+        }
+      },
+      isServerless ? 3000 : 5000 // Poll every 3s on serverless, 5s as backup on regular servers
+    );
 
     // Connection event listeners
     socket.on("connect", () => {
       console.log("✅ Admin Socket connected:", socket.id);
+      socketConnectedRef.current = true;
+      checkSocketConnection();
     });
 
     socket.on("disconnect", (reason) => {
+      socketConnectedRef.current = false;
       if (reason === "io server disconnect") {
         // Server disconnected the socket, try to reconnect
         socket.connect();
@@ -468,6 +496,12 @@ const AdminPage = () => {
       if (pollingStopRef.current) {
         pollingStopRef.current();
         pollingStopRef.current = null;
+      }
+      
+      // Clear socket connection timeout if it exists
+      if (socketConnectionTimeoutRef.current) {
+        clearTimeout(socketConnectionTimeoutRef.current);
+        socketConnectionTimeoutRef.current = null;
       }
       
       // Don't disconnect on cleanup - let it stay connected for other components
