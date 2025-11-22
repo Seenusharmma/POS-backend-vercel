@@ -105,7 +105,7 @@ app.use((req, res, next) => {
 app.use(
   cors({
     origin: [
-      "https://foodfantasy-web.vercel.app",
+      "https://foodfantasy-live.vercel.app",
       "http://localhost:5173",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
