@@ -33,7 +33,7 @@ if (!isVercel) {
   io = new Server(server, {
     cors: {
       origin: [
-        "https://foodfantasy-ff.vercel.app",
+        "https://foodfantasy-web.vercel.app",
         "http://localhost:5173",
       ],
       methods: ["GET", "POST", "PUT", "DELETE"],
@@ -105,7 +105,7 @@ app.use((req, res, next) => {
 app.use(
   cors({
     origin: [
-      "foodfantasy-web.vercel.app",
+      "https://foodfantasy-web.vercel.app",
       "http://localhost:5173",
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
