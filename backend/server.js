@@ -10,6 +10,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
+import cluster from "cluster";
 
 // ✅ __dirname for ES Modules
 const __filename = fileURLToPath(import.meta.url);
@@ -378,5 +379,9 @@ export default app;
 // Vercel doesn't use server.listen(), it uses serverless functions
 if (!isVercel && server) {
   const PORT = process.env.PORT || 8000;
-  server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+  const WORKER_ID = process.env.WORKER_ID || cluster?.worker?.id || 'single';
+  
+  server.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}${WORKER_ID !== 'single' ? ` (Worker ${WORKER_ID})` : ''}`);
+  });
 }

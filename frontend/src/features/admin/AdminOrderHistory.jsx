@@ -5,8 +5,8 @@ import toast, { Toaster } from "react-hot-toast";
 import { motion } from "framer-motion";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
-import LogoLoader from "../LogoLoader";
-import OrderSlip from "../OrderPage/OrderSlip";
+import LogoLoader from "../../components/ui/LogoLoader";
+import OrderSlip from "../orders/OrderSlip";
 import { FaReceipt } from "react-icons/fa";
 
 const AdminOrderHistory = () => {

@@ -17,7 +17,7 @@ import {
 import { FaDollarSign, FaChartLine, FaCalendarDay, FaCalendarWeek, FaCalendarAlt, FaTrophy, FaArrowUp } from "react-icons/fa";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
-import LogoLoader from "../LogoLoader";
+import LogoLoader from "../../components/ui/LogoLoader";
 
 const TotalSales = () => {
   const [orders, setOrders] = useState([]);

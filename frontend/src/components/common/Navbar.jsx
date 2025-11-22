@@ -1,8 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { useFoodFilter } from "../store/hooks";
-import { logoutUser } from "../store/slices/authSlice";
+import { useAppSelector, useAppDispatch, useFoodFilter } from "../../store/hooks";
+import { logoutUser } from "../../store/slices/authSlice";
 import {
   FaHome,
   FaUtensils,

@@ -5,11 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart } from "react-icons/fa";
 import { IoSearch } from "react-icons/io5";
 import toast, { Toaster } from "react-hot-toast";
-import API_BASE from "../config/api";
-import LogoLoader from "./LogoLoader";
-import { useFoodFilter } from "../store/hooks";
-import { useAppSelector } from "../store/hooks";
-import { getSocketConfig, createSocketConnection, isServerlessPlatform } from "../utils/socketConfig";
+import API_BASE from "../../config/api";
+import LogoLoader from "../../components/ui/LogoLoader";
+import { useFoodFilter, useAppSelector } from "../../store/hooks";
+import { getSocketConfig, createSocketConnection, isServerlessPlatform } from "../../utils/socketConfig";
 
 const Menu = () => {
   const { filterFoods: applyGlobalFilter } = useFoodFilter();

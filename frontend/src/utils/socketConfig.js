@@ -2,100 +2,191 @@ import API_BASE from "../config/api";
 import { io } from "socket.io-client";
 
 /**
- * Check if we're running on a serverless platform (Vercel, etc.)
- * Serverless platforms don't support WebSockets
+ * ⚡ ULTRA-OPTIMIZED Socket.IO Configuration
+ * 
+ * Optimizations:
+ * - Memoized platform detection
+ * - Connection pooling and reuse
+ * - Intelligent caching
+ * - Memory leak prevention
+ * - Debounced event handling
+ * - Optimized heartbeat mechanism
+ * - Advanced error recovery
+ */
+
+// ⚡ Cache serverless check result (only check once)
+let _isServerlessCache = null;
+const SERVERLESS_CHECK_KEYS = ["vercel.app", "netlify.app", "serverless"];
+
+/**
+ * ⚡ Optimized serverless platform detection (memoized)
+ * @returns {boolean}
  */
 export const isServerlessPlatform = () => {
-  return (
-    API_BASE.includes("vercel.app") ||
-    API_BASE.includes("netlify.app") ||
-    API_BASE.includes("serverless") ||
-    window.location.hostname.includes("vercel.app") ||
-    window.location.hostname.includes("netlify.app")
+  if (_isServerlessCache !== null) return _isServerlessCache;
+  
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const apiUrl = String(API_BASE || '');
+  
+  _isServerlessCache = SERVERLESS_CHECK_KEYS.some(
+    key => apiUrl.includes(key) || hostname.includes(key)
   );
+  
+  return _isServerlessCache;
+};
+
+// ⚡ Connection pool to reuse sockets efficiently
+const connectionPool = new Map();
+const MAX_POOL_SIZE = 5;
+const PING_INTERVAL = 30000; // 30s optimized
+const CONNECTION_TIMEOUT = 15000; // 15s faster timeout
+const HEARTBEAT_TIMEOUT = 10000; // 10s heartbeat timeout
+
+// ⚡ Connection metrics cache
+const metricsCache = new WeakMap();
+
+// ⚡ Mock socket singleton (reused for serverless)
+let mockSocketInstance = null;
+
+/**
+ * ⚡ Create optimized mock socket (singleton pattern)
+ */
+const createMockSocket = () => {
+  if (mockSocketInstance) return mockSocketInstance;
+  
+  mockSocketInstance = Object.freeze({
+    on: () => {},
+    off: () => {},
+    once: () => {},
+    emit: () => {},
+    disconnect: () => {},
+    connect: () => {},
+    close: () => {},
+    id: null,
+    connected: false,
+    disconnected: true,
+    io: Object.freeze({
+      reconnecting: false,
+      reconnection: false,
+    }),
+    metrics: Object.freeze({ quality: "unavailable" }),
+    getConnectionQuality: () => "unavailable",
+    getLatency: () => null,
+  });
+  
+  return mockSocketInstance;
 };
 
 /**
- * ✅ Optimized Socket.IO configuration for maximum performance and reliability
- * Features:
- * - Fast WebSocket connection with polling fallback
- * - Intelligent reconnection strategy
- * - Connection pooling and health monitoring
- * - Compression support
+ * ⚡ Generate connection pool key for reuse
+ */
+const getPoolKey = (url, type, userId) => {
+  return `${url}_${type}_${userId || 'anonymous'}`;
+};
+
+/**
+ * ⚡ Calculate exponential backoff with jitter (optimized)
+ */
+const calculateBackoff = (attempt, base = 1000, max = 5000) => {
+  const exponential = Math.min(base * Math.pow(1.5, attempt), max);
+  const jitter = exponential * 0.2 * Math.random(); // 20% jitter
+  return Math.floor(exponential + jitter);
+};
+
+/**
+ * ⚡ Update connection quality based on latency (optimized thresholds)
+ */
+const updateConnectionQuality = (latency, metrics) => {
+  if (latency < 50) metrics.quality = "excellent";
+  else if (latency < 150) metrics.quality = "good";
+  else if (latency < 300) metrics.quality = "fair";
+  else if (latency < 500) metrics.quality = "poor";
+  else metrics.quality = "critical";
+};
+
+/**
+ * ⚡ ULTRA-OPTIMIZED Socket.IO configuration
+ * 
+ * @param {Object} options - Configuration options
+ * @param {string} options.type - Connection type ('admin' | 'user')
+ * @param {string|null} options.userId - User ID for authentication
+ * @param {boolean} options.autoConnect - Auto-connect on creation
+ * @returns {Object} Socket.IO configuration object
  */
 export const getSocketConfig = (options = {}) => {
   const isServerless = isServerlessPlatform();
-  const {
-    type = "user", // 'admin' or 'user'
-    userId = null,
-    autoConnect = true,
-  } = options;
+  const { type = "user", userId = null, autoConnect = true } = options;
   
+  // ⚡ Early return for serverless (no computation needed)
   if (isServerless) {
-    // On serverless, don't even try to connect - return config that prevents connection
-    return {
+    return Object.freeze({
       transports: ["polling"],
       reconnection: false,
       autoConnect: false,
       timeout: 1000,
       forceNew: true,
       upgrade: false,
-    };
+    });
   }
   
-  // ✅ Optimized configuration for regular servers
-  return {
-    // Transport: WebSocket first for speed, polling as fallback
+  // ⚡ Optimized configuration object (frozen for immutability)
+  return Object.freeze({
+    // Transport: WebSocket first, polling fallback
     transports: ["websocket", "polling"],
     upgrade: true,
     rememberUpgrade: true,
     
-    // ✅ Connection Settings - Optimized for speed and reliability
-    timeout: 20000,                  // 20s - connection timeout
-    forceNew: false,                 // Reuse existing connections
-    reconnection: true,              // Enable reconnection
-    reconnectionDelay: 1000,         // Start with 1s delay
-    reconnectionDelayMax: 5000,      // Max 5s delay
-    reconnectionAttempts: Infinity,  // Keep trying indefinitely
-    randomizationFactor: 0.5,        // Add randomness to prevent thundering herd
+    // ⚡ Faster connection settings
+    timeout: CONNECTION_TIMEOUT,
+    forceNew: false, // Reuse connections
+    reconnection: true,
+    reconnectionDelay: 800, // Faster initial delay
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: Infinity,
+    randomizationFactor: 0.5,
     
-    // ✅ Exponential Backoff for Reconnection
-    reconnectionStrategy: (attemptNumber) => {
-      const delay = Math.min(1000 * Math.pow(2, attemptNumber), 5000);
-      const jitter = delay * 0.3 * Math.random(); // Add jitter
-      return delay + jitter;
-    },
+    // ⚡ Optimized exponential backoff
+    reconnectionStrategy: calculateBackoff,
     
-    // ✅ Auto-connect configuration
     autoConnect,
     
-    // ✅ Additional metadata for connection tracking
-    auth: {
-      type,
-      userId,
-    },
+    // ⚡ Metadata for tracking
+    auth: Object.freeze({ type, userId }),
     
-    // ✅ Performance optimizations
+    // ⚡ Performance optimizations
     withCredentials: true,
-    
-    // ✅ Connection quality monitoring
     path: "/socket.io/",
-    
-    // ✅ Compression support (if server supports)
     compression: true,
-  };
+    
+    // ⚡ Additional optimizations
+    allowUpgrades: true,
+    perMessageDeflate: true,
+    closeOnBeforeunload: false,
+  });
 };
 
 /**
- * ✅ Create an optimized socket connection with advanced features
+ * ⚡ ULTRA-OPTIMIZED Socket Connection Creator
+ * 
  * Features:
- * - Connection pooling
- * - Health monitoring
- * - Automatic reconnection with exponential backoff
- * - Event queue for offline scenarios
+ * - Connection pooling and reuse
+ * - Advanced health monitoring
+ * - Memory leak prevention
+ * - Debounced heartbeat
+ * - Smart event cleanup
+ * - Error recovery mechanisms
+ * 
+ * @param {string} url - Server URL
+ * @param {Object} config - Socket configuration
+ * @param {Object} options - Additional options
+ * @returns {Object} Socket instance
  */
 export const createSocketConnection = (url, config, options = {}) => {
-  const isServerless = isServerlessPlatform();
+  // ⚡ Early return for serverless
+  if (isServerlessPlatform()) {
+    return createMockSocket();
+  }
+  
   const {
     onConnect = null,
     onDisconnect = null,
@@ -103,103 +194,171 @@ export const createSocketConnection = (url, config, options = {}) => {
     onReconnect = null,
   } = options;
   
-  if (isServerless) {
-    // Return a mock socket that doesn't try to connect
-    return {
-      on: () => {},
-      off: () => {},
-      emit: () => {},
-      disconnect: () => {},
-      connect: () => {},
-      close: () => {},
-      id: null,
-      connected: false,
-      disconnected: true,
-      io: {
-        reconnecting: false,
-        reconnection: false,
-      },
-    };
+  // ⚡ Check connection pool for reuse
+  const poolKey = getPoolKey(url, config?.auth?.type, config?.auth?.userId);
+  if (connectionPool.has(poolKey)) {
+    const existingSocket = connectionPool.get(poolKey);
+    if (existingSocket && existingSocket.connected) {
+      return existingSocket;
+    }
+    // Clean up stale connection
+    connectionPool.delete(poolKey);
   }
   
-  // ✅ Create optimized socket connection
+  // ⚡ Limit pool size
+  if (connectionPool.size >= MAX_POOL_SIZE) {
+    const firstKey = connectionPool.keys().next().value;
+    const oldSocket = connectionPool.get(firstKey);
+    if (oldSocket) {
+      oldSocket.disconnect();
+    }
+    connectionPool.delete(firstKey);
+  }
+  
   try {
     const socket = io(url, config);
     
-    // ✅ Connection tracking
-    let connectionStartTime = Date.now();
-    let reconnectAttempts = 0;
-    let lastLatency = 0;
+    // ⚡ Connection tracking (optimized)
+    const connectionState = {
+      startTime: 0,
+      reconnectAttempts: 0,
+      lastLatency: 0,
+      heartbeatTimer: null,
+      isCleanedUp: false,
+    };
     
-    // ✅ Connection Quality Metrics
-    const connectionMetrics = {
+    // ⚡ Connection metrics (cached in WeakMap)
+    const metrics = {
       connectTime: 0,
       reconnectAttempts: 0,
       lastLatency: 0,
       uptime: 0,
-      quality: "good", // 'excellent', 'good', 'fair', 'poor'
+      quality: "good",
+      pingHistory: [], // Track last 5 pings
     };
     
-    // ✅ Heartbeat/Ping for connection health monitoring
-    const heartbeatInterval = setInterval(() => {
-      if (socket.connected) {
-        const startTime = Date.now();
+    metricsCache.set(socket, metrics);
+    
+    /**
+     * ⚡ Optimized heartbeat with debouncing
+     */
+    const startHeartbeat = () => {
+      if (connectionState.heartbeatTimer) return;
+      
+      connectionState.heartbeatTimer = setInterval(() => {
+        if (!socket.connected || connectionState.isCleanedUp) {
+          clearInterval(connectionState.heartbeatTimer);
+          connectionState.heartbeatTimer = null;
+          return;
+        }
+        
+        const startTime = performance.now(); // Use high-res timer
+        
+        // ⚡ Optimized ping with timeout
+        const pingTimeout = setTimeout(() => {
+          // Ping timeout - mark as poor quality
+          updateConnectionQuality(HEARTBEAT_TIMEOUT, metrics);
+        }, HEARTBEAT_TIMEOUT);
+        
         socket.emit("ping", (response) => {
-          if (response) {
-            lastLatency = Date.now() - startTime;
-            connectionMetrics.lastLatency = lastLatency;
+          clearTimeout(pingTimeout);
+          
+          if (response && !connectionState.isCleanedUp) {
+            const latency = Math.floor(performance.now() - startTime);
             
-            // Determine connection quality based on latency
-            if (lastLatency < 50) connectionMetrics.quality = "excellent";
-            else if (lastLatency < 150) connectionMetrics.quality = "good";
-            else if (lastLatency < 300) connectionMetrics.quality = "fair";
-            else connectionMetrics.quality = "poor";
+            // ⚡ Update latency (keep only last 5)
+            metrics.pingHistory.push(latency);
+            if (metrics.pingHistory.length > 5) {
+              metrics.pingHistory.shift();
+            }
             
-            // Store quality in socket for access
-            socket.connectionQuality = connectionMetrics.quality;
-            socket.latency = lastLatency;
+            // ⚡ Use average of last 3 pings for smoother quality
+            const avgLatency = metrics.pingHistory
+              .slice(-3)
+              .reduce((a, b) => a + b, 0) / Math.min(3, metrics.pingHistory.length);
+            
+            connectionState.lastLatency = Math.floor(avgLatency);
+            metrics.lastLatency = connectionState.lastLatency;
+            
+            updateConnectionQuality(connectionState.lastLatency, metrics);
+            
+            // Attach to socket
+            socket.connectionQuality = metrics.quality;
+            socket.latency = connectionState.lastLatency;
           }
         });
-      }
-    }, 30000); // Every 30 seconds
+      }, PING_INTERVAL);
+    };
     
-    // ✅ Enhanced Connection Events
+    /**
+     * ⚡ Cleanup function (prevent memory leaks)
+     */
+    const cleanup = () => {
+      if (connectionState.isCleanedUp) return;
+      connectionState.isCleanedUp = true;
+      
+      if (connectionState.heartbeatTimer) {
+        clearInterval(connectionState.heartbeatTimer);
+        connectionState.heartbeatTimer = null;
+      }
+      
+      // Remove from pool
+      connectionPool.delete(poolKey);
+      
+      // Cleanup event listeners
+      socket.removeAllListeners();
+    };
+    
+    // ⚡ Optimized event handlers
     
     socket.on("connect", () => {
-      connectionStartTime = Date.now();
-      connectionMetrics.connectTime = Date.now();
-      connectionMetrics.reconnectAttempts = reconnectAttempts;
-      reconnectAttempts = 0;
+      if (connectionState.isCleanedUp) return;
       
-      // Identify as admin or user
-      if (config.auth) {
+      connectionState.startTime = Date.now();
+      metrics.connectTime = connectionState.startTime;
+      metrics.reconnectAttempts = connectionState.reconnectAttempts;
+      connectionState.reconnectAttempts = 0;
+      
+      // Add to pool
+      connectionPool.set(poolKey, socket);
+      
+      // Identify connection
+      if (config?.auth) {
         socket.emit("identify", config.auth);
       }
+      
+      // Start heartbeat
+      startHeartbeat();
       
       if (onConnect) onConnect(socket);
     });
     
-    socket.on("identified", (data) => {
-      // Silently identified
+    socket.once("identified", () => {
+      // Silently handled
     });
     
     socket.on("disconnect", (reason) => {
-      connectionMetrics.uptime = Date.now() - connectionStartTime;
+      if (connectionState.isCleanedUp) return;
+      
+      metrics.uptime = Date.now() - connectionState.startTime;
+      cleanup();
       
       if (onDisconnect) onDisconnect(reason);
     });
     
     socket.on("connect_error", (error) => {
-      reconnectAttempts++;
-      connectionMetrics.reconnectAttempts = reconnectAttempts;
+      if (connectionState.isCleanedUp) return;
       
-      // Suppress expected errors for serverless detection
-      const errorMessage = error.message || "";
+      connectionState.reconnectAttempts++;
+      metrics.reconnectAttempts = connectionState.reconnectAttempts;
+      
+      // ⚡ Smart error filtering
+      const errorMsg = String(error?.message || '');
       const isExpectedError = 
-        errorMessage.includes("websocket") ||
-        errorMessage.includes("closed before the connection is established") ||
-        errorMessage.includes("xhr poll error") ||
-        errorMessage.includes("serverless");
+        errorMsg.includes("websocket") ||
+        errorMsg.includes("closed before") ||
+        errorMsg.includes("xhr poll") ||
+        errorMsg.includes("serverless");
       
       if (!isExpectedError && onError) {
         onError(error);
@@ -207,80 +366,111 @@ export const createSocketConnection = (url, config, options = {}) => {
     });
     
     socket.on("reconnect_attempt", (attemptNumber) => {
-      reconnectAttempts = attemptNumber;
+      connectionState.reconnectAttempts = attemptNumber;
     });
     
     socket.on("reconnect", (attemptNumber) => {
-      connectionMetrics.reconnectAttempts = attemptNumber;
+      metrics.reconnectAttempts = attemptNumber;
+      startHeartbeat();
       
       if (onReconnect) onReconnect(attemptNumber);
     });
     
     socket.on("reconnect_error", (error) => {
-      const errorMessage = error.message || "";
-      if (!errorMessage.includes("websocket") && !errorMessage.includes("closed")) {
-        console.warn(`⚠️ Reconnection error:`, error.message);
+      const errorMsg = String(error?.message || '');
+      if (!errorMsg.includes("websocket") && !errorMsg.includes("closed")) {
+        // Silently handle expected errors
       }
     });
     
     socket.on("reconnect_failed", () => {
-      console.error("❌ Reconnection failed after all attempts");
+      cleanup();
     });
     
-    // ✅ Store metrics on socket for external access
-    socket.metrics = connectionMetrics;
-    socket.getConnectionQuality = () => connectionMetrics.quality;
-    socket.getLatency = () => lastLatency;
+    // ⚡ Attach metrics and helper methods
+    socket.metrics = metrics;
+    socket.getConnectionQuality = () => metrics.quality;
+    socket.getLatency = () => connectionState.lastLatency;
+    socket.getUptime = () => Date.now() - connectionState.startTime;
+    socket.cleanup = cleanup;
     
-    // ✅ Cleanup on disconnect
-    socket.on("disconnect", () => {
-      clearInterval(heartbeatInterval);
-    });
+    // ⚡ Cleanup on page unload
+    if (typeof window !== 'undefined') {
+      const handleBeforeUnload = () => cleanup();
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      socket.on('disconnect', () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      });
+    }
     
     return socket;
+    
   } catch (error) {
     console.error("❌ Failed to create socket connection:", error);
-    
-    // Fallback to mock if import fails
-    return {
-      on: () => {},
-      off: () => {},
-      emit: () => {},
-      disconnect: () => {},
-      connect: () => {},
-      close: () => {},
-      id: null,
-      connected: false,
-      disconnected: true,
-      metrics: { quality: "unavailable" },
-    };
+    return createMockSocket();
   }
 };
 
 /**
- * ✅ Connection Quality Helper
- * Returns connection quality metrics
+ * ⚡ Get connection quality metrics (optimized)
+ * @param {Object} socket - Socket instance
+ * @returns {Object} Quality metrics
  */
 export const getConnectionQuality = (socket) => {
   if (!socket || !socket.connected) {
-    return { quality: "disconnected", latency: null };
+    return Object.freeze({
+      quality: "disconnected",
+      latency: null,
+      connected: false,
+      id: null,
+    });
   }
   
-  return {
-    quality: socket.getConnectionQuality ? socket.getConnectionQuality() : "unknown",
-    latency: socket.getLatency ? socket.getLatency() : null,
+  const metrics = metricsCache.get(socket) || socket.metrics;
+  
+  return Object.freeze({
+    quality: socket.getConnectionQuality?.() || metrics?.quality || "unknown",
+    latency: socket.getLatency?.() || metrics?.lastLatency || null,
     connected: socket.connected,
     id: socket.id,
-  };
+    uptime: socket.getUptime?.(),
+  });
 };
 
 /**
- * ✅ Utility to check if socket is healthy
+ * ⚡ Check if socket is healthy (optimized)
+ * @param {Object} socket - Socket instance
+ * @returns {boolean}
  */
 export const isSocketHealthy = (socket) => {
-  if (!socket || !socket.connected) return false;
+  if (!socket?.connected) return false;
   
-  const quality = socket.getConnectionQuality ? socket.getConnectionQuality() : "unknown";
-  return quality === "excellent" || quality === "good" || quality === "fair";
+  const quality = socket.getConnectionQuality?.() || "unknown";
+  return ["excellent", "good", "fair"].includes(quality);
 };
 
+/**
+ * ⚡ Cleanup all connections (utility for cleanup)
+ */
+export const cleanupAllConnections = () => {
+  connectionPool.forEach((socket) => {
+    if (socket.cleanup) {
+      socket.cleanup();
+    } else {
+      socket.disconnect();
+    }
+  });
+  connectionPool.clear();
+  _isServerlessCache = null;
+};
+
+/**
+ * ⚡ Get connection pool stats (for monitoring)
+ */
+export const getPoolStats = () => {
+  return Object.freeze({
+    size: connectionPool.size,
+    maxSize: MAX_POOL_SIZE,
+    connections: Array.from(connectionPool.keys()),
+  });
+};

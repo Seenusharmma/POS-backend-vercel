@@ -4,15 +4,15 @@ import { io } from "socket.io-client";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
-import { useAppSelector } from "../store/hooks";
+import { useAppSelector } from "../../store/hooks";
 import { useNavigate } from "react-router-dom";
 import { FaTrashAlt, FaShoppingBag, FaStore, FaHome } from "react-icons/fa";
-import API_BASE from "../config/api";
-import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../utils/socketConfig";
-import { pollOrders } from "../utils/polling";
-import LogoLoader from "./LogoLoader";
-import TableSelect from "./OrderPage/Tables/TableSelect";
-import PaymentModal from "./OrderPage/PaymentModal";
+import API_BASE from "../../config/api";
+import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
+import { pollOrders } from "../../utils/polling";
+import LogoLoader from "../../components/ui/LogoLoader";
+import TableSelect from "./Tables/TableSelect";
+import PaymentModal from "./PaymentModal";
 
 const TOTAL_TABLES = 40;
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from "react";
-import { auth } from "../firebase";
+import React, { useState, useEffect } from "react";
+import { auth } from "../services/firebase";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -8,22 +8,20 @@ import {
 } from "firebase/auth";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../context/authContext";
+import { useAppSelector } from "../store/hooks";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
-import LogoLoader from "../components/LogoLoader"; // ✅ Import loader
-import UsernameModal from "../components/UsernameModal";
+import LogoLoader from "../components/ui/LogoLoader"; // ✅ Import loader
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true); // ✅ Page loader state
-  const [showUsernameModal, setShowUsernameModal] = useState(false);
-  const [pendingUser, setPendingUser] = useState(null);
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user } = useAppSelector((state) => state.auth);
 
-  const ADMIN_EMAIL = "roshansharma7250@gmail.com, ";
+  const ADMIN_EMAIL = "roshansharma7250@gmail.com";
 
   // ✅ Show logo loader when page first loads
   useEffect(() => {
@@ -31,21 +29,13 @@ const LoginPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // ✅ Redirect logged-in user (only if username is set or modal is closed)
-  // This useEffect acts as a backup to catch users who don't have displayName
-  // but only if the modal isn't already being shown by handleGoogle/handleAuth
+  // ✅ Redirect logged-in user
   useEffect(() => {
-    if (user && !showUsernameModal && !pendingUser) {
-      // Check if user needs to set username (only for non-admin users)
-      if (user.email !== ADMIN_EMAIL && !user.displayName) {
-        setShowUsernameModal(true);
-        setPendingUser(user);
-        return;
-      }
+    if (user) {
       if (user.email === ADMIN_EMAIL) navigate("/admin");
       else navigate("/");
     }
-  }, [user, navigate, showUsernameModal, pendingUser]);
+  }, [user, navigate]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -69,34 +59,16 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      let userResult;
       if (isLogin) {
-        userResult = await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, email, password);
         toast.success("✅ Logged in successfully!");
-        
-        // Check if username is needed (only for non-admin users)
-        if (email !== ADMIN_EMAIL && !userResult.user.displayName) {
-          setPendingUser(userResult.user);
-          setShowUsernameModal(true);
-        } else if (email === ADMIN_EMAIL) {
-          navigate("/admin");
-        } else {
-          navigate("/order");
-        }
       } else {
-        userResult = await createUserWithEmailAndPassword(auth, email, password);
+        await createUserWithEmailAndPassword(auth, email, password);
         toast.success("🎉 Account created successfully!");
-        
-        // Check if username is needed (only for non-admin, new users)
-        if (email !== ADMIN_EMAIL && !userResult.user.displayName) {
-          setPendingUser(userResult.user);
-          setShowUsernameModal(true);
-        } else if (email === ADMIN_EMAIL) {
-          navigate("/admin");
-        } else {
-          navigate("/order");
-        }
       }
+
+      if (email === ADMIN_EMAIL) navigate("/admin");
+      else navigate("/");
     } catch (err) {
       const code = err.code || "";
       if (code === "auth/user-not-found") toast.error("User not found.");
@@ -115,84 +87,35 @@ const LoginPage = () => {
       const result = await signInWithPopup(auth, provider);
       const email = result.user.email;
       toast.success("✅ Google Sign-In successful!");
-      
-      // Check if username is needed (only for non-admin users)
-      if (email !== ADMIN_EMAIL && !result.user.displayName) {
-        setPendingUser(result.user);
-        setShowUsernameModal(true);
-      } else if (email === ADMIN_EMAIL) {
-        navigate("/admin");
-      } else {
-        navigate("/order");
-      }
+      if (email === ADMIN_EMAIL) navigate("/admin");
+      else navigate("/");
     } catch {
       toast.error("Google Sign-In failed. Please try again.");
     }
-  };
-
-  const handleUsernameModalClose = () => {
-    setShowUsernameModal(false);
-    setPendingUser(null);
-    // Small delay to ensure state updates before navigation
-    setTimeout(() => {
-      if (user) {
-        if (user.email === ADMIN_EMAIL) navigate("/admin");
-        else navigate("/order");
-      }
-    }, 100);
   };
 
   // ✅ Show loader before page appears
   if (pageLoading) return <LogoLoader />;
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gradient-to-br from-orange-100 via-yellow-50 to-white overflow-hidden">
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-orange-100 via-yellow-50 to-white overflow-hidden">
       <Toaster />
-      <UsernameModal
-        isOpen={showUsernameModal}
-        onClose={handleUsernameModalClose}
-        user={pendingUser || user}
-      />
 
-      {/* 🍴 Left Section */}
+      {/* 🔐 Login Form (Centered) */}
       <motion.div
-        initial={{ x: -100, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
+        initial={{ y: 50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="hidden md:flex w-1/2 items-center justify-center bg-gradient-to-br from-orange-500 via-orange-400 to-yellow-300 p-10 relative"
+        className="flex justify-center items-center w-full p-4 sm:p-6 md:p-10 relative"
       >
-        <div className="text-left max-w-md">
-          <h1 className="text-5xl font-extrabold text-white leading-tight drop-shadow-md">
-            Food <span className="text-yellow-200">Fantasy</span>
-          </h1>
-          <p className="text-white text-lg mt-4 opacity-90">
-            Order your favorite food with just one tap.  
-            Fresh, Fast & Delicious — the Food Fantasy way 🍕
-          </p>
-          <img
-            src="/logo.png"
-            alt="Food Illustration"
-            className="w-80 mt-10 mx-auto drop-shadow-2xl"
-          />
-        </div>
-        <div className="absolute bottom-0 left-0 w-full h-2 bg-yellow-300 opacity-70"></div>
-      </motion.div>
-
-      {/* 🔐 Right Section (Login Form) */}
-      <motion.div
-        initial={{ x: 100, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.8 }}
-        className="flex w-full md:w-1/2 justify-center items-center bg-white p-6 sm:p-10 relative"
-      >
-        <div className="bg-white shadow-2xl border border-gray-100 rounded-3xl w-full max-w-sm p-8 sm:p-10">
-          <h2 className="text-4xl font-extrabold text-center text-orange-500 mb-8 tracking-tight">
+        <div className="bg-white shadow-2xl border border-gray-100 rounded-2xl md:rounded-3xl w-full max-w-sm p-6 sm:p-8 md:p-10">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-center text-orange-500 mb-6 sm:mb-8 tracking-tight">
             {isLogin ? "Welcome Back 👋" : "Create Account 🎉"}
           </h2>
 
           {/* Email Input */}
-          <div className="mb-4">
-            <label className="block text-gray-600 text-sm mb-1 font-semibold">
+          <div className="mb-3 sm:mb-4">
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1 font-semibold">
               Email
             </label>
             <input
@@ -201,13 +124,13 @@ const LoginPage = () => {
               value={form.email}
               onChange={handleChange}
               placeholder="you@example.com"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-gray-300 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400"
             />
           </div>
 
           {/* Password Input */}
-          <div className="mb-5">
-            <label className="block text-gray-600 text-sm mb-1 font-semibold">
+          <div className="mb-4 sm:mb-5">
+            <label className="block text-gray-600 text-xs sm:text-sm mb-1 font-semibold">
               Password
             </label>
             <input
@@ -216,17 +139,18 @@ const LoginPage = () => {
               value={form.password}
               onChange={handleChange}
               placeholder="••••••••"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-gray-300 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400"
             />
           </div>
 
           {/* Remember & Forgot */}
-          <div className="flex items-center justify-between mb-6 text-sm text-gray-500">
+          <div className="flex items-center justify-between mb-4 sm:mb-6 text-xs sm:text-sm text-gray-500">
             <label className="flex items-center">
               <input type="checkbox" className="accent-orange-500 mr-2" />
-              Remember me
+              <span className="hidden sm:inline">Remember me</span>
+              <span className="sm:hidden">Remember</span>
             </label>
-            <span className="text-orange-500 cursor-pointer hover:underline">
+            <span className="text-orange-500 cursor-pointer hover:underline text-xs sm:text-sm">
               Forgot Password?
             </span>
           </div>
@@ -236,16 +160,16 @@ const LoginPage = () => {
             whileTap={{ scale: 0.95 }}
             onClick={handleAuth}
             disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-semibold transition-all shadow-md"
+            className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold transition-all shadow-md text-sm sm:text-base"
           >
             {loading ? "Please wait..." : isLogin ? "Log In" : "Register"}
           </motion.button>
 
           {/* Divider */}
-          <div className="flex items-center my-6">
-            <div className="grow border-t border-gray-300"></div>
-            <span className="px-3 text-gray-500 text-sm">OR</span>
-            <div className="grow border-t border-gray-300"></div>
+          <div className="flex items-center my-4 sm:my-6">
+            <div className="flex-grow border-t border-gray-300"></div>
+            <span className="px-2 sm:px-3 text-gray-500 text-xs sm:text-sm">OR</span>
+            <div className="flex-grow border-t border-gray-300"></div>
           </div>
 
           {/* Google Login */}
@@ -253,19 +177,20 @@ const LoginPage = () => {
             whileTap={{ scale: 0.97 }}
             onClick={handleGoogle}
             disabled={loading}
-            className="border border-gray-300 w-full py-3 rounded-xl flex justify-center items-center gap-3 hover:bg-gray-50 transition text-gray-700 font-medium"
+            className="border border-gray-300 w-full py-2.5 sm:py-3 rounded-lg sm:rounded-xl flex justify-center items-center gap-2 sm:gap-3 hover:bg-gray-50 transition text-gray-700 font-medium text-sm sm:text-base"
           >
             <img
               src="https://upload.wikimedia.org/wikipedia/commons/0/09/IOS_Google_icon.png"
               alt="Google"
-              className="w-6 h-6"
+              className="w-5 h-5 sm:w-6 sm:h-6"
             />
-            Continue with Google
+            <span className="hidden sm:inline">Continue with Google</span>
+            <span className="sm:hidden">Google</span>
           </motion.button>
 
           {/* Toggle */}
-          <p className="text-center text-sm text-gray-500 mt-6">
-            {isLogin ? "Don’t have an account?" : "Already have an account?"}{" "}
+          <p className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
             <span
               onClick={toggleMode}
               className="text-orange-500 font-semibold cursor-pointer hover:underline"
@@ -276,8 +201,8 @@ const LoginPage = () => {
         </div>
 
         {/* Decorative Circle Background */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-orange-200 rounded-full blur-3xl opacity-40 -z-10"></div>
-        <div className="absolute bottom-0 left-0 w-56 h-56 bg-yellow-200 rounded-full blur-3xl opacity-40 -z-10"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 bg-orange-200 rounded-full blur-3xl opacity-40 -z-10"></div>
+        <div className="absolute bottom-0 left-0 w-40 h-40 sm:w-56 sm:h-56 bg-yellow-200 rounded-full blur-3xl opacity-40 -z-10"></div>
       </motion.div>
     </div>
   );

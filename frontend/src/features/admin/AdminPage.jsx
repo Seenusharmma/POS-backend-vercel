@@ -8,7 +8,7 @@ import imageCompression from "browser-image-compression";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
-import LogoLoader from "../LogoLoader";
+import LogoLoader from "../../components/ui/LogoLoader";
 import TotalSales from "./TotalSales";
 import AdminOrderHistory from "./AdminOrderHistory";
 import { useFoodFilter } from "../../store/hooks";
@@ -43,7 +43,10 @@ const AdminPage = () => {
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const pollingStopRef = useRef(null);
+  const directPollingIntervalRef = useRef(null);
   const socketConnectionTimeoutRef = useRef(null);
+  const consecutiveErrorsRef = useRef(0);
+  const maxConsecutiveErrors = 5; // Stop polling after 5 consecutive errors
 
   // 🔊 Play notification sound
   const playNotificationSound = () => {
@@ -114,121 +117,203 @@ const AdminPage = () => {
     const socket = socketRef.current;
     getAllData();
 
-    // ✅ Set up polling as a fallback for real-time updates
-    // This works on both serverless platforms and as a backup when sockets fail
+    // ⚡ CRITICAL FIX: Set up aggressive polling that ALWAYS runs
+    // This ensures real-time updates regardless of socket status
     const fetchOrdersForPolling = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/orders`);
-        return res.data.filter((o) => o.status !== "Completed");
+        const res = await axios.get(`${API_BASE}/api/orders`, {
+          timeout: 5000, // 5s timeout
+        });
+        consecutiveErrorsRef.current = 0; // Reset error count on success
+        const activeOrders = res.data.filter((o) => o.status !== "Completed");
+        return activeOrders;
       } catch (error) {
-        console.error("Error fetching orders for polling:", error);
+        consecutiveErrorsRef.current += 1;
+        
+        // ⚡ Only log unexpected errors (not 503, timeout, or network errors)
+        const isExpectedError = 
+          error?.response?.status === 503 || // Service unavailable
+          error?.code === 'ECONNABORTED' || // Timeout
+          error?.code === 'ERR_NETWORK' || // Network error
+          error?.message?.includes('timeout') ||
+          error?.message?.includes('Network Error');
+        
+        if (!isExpectedError && consecutiveErrorsRef.current <= 3) {
+          // Only log first 3 unexpected errors to avoid spam
+          console.warn("Error fetching orders for polling:", error?.message || error);
+        }
+        
+        // ⚡ Circuit breaker: Stop polling if too many consecutive errors
+        if (consecutiveErrorsRef.current >= maxConsecutiveErrors) {
+          if (directPollingIntervalRef.current) {
+            clearInterval(directPollingIntervalRef.current);
+            directPollingIntervalRef.current = null;
+          }
+          toast.error("Unable to fetch orders. Server may be unavailable.", {
+            duration: 5000,
+            position: "top-right",
+          });
+          return [];
+        }
+        
         return [];
       }
     };
 
-    // Track socket connection status
+    // ⚡ Track socket connection status (but don't let it block polling)
     const socketConnectedRef = { current: false };
 
-    // Check socket connection status
+    // ⚡ Check socket connection status
     const checkSocketConnection = () => {
       if (socket && typeof socket.connected !== 'undefined') {
         socketConnectedRef.current = socket.connected;
-        if (socketConnectedRef.current && socketConnectionTimeoutRef.current) {
-          clearTimeout(socketConnectionTimeoutRef.current);
-          socketConnectionTimeoutRef.current = null;
-        }
       }
     };
 
     // Initial check
     checkSocketConnection();
 
-    // ✅ CRITICAL for Vercel: Always check if socket is actually working
-    // On Vercel, socket might appear "connected" but doesn't actually receive events
-    // So we always enable polling as primary mechanism on serverless
-    const shouldUsePollingAsPrimary = isServerless;
+    // ⚡ CRITICAL: Always use polling as primary mechanism for admin
+    // Socket connections are unreliable on serverless platforms
+    // Polling ensures we ALWAYS get real-time updates
+    const shouldUsePollingAsPrimary = true; // Always use polling for admin
+    const pollingInterval = 1500; // ⚡ Fast 1.5s polling for near real-time feel
     
-    // ✅ Socket connection timeout check
-    if (!isServerless) {
-      // On regular servers, check socket connection after 5 seconds
-      socketConnectionTimeoutRef.current = setTimeout(() => {
-        // If socket doesn't connect within 5 seconds, rely on polling
-        if (!socketConnectedRef.current) {
-          socketConnectedRef.current = false;
-          // Force polling to take over
-        }
-      }, 5000);
-    } else {
-      // ✅ On serverless (Vercel), immediately force polling mode
-      // Socket.IO doesn't work on Vercel, so polling is the ONLY mechanism
-      socketConnectedRef.current = false;
-    }
-    
-    // ✅ CRITICAL: Also check socket connection status periodically on Vercel
-    // Even if socket appears "connected", it won't receive events on serverless
-    if (isServerless && socket && typeof socket.connected !== 'undefined') {
-      // Force socket to be considered disconnected on serverless
-      socketConnectedRef.current = false;
-    }
-
-    // ✅ CRITICAL: Start polling with optimized interval
-    // - Serverless (Vercel): Poll every 2 seconds (aggressive for real-time feel)
-    // - Regular server: Poll every 3 seconds (backup when socket fails)
-    const pollingInterval = isServerless ? 2000 : 3000;
-    
-    pollingStopRef.current = pollOrders(
-      fetchOrdersForPolling,
-      // onNewOrder callback - when a new order appears
-      (newOrder) => {
-        // ✅ CRITICAL: Verify order is valid
-        if (!newOrder || !newOrder._id) {
+    // ⚡ Set up a direct polling mechanism that syncs ALL orders
+    const syncOrdersFromPolling = async () => {
+      try {
+        const freshOrders = await fetchOrdersForPolling();
+        
+        // ⚡ Skip if no orders (likely an error)
+        if (!Array.isArray(freshOrders) || freshOrders.length === 0) {
           return;
         }
         
-        // ✅ On serverless OR if socket not connected, show notifications
-        // This ensures notifications work on Vercel
-        const shouldShowNotification = shouldUsePollingAsPrimary || !socketConnectedRef.current;
+        const currentOrderIds = new Set(freshOrders.map(o => o._id));
         
-        if (shouldShowNotification) {
-          // 🔊 Play notification sound for new orders
-          playNotificationSound();
-          
-          // Show notification toast
-          toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber || "Takeaway"}`, {
-            duration: 5000,
-            position: "top-right",
-            icon: "🆕",
-            style: {
-              background: "#10b981",
-              color: "#fff",
-              fontSize: "16px",
-              fontWeight: "600",
-            },
-          });
-        }
-        
-        // ✅ CRITICAL: Always update state to ensure UI is in sync
-        // Use functional update to avoid stale closures
+        // ⚡ Always update orders state with fresh data
         setOrders((prev) => {
-          // Check if order already exists
+          // Check if there are new orders
+          const prevOrderIds = new Set(prev.map(o => o._id));
+          
+          // Find new orders
+          const newOrders = freshOrders.filter(o => !prevOrderIds.has(o._id));
+          
+          // ⚡ FIX: Handle notifications OUTSIDE setState to avoid React warning
+          // Store new orders for processing after state update
+          if (newOrders.length > 0) {
+            // Use setTimeout to defer notifications outside render cycle
+            setTimeout(() => {
+              newOrders.forEach(newOrder => {
+                if (newOrder && newOrder._id) {
+                  playNotificationSound();
+                  toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber || "Takeaway"}`, {
+                    duration: 5000,
+                    position: "top-right",
+                    icon: "🆕",
+                    style: {
+                      background: "#10b981",
+                      color: "#fff",
+                      fontSize: "16px",
+                      fontWeight: "600",
+                    },
+                  });
+                  setHighlightedOrder(newOrder._id);
+                  setTimeout(() => setHighlightedOrder(null), 3000);
+                }
+              });
+            }, 0);
+          }
+          
+          // Check for status changes
+          freshOrders.forEach(newOrder => {
+            const oldOrder = prev.find(o => o._id === newOrder._id);
+            if (oldOrder && oldOrder.status !== newOrder.status) {
+              // Use setTimeout to defer notifications outside render cycle
+              setTimeout(() => {
+                playNotificationSound();
+                const statusMessages = {
+                  Pending: "⏳ Order status: Pending",
+                  Cooking: "👨‍🍳 Order is being cooked",
+                  Ready: "✅ Order is ready",
+                  Served: "🍽️ Order has been served",
+                  Completed: "🎉 Order completed",
+                };
+                toast.success(
+                  `${statusMessages[newOrder.status] || "Order status updated"}: ${newOrder.foodName}`,
+                  {
+                    duration: 4000,
+                    position: "top-right",
+                    style: {
+                      background: "#3b82f6",
+                      color: "#fff",
+                      fontSize: "16px",
+                      fontWeight: "600",
+                    },
+                  }
+                );
+              }, 0);
+            }
+            
+            // Check payment status changes
+            if (oldOrder && oldOrder.paymentStatus !== newOrder.paymentStatus && newOrder.paymentStatus === "Paid") {
+              setTimeout(() => {
+                playNotificationSound();
+                toast.success(`💰 Payment Confirmed: ${newOrder.foodName}`, {
+                  duration: 4000,
+                  position: "top-right",
+                  icon: "✅",
+                  style: {
+                    background: "#10b981",
+                    color: "#fff",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                  },
+                });
+              }, 0);
+            }
+          });
+          
+          // ⚡ Always return fresh orders list (ensures UI is always in sync)
+          return freshOrders;
+        });
+        
+      } catch (error) {
+        // Silent error handling - don't spam console
+        consecutiveErrorsRef.current += 1;
+      }
+    };
+    
+    // ⚡ Start aggressive polling immediately
+    syncOrdersFromPolling(); // Initial fetch
+    directPollingIntervalRef.current = setInterval(syncOrdersFromPolling, pollingInterval);
+    
+    // ⚡ Also use the existing pollOrders for additional change detection
+    pollingStopRef.current = pollOrders(
+      fetchOrdersForPolling,
+      // onNewOrder callback
+      (newOrder) => {
+        if (!newOrder || !newOrder._id) return;
+        
+        // ⚡ Always update state (polling is primary mechanism)
+        setOrders((prev) => {
           const existingIndex = prev.findIndex((o) => o._id === newOrder._id);
           
-          // Only add if order is not completed and doesn't exist
           if (newOrder.status !== "Completed") {
             if (existingIndex === -1) {
-              // New order - add to beginning and highlight
-              setHighlightedOrder(newOrder._id);
-              setTimeout(() => setHighlightedOrder(null), 3000);
+              // ⚡ FIX: Move setState outside to avoid React warning
+              setTimeout(() => {
+                setHighlightedOrder(newOrder._id);
+                setTimeout(() => setHighlightedOrder(null), 3000);
+              }, 0);
               return [newOrder, ...prev];
             } else {
-              // Order exists - update it to ensure latest data
               const updated = [...prev];
               updated[existingIndex] = { ...updated[existingIndex], ...newOrder };
               return updated;
             }
           }
           
-          // If completed, remove it from active orders
           if (existingIndex !== -1) {
             return prev.filter((o) => o._id !== newOrder._id);
           }
@@ -238,39 +323,7 @@ const AdminPage = () => {
       },
       // onStatusChange callback
       (updatedOrder, oldOrder) => {
-        // ✅ CRITICAL: On serverless OR if socket not connected, show notifications
-        const shouldShowNotification = shouldUsePollingAsPrimary || !socketConnectedRef.current;
-        
-        // ✅ Handle status changes
         if (updatedOrder.status !== oldOrder?.status) {
-          if (shouldShowNotification) {
-            playNotificationSound();
-            
-            const statusMessages = {
-              Pending: "⏳ Order status: Pending",
-              Cooking: "👨‍🍳 Order is being cooked",
-              Ready: "✅ Order is ready",
-              Served: "🍽️ Order has been served",
-              Completed: "🎉 Order completed",
-            };
-            
-            // Show notification toast
-            toast.success(
-              `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
-              {
-                duration: 4000,
-                position: "top-right",
-                style: {
-                  background: "#3b82f6",
-                  color: "#fff",
-                  fontSize: "16px",
-                  fontWeight: "600",
-                },
-              }
-            );
-          }
-
-          // ✅ Always update state regardless of notification
           if (updatedOrder.status === "Completed") {
             setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
           } else {
@@ -282,24 +335,7 @@ const AdminPage = () => {
           }
         }
 
-        // ✅ Handle payment status changes
         if (updatedOrder.paymentStatus !== oldOrder?.paymentStatus && updatedOrder.paymentStatus === "Paid") {
-          if (shouldShowNotification) {
-            // 🔊 Play notification sound for payment
-            playNotificationSound();
-            
-            toast.success(`💰 Payment Confirmed: ${updatedOrder.foodName}`, {
-              duration: 4000,
-              position: "top-right",
-              icon: "✅",
-              style: {
-                background: "#10b981",
-                color: "#fff",
-                fontSize: "16px",
-                fontWeight: "600",
-              },
-            });
-          }
           setOrders((prev) =>
             prev.map((o) =>
               o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
@@ -307,7 +343,7 @@ const AdminPage = () => {
           );
         }
       },
-      pollingInterval // Use optimized interval (2s on serverless, 3s on regular)
+      pollingInterval
     );
 
     // Connection event listeners
@@ -589,10 +625,19 @@ const AdminPage = () => {
       socket.off("newFoodAdded");
       socket.off("foodDeleted");
       
-      // Stop polling if it's running
+      // ⚡ Stop all polling mechanisms
       if (pollingStopRef.current) {
-        pollingStopRef.current();
+        // Stop the pollOrders mechanism
+        if (typeof pollingStopRef.current === 'function') {
+          pollingStopRef.current();
+        }
         pollingStopRef.current = null;
+      }
+      
+      // ⚡ Clear direct polling interval
+      if (directPollingIntervalRef.current) {
+        clearInterval(directPollingIntervalRef.current);
+        directPollingIntervalRef.current = null;
       }
       
       // Clear socket connection timeout if it exists

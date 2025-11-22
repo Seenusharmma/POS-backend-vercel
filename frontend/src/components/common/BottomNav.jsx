@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAppSelector } from "../store/hooks";
+import { useAppSelector } from "../../store/hooks";
 import { FaHome, FaUtensils, FaShoppingBag, FaHistory, FaUser, FaUserCog } from "react-icons/fa";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";

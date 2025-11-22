@@ -3,18 +3,18 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { Provider } from "react-redux";
 import { store } from "./store/store";
 import { AuthProvider } from "./store/AuthProvider";
-import Navbar from "./components/Navbar";
-import Home from "./components/HomePage/Home";
-import Menu from "./components/Menu";
-import OrderPage from "./components/OrderPage";
-import OrderHistory from "./components/OrderHistory";
-import AdminPage from "./components/Admin/AdminPage";
-import LoginPage from "./components/LoginPage";
-import Profile from "./components/Profile";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Footer from "./components/Footer";
-import TotalSales from "./components/Admin/TotalSales";
-import BottomNav from "./components/BottomNav";
+import Navbar from "./components/common/Navbar";
+import Home from "./pages/Home";
+import Menu from "./features/menu/Menu";
+import OrderPage from "./features/orders/OrderPage";
+import OrderHistory from "./pages/OrderHistory";
+import AdminPage from "./features/admin/AdminPage";
+import LoginPage from "./pages/LoginPage";
+import Profile from "./pages/Profile";
+import ProtectedRoute from "./components/layout/ProtectedRoute";
+import Footer from "./components/common/Footer";
+import TotalSales from "./features/admin/TotalSales";
+import BottomNav from "./components/common/BottomNav";
 
 const AppContent = () => {
   const location = useLocation();

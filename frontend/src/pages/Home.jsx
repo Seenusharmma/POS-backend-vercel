@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import API_BASE from "../../config/api";
-import LogoLoader from "../LogoLoader";
-import VegCard from "./VegCard";
-import NonVegCard from "./NonVegCard";
-import OfferZone from "./OfferZone";
-import MenuSlider from "./MenuSlider";
-import FloatingCartButton from "./FloatingCartButton";
-import VideoSection from "./VideoSection";
+import API_BASE from "../config/api";
+import LogoLoader from "../components/ui/LogoLoader";
+import VegCard from "../features/home/VegCard";
+import NonVegCard from "../features/home/NonVegCard";
+import OfferZone from "../features/home/OfferZone";
+import MenuSlider from "../features/home/MenuSlider";
+import FloatingCartButton from "../features/home/FloatingCartButton";
+import VideoSection from "../features/home/VideoSection";
 
 const Home = () => {
   const [loading, setLoading] = useState(true);
