@@ -104,51 +104,80 @@ const OrderPage = () => {
     }
     const socket = socketRef.current;
 
-    // ✅ Set up polling for serverless platforms (Vercel)
-    if (isServerless) {
-      const fetchUserOrdersForPolling = async () => {
-        try {
-          const res = await axios.get(`${API_BASE}/api/orders`);
-          return res.data.filter(
-            (o) => (o.userId === user?.uid || o.userEmail === user?.email) && o.status !== "Completed"
-          );
-        } catch (error) {
-          console.error("Error fetching orders for polling:", error);
-          return [];
-        }
-      };
+    // ✅ Track socket connection status for polling fallback
+    const socketConnectedRef = { current: false };
+    
+    // Check socket connection status
+    const checkSocketConnection = () => {
+      if (socket && typeof socket.connected !== 'undefined') {
+        socketConnectedRef.current = socket.connected;
+      }
+    };
+    
+    // Initial check
+    checkSocketConnection();
+    
+    // ✅ Set up polling as fallback (works on BOTH serverless AND regular servers)
+    // This ensures orders update even if socket connection fails
+    const fetchUserOrdersForPolling = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/orders`);
+        return res.data.filter(
+          (o) => (o.userId === user?.uid || o.userEmail === user?.email) && o.status !== "Completed"
+        );
+      } catch (error) {
+        return [];
+      }
+    };
 
-      // Start polling for user orders
-      pollingStopRef.current = pollOrders(
-        fetchUserOrdersForPolling,
-        // onNewOrder callback
-        (newOrder) => {
-          setOrders((prev) => {
-            const exists = prev.find((o) => o._id === newOrder._id);
-            if (!exists) {
-              return [newOrder, ...prev];
-            }
-            return prev;
-          });
-          if (newOrder.tableNumber) {
-            setBookedTables((prev) => {
-              if (!prev.includes(Number(newOrder.tableNumber))) {
-                return [...prev, Number(newOrder.tableNumber)];
-              }
-              return prev;
-            });
-          }
+    // ✅ Start polling as fallback (only if socket not connected, or always on serverless)
+    // Poll interval: 3s on serverless, 5s as backup on regular servers
+    pollingStopRef.current = pollOrders(
+      fetchUserOrdersForPolling,
+      // onNewOrder callback
+      (newOrder) => {
+        // ✅ Only show notification if socket isn't connected (avoid duplicates)
+        if (!socketConnectedRef.current) {
           toast.success(`📦 Order Placed: ${newOrder.foodName}`, {
             duration: 4000,
             position: "top-center",
           });
-        },
-        // onStatusChange callback
-        (updatedOrder, oldOrder) => {
-          // Play sound for status changes
-          if (updatedOrder.status !== oldOrder.status) {
+        }
+        
+        setOrders((prev) => {
+          const exists = prev.find((o) => o._id === newOrder._id);
+          if (!exists) {
+            return [newOrder, ...prev];
+          }
+          return prev;
+        });
+        
+        if (newOrder.tableNumber) {
+          setBookedTables((prev) => {
+            if (!prev.includes(Number(newOrder.tableNumber))) {
+              return [...prev, Number(newOrder.tableNumber)];
+            }
+            return prev;
+          });
+        }
+      },
+      // onStatusChange callback - CRITICAL for real-time status updates
+      (updatedOrder, oldOrder) => {
+        // ✅ Validate order belongs to user
+        if (!updatedOrder || !updatedOrder._id || !user) return;
+        
+        const isUserOrder = 
+          (updatedOrder.userEmail === user.email) || 
+          (updatedOrder.userId === user.uid);
+        
+        if (!isUserOrder) return;
+        
+        // ✅ Handle status changes (only if socket not handling it to avoid duplicates)
+        if (updatedOrder.status !== oldOrder?.status) {
+          if (!socketConnectedRef.current) {
             playNotificationSound();
             
+            // ✅ CRITICAL: Handle Completed status - remove from live orders
             if (updatedOrder.status === "Completed") {
               setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
               if (updatedOrder.tableNumber) {
@@ -157,43 +186,78 @@ const OrderPage = () => {
                 );
               }
               toast.success(
-                `🎉 Your order is completed: ${updatedOrder.foodName}`,
+                `🎉 Order Completed: ${updatedOrder.foodName}. View it in Order History!`,
                 {
-                  duration: 4000,
+                  duration: 6000,
                   position: "top-center",
+                  icon: "✅",
+                  style: {
+                    background: "#10b981",
+                    color: "#fff",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                  },
                 }
               );
             } else {
-              setOrders((prev) =>
-                prev.map((o) =>
-                  o._id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o
-                )
-              );
+              // ✅ Update order status for non-completed orders
+              setOrders((prev) => {
+                const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
+                if (existingIndex === -1) {
+                  return [updatedOrder, ...prev];
+                } else {
+                  const updated = [...prev];
+                  updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
+                  return updated;
+                }
+              });
               
               const statusMessages = {
-                Pending: "⏳ Your order is pending",
-                Cooking: "👨‍🍳 Your order is being cooked",
-                Ready: "✅ Your order is ready",
-                Served: "🍽️ Your order has been served",
+                Pending: "⏳ Order Pending",
+                Cooking: "👨‍🍳 Order is being cooked",
+                Ready: "✅ Order is ready for pickup",
+                Served: "🍽️ Order has been served",
               };
+              
               toast.success(
                 `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
                 {
                   duration: 4000,
                   position: "top-center",
+                  icon: "📦",
+                  style: {
+                    background: "#3b82f6",
+                    color: "#fff",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                  },
                 }
               );
             }
+          } else {
+            // Socket is connected but polling detected change - still update state
+            if (updatedOrder.status === "Completed") {
+              setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
+            } else {
+              setOrders((prev) => {
+                const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
+                if (existingIndex === -1) {
+                  return [updatedOrder, ...prev];
+                } else {
+                  const updated = [...prev];
+                  updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
+                  return updated;
+                }
+              });
+            }
           }
+        }
 
-          // Handle payment status changes
-          if (updatedOrder.paymentStatus !== oldOrder.paymentStatus && updatedOrder.paymentStatus === "Paid") {
-            setOrders((prev) =>
-              prev.map((o) =>
-                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid" } : o
-              )
-            );
-            toast.success("💰 Payment Done! Your payment has been confirmed by admin.", {
+        // ✅ Handle payment status changes
+        if (updatedOrder.paymentStatus !== oldOrder?.paymentStatus && updatedOrder.paymentStatus === "Paid") {
+          if (!socketConnectedRef.current) {
+            playNotificationSound();
+            toast.success("💰 Payment Confirmed: Your payment has been confirmed by admin.", {
               duration: 5000,
               icon: '✅',
               style: {
@@ -205,14 +269,37 @@ const OrderPage = () => {
               position: 'top-center',
             });
           }
-        },
-        3000 // Poll every 3 seconds
-      );
-    }
+          setOrders((prev) =>
+            prev.map((o) =>
+              o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
+            )
+          );
+        }
+      },
+      isServerless ? 3000 : 5000 // Poll every 3s on serverless, 5s as backup on regular servers
+    );
 
-    // Connection event listeners (silent)
+    // Connection event listeners
     socket.on("connect", () => {
-      // Silently connected
+      socketConnectedRef.current = true;
+      checkSocketConnection();
+      
+      // ✅ CRITICAL: Identify as user after connection to join user room
+      // This ensures user receives orderStatusChanged events
+      if (socket && typeof socket.emit === "function" && user?.uid) {
+        // Small delay to ensure socket is fully ready
+        setTimeout(() => {
+          socket.emit("identify", { type: "user", userId: user.uid });
+        }, 100);
+      }
+    });
+
+    // ✅ Listen for identification confirmation
+    socket.on("identified", (data) => {
+      // User successfully identified and joined user room
+      if (data && data.type === "user") {
+        socketConnectedRef.current = true;
+      }
     });
 
     socket.on("disconnect", (reason) => {
@@ -283,54 +370,88 @@ const OrderPage = () => {
 
     // Listen for status changes - Real-time UI update
     socket.on("orderStatusChanged", (updatedOrder) => {
-      if (user && (updatedOrder.userEmail === user.email || updatedOrder.userId === user.uid)) {
-        // 🔊 Play notification sound when order status changes
-        playNotificationSound();
+      // ✅ CRITICAL: Verify order belongs to current user
+      if (!user || !updatedOrder || !updatedOrder._id) {
+        return;
+      }
+      
+      const isUserOrder = 
+        (updatedOrder.userEmail === user.email) || 
+        (updatedOrder.userId === user.uid);
+      
+      if (!isUserOrder) {
+        return; // Not user's order, ignore
+      }
+      
+      // 🔊 Play notification sound for ALL status changes
+      playNotificationSound();
+      
+      // ✅ CRITICAL: Handle Completed status - remove from live orders and notify
+      if (updatedOrder.status === "Completed") {
+        // Remove from live orders list (will appear in history)
+        setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
         
-        // If order is completed, remove it from user's live orders
-        // (It will now appear in Order History page)
-        if (updatedOrder.status === "Completed") {
-          setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
-          
-          // Update booked tables if order is completed
-          if (updatedOrder.tableNumber) {
-            setBookedTables((prev) =>
-              prev.filter((t) => t !== Number(updatedOrder.tableNumber))
-            );
-          }
-          
-          toast.success(
-            `🎉 Your order is completed: ${updatedOrder.foodName}. Check Order History to view it!`,
-            {
-              duration: 5000,
-              position: "top-center",
-            }
-          );
-        } else {
-          // Update order status if not completed
-          setOrders((prev) =>
-            prev.map((o) =>
-              o._id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o
-            )
-          );
-          
-          const statusMessages = {
-            Pending: "⏳ Your order is pending",
-            Cooking: "👨‍🍳 Your order is being cooked",
-            Ready: "✅ Your order is ready",
-            Served: "🍽️ Your order has been served",
-          };
-          toast.success(
-            `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
-            {
-              duration: 4000,
-              position: "top-center",
-            }
+        // Update booked tables if order is completed
+        if (updatedOrder.tableNumber) {
+          setBookedTables((prev) =>
+            prev.filter((t) => t !== Number(updatedOrder.tableNumber))
           );
         }
+        
+        // ✅ Show completion notification with history suggestion
+        toast.success(
+          `🎉 Order Completed: ${updatedOrder.foodName}. View it in Order History!`,
+          {
+            duration: 6000,
+            position: "top-center",
+            icon: "✅",
+            style: {
+              background: "#10b981",
+              color: "#fff",
+              fontSize: "16px",
+              fontWeight: "600",
+            },
+          }
+        );
+      } else {
+        // ✅ Update order status for non-completed orders
+        setOrders((prev) => {
+          const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
+          
+          if (existingIndex === -1) {
+            // Order doesn't exist in current list, add it
+            return [updatedOrder, ...prev];
+          } else {
+            // Update existing order with latest status
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
+            return updated;
+          }
+        });
+        
+        // ✅ Show status change notification
+        const statusMessages = {
+          Pending: "⏳ Order Pending",
+          Cooking: "👨‍🍳 Order is being cooked",
+          Ready: "✅ Order is ready for pickup",
+          Served: "🍽️ Order has been served",
+        };
+        
+        toast.success(
+          `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
+          {
+            duration: 4000,
+            position: "top-center",
+            icon: "📦",
+            style: {
+              background: "#3b82f6",
+              color: "#fff",
+              fontSize: "16px",
+              fontWeight: "600",
+            },
+          }
+        );
       }
-      // Also refresh to ensure consistency
-      fetchAllOrders();
     });
     
     // Listen for payment success - Real-time UI update

@@ -265,20 +265,30 @@ export const updateOrderStatus = async (req, res) => {
     // ✅ Emit socket events for live updates - Use room-based broadcasting
     const io = req.app.get("io");
     if (io && typeof io.to === "function") {
-      // Emit order status change to admins and user
+      // ✅ Emit order status change to admins and user (by userId and userEmail)
       if (updateData.status) {
+        // Emit to admins room
         io.to("admins").emit("orderStatusChanged", order);
+        
+        // ✅ Emit to user by userId (if available) - most efficient
         if (order.userId) {
           io.to(`user:${order.userId}`).emit("orderStatusChanged", order);
         }
-        console.log("🔄 Emitted orderStatusChanged event for order:", order._id, "Status:", order.status);
+        
+        // ✅ Also emit to "users" room as fallback - clients will filter by userEmail
+        // This ensures users get updates even if userId room join failed
+        io.to("users").emit("orderStatusChanged", order);
+        
+        console.log("🔄 Emitted orderStatusChanged event for order:", order._id, "Status:", order.status, "User:", order.userEmail || order.userId);
       }
-      // Emit payment success if payment status changed to Paid
+      // ✅ Emit payment success if payment status changed to Paid
       if (updateData.paymentStatus === "Paid") {
         io.to("admins").emit("paymentSuccess", order);
         if (order.userId) {
           io.to(`user:${order.userId}`).emit("paymentSuccess", order);
         }
+        // ✅ Also emit to "users" room as fallback
+        io.to("users").emit("paymentSuccess", order);
         console.log("💰 Emitted paymentSuccess event for order:", order._id);
       }
     } else if (io && typeof io.emit === "function") {

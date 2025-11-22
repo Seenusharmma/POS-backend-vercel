@@ -6,7 +6,7 @@ dotenv.config();
 // Cache the connection to avoid multiple connections in serverless
 let cachedConnection = null;
 
-export const connectDB = async () => {
+export const connectDB = async (retryCount = 0, maxRetries = 3) => {
   try {
     // If connection already exists and is connected, return it
     if (cachedConnection && mongoose.connection.readyState === 1) {
@@ -33,19 +33,26 @@ export const connectDB = async () => {
       mongoUri += "&retryWrites=true&w=majority";
     }
     
-    console.log("🔗 Connecting to MongoDB...");
+    console.log(`🔗 Connecting to MongoDB... (Attempt ${retryCount + 1}/${maxRetries + 1})`);
 
     // Set Mongoose-specific options globally (before connecting)
     mongoose.set("bufferCommands", false); // Disable mongoose buffering globally
     
-    // Connection options optimized for serverless (Vercel)
+    // Connection options optimized for serverless (Vercel) with better error handling
     // Note: retryWrites and w should be in URI, not options
     const options = {
-      serverSelectionTimeoutMS: 15000, // Increased timeout for serverless (15s)
+      serverSelectionTimeoutMS: 30000, // Increased timeout (30s) for better reliability
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-      connectTimeoutMS: 15000, // Increased connection timeout (15s)
+      connectTimeoutMS: 30000, // Increased connection timeout (30s)
       maxPoolSize: 10, // Maintain up to 10 socket connections
       minPoolSize: 1, // Maintain at least 1 socket connection
+      // ✅ Add retry options
+      retryWrites: true,
+      retryReads: true,
+      // ✅ Better DNS handling
+      directConnection: false, // Use SRV records for MongoDB Atlas
+      // ✅ Family preference for IPv4/IPv6
+      family: 4, // Prefer IPv4 to avoid DNS resolution issues
     };
 
     // If connection exists but is not connected, close it first
@@ -115,13 +122,44 @@ export const connectDB = async () => {
 
     return cachedConnection;
   } catch (err) {
-    console.error("❌ DB Connection Failed:", err.message);
+    const errorMessage = err.message || "Unknown error";
+    const errorCode = err.code || "UNKNOWN";
+    const errorName = err.name || "Error";
+    
+    console.error(`❌ MongoDB connection error: ${errorName} - ${errorMessage}`);
+    
+    // ✅ Detailed error information for debugging
+    if (errorCode === "ECONNREFUSED" || errorMessage.includes("ECONNREFUSED")) {
+      console.error("⚠️  Connection Refused - Possible causes:");
+      console.error("   1. MongoDB Atlas cluster might be paused");
+      console.error("   2. IP address not whitelisted in MongoDB Atlas");
+      console.error("   3. Network/firewall blocking connection");
+      console.error("   4. DNS resolution issues");
+      console.error("   💡 Check MongoDB Atlas Dashboard → Network Access");
+    } else if (errorCode === "ETIMEDOUT" || errorMessage.includes("timeout")) {
+      console.error("⚠️  Connection Timeout - Network may be slow or unreachable");
+    } else if (errorCode === "ENOTFOUND" || errorMessage.includes("ENOTFOUND")) {
+      console.error("⚠️  DNS Resolution Failed - Check your internet connection");
+    }
+    
     console.error("Connection error details:", {
-      name: err.name,
-      message: err.message,
-      stack: err.stack
+      name: errorName,
+      code: errorCode,
+      message: errorMessage,
     });
+    
     cachedConnection = null;
+    
+    // ✅ Retry logic with exponential backoff
+    if (retryCount < maxRetries) {
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff, max 10s
+      console.log(`🔄 Retrying connection in ${delay}ms...`);
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return connectDB(retryCount + 1, maxRetries);
+    }
+    
+    console.error(`❌ Database not connected after ${maxRetries + 1} retries. ReadyState: ${mongoose.connection.readyState}`);
     
     // In serverless, we still want to know about connection failures
     // but we'll let routes handle retries

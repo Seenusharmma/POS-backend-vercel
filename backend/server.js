@@ -95,24 +95,34 @@ if (!isVercel) {
 // ✅ MongoDB Connection (non-blocking for serverless)
 // On Vercel, connections are established per request, so we don't block startup
 if (!isVercel) {
-  // Local development: Connect immediately
-  connectDB()
+  // Local development: Connect immediately with retry logic
+  connectDB(0, 3) // Start with 0 retries, max 3 retries
     .then((result) => {
       if (result) {
         console.log("✅ MongoDB connected successfully");
       } else {
         console.warn("⚠️ MongoDB connection returned null, will retry on first request");
+        console.warn("💡 Troubleshooting tips:");
+        console.warn("   1. Check if MongoDB Atlas cluster is running (not paused)");
+        console.warn("   2. Verify IP address is whitelisted in MongoDB Atlas Network Access");
+        console.warn("   3. Check your internet connection");
+        console.warn("   4. Verify MONGODB_URI is correct in .env file");
       }
     })
-    .catch((err) => console.error("❌ MongoDB connection failed:", err));
+    .catch((err) => {
+      console.error("❌ MongoDB connection failed:", err.message);
+      console.error("💡 The server will still start, but API requests may fail");
+    });
 } else {
   // Vercel: Connection will be established on first request
   console.log("⚠️ Running on Vercel - MongoDB connection will be established per request");
   // Try to establish connection in background (non-blocking)
-  connectDB()
+  connectDB(0, 2) // Less retries for Vercel (2 instead of 3)
     .then((result) => {
       if (result) {
         console.log("✅ MongoDB pre-connected successfully");
+      } else {
+        console.warn("⚠️ MongoDB pre-connection failed, will retry on first request");
       }
     })
     .catch((err) => {
@@ -224,17 +234,20 @@ if (!isVercel && io) {
 
     // ✅ Optimized Realtime Events with Room-Based Broadcasting
     
-    // Order Updates - Broadcast to all admins and specific user
+    // ✅ Order Updates - Broadcast to all admins and specific user
     socket.on("orderUpdated", (updatedOrder) => {
       clientInfo.lastActivity = Date.now();
       
-      // Broadcast to admins room (faster than broadcasting to all)
+      // Broadcast to admins room
       io.to("admins").emit("orderStatusChanged", updatedOrder);
       
-      // Broadcast to specific user if order belongs to them
+      // ✅ Broadcast to specific user by userId (if available)
       if (updatedOrder.userId) {
         io.to(`user:${updatedOrder.userId}`).emit("orderStatusChanged", updatedOrder);
       }
+      
+      // ✅ Also broadcast to "users" room as fallback - clients filter by userEmail
+      io.to("users").emit("orderStatusChanged", updatedOrder);
     });
 
     // Food Updates - Broadcast to all clients

@@ -85,16 +85,30 @@ const OrderHistory = () => {
           connected: false,
         };
       } else {
-        // On regular servers, create real socket connection safely
-        const socketConfig = getSocketConfig();
+        // ✅ On regular servers, create real socket connection as user
+        const socketConfig = getSocketConfig({
+          type: "user",
+          userId: user?.uid || null,
+          autoConnect: true,
+        });
         socketRef.current = createSocketConnection(API_BASE, socketConfig);
       }
     }
     const socket = socketRef.current;
 
-    // Connection event listeners for debugging
+    // ✅ Connection event listeners
     socket.on("connect", () => {
-      console.log("✅ Socket connected:", socket.id);
+      // ✅ CRITICAL: Identify as user after connection to join user room
+      if (socket && typeof socket.emit === "function" && user?.uid) {
+        setTimeout(() => {
+          socket.emit("identify", { type: "user", userId: user.uid });
+        }, 100);
+      }
+    });
+
+    // ✅ Listen for identification confirmation
+    socket.on("identified", (data) => {
+      // User successfully identified and joined user room
     });
 
     socket.on("disconnect", () => {
@@ -134,37 +148,56 @@ const OrderHistory = () => {
       }
     });
 
-    // Listen for status changes - Real-time UI update
+    // ✅ Listen for status changes - Real-time UI update
     socket.on("orderStatusChanged", (updatedOrder) => {
-      if (updatedOrder.userEmail === user.email || updatedOrder.userId === user.uid) {
-        // Update UI immediately if order is completed
-        if (updatedOrder.status === "Completed") {
-          setOrders((prev) => {
-            const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
-            if (existingIndex >= 0) {
-              // Update existing order with all fields
-              const updated = [...prev];
-              updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
-              return updated;
-            } else {
-              // Add new completed order to history
-              toast.success(`🎉 Order completed: ${updatedOrder.foodName}`, {
-                duration: 4000,
+      // ✅ Verify order belongs to current user
+      if (!user || !updatedOrder || !updatedOrder._id) {
+        return;
+      }
+      
+      const isUserOrder = 
+        (updatedOrder.userEmail === user.email) || 
+        (updatedOrder.userId === user.uid);
+      
+      if (!isUserOrder) {
+        return; // Not user's order, ignore
+      }
+      
+      // ✅ CRITICAL: When order status changes to "Completed", add to history
+      if (updatedOrder.status === "Completed") {
+        setOrders((prev) => {
+          const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
+          
+          if (existingIndex >= 0) {
+            // Update existing order with all fields
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
+            // Sort by date (newest first)
+            return updated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          } else {
+            // ✅ NEW: Add new completed order to history with notification
+            toast.success(
+              `🎉 Order Completed: ${updatedOrder.foodName}. Added to history!`,
+              {
+                duration: 5000,
                 position: "top-center",
-              });
-              return [updatedOrder, ...prev];
-            }
-          });
-          // Always refresh history when order is completed to ensure it's saved
-          fetchHistory();
-        } else {
-          // Update status for existing orders
-          setOrders((prev) =>
-            prev.map((o) =>
-              o._id === updatedOrder._id ? { ...o, status: updatedOrder.status } : o
-            )
-          );
-        }
+                icon: "✅",
+                style: {
+                  background: "#10b981",
+                  color: "#fff",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                },
+              }
+            );
+            // Add to beginning and sort by date
+            const newOrders = [updatedOrder, ...prev];
+            return newOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          }
+        });
+      } else {
+        // ✅ If order status changed FROM Completed, remove it from history
+        setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
       }
     });
 
