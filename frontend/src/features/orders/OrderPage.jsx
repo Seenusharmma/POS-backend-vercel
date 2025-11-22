@@ -4,7 +4,8 @@ import { io } from "socket.io-client";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
-import { useAppSelector } from "../../store/hooks";
+import { useAppSelector, useAppDispatch } from "../../store/hooks";
+import { updateQuantityAsync, removeFromCartAsync, clearCartAsync } from "../../store/slices/cartSlice";
 import { useNavigate } from "react-router-dom";
 import { FaTrashAlt, FaShoppingBag, FaStore, FaHome } from "react-icons/fa";
 import API_BASE from "../../config/api";
@@ -18,12 +19,13 @@ const TOTAL_TABLES = 40;
 
 const OrderPage = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const cart = useAppSelector((state) => state.cart.items);
+  const cartTotal = useAppSelector((state) => state.cart.total);
+  const dispatch = useAppDispatch();
   const [orders, setOrders] = useState([]);
   const [bookedTables, setBookedTables] = useState([]);
   const [tableNumber, setTableNumber] = useState("");
   const [selectedChairsCount, setSelectedChairsCount] = useState(1);
-  const [cart, setCart] = useState([]);
-  const [total, setTotal] = useState(0);
   const [pageLoading, setPageLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
@@ -516,38 +518,49 @@ const OrderPage = () => {
   }, [fetchAllOrders]);
 
   /* ===========================
-      🛒 CART LOGIC
+      🛒 CART LOGIC (Redux + Backend Sync)
   ============================ */
-  useEffect(() => {
-    const saved = localStorage.getItem("cartItems");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setCart(parsed);
-      calculateTotal(parsed);
+  // Calculate total with GST (cartTotal is subtotal from Redux)
+  const total = cartTotal + (cartTotal * 0.05);
+
+  const updateQuantity = async (id, newQty) => {
+    if (!user || !user.email) {
+      toast.error("Please login to update cart!");
+      return;
     }
-  }, []);
 
-  const calculateTotal = (items) => {
-    const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const gst = subtotal * 0.05;
-    setTotal(subtotal + gst);
+    try {
+      await dispatch(
+        updateQuantityAsync({
+          userEmail: user.email,
+          foodId: id,
+          quantity: Math.max(newQty, 1),
+        })
+      ).unwrap();
+    } catch (error) {
+      console.error("Error updating cart:", error);
+      toast.error("Failed to update cart. Please try again.");
+    }
   };
 
-  const updateQuantity = (id, newQty) => {
-    let updated = [...cart].map((item) =>
-      item._id === id ? { ...item, quantity: Math.max(newQty, 1) } : item
-    );
-    setCart(updated);
-    localStorage.setItem("cartItems", JSON.stringify(updated));
-    calculateTotal(updated);
-  };
+  const removeItem = async (id) => {
+    if (!user || !user.email) {
+      toast.error("Please login to remove items!");
+      return;
+    }
 
-  const removeItem = (id) => {
-    const updated = cart.filter((i) => i._id !== id);
-    setCart(updated);
-    localStorage.setItem("cartItems", JSON.stringify(updated));
-    calculateTotal(updated);
-    toast.success("Item removed from cart 🗑️");
+    try {
+      await dispatch(
+        removeFromCartAsync({
+          userEmail: user.email,
+          foodId: id,
+        })
+      ).unwrap();
+      toast.success("Item removed from cart 🗑️");
+    } catch (error) {
+      console.error("Error removing from cart:", error);
+      toast.error("Failed to remove item. Please try again.");
+    }
   };
 
   /* ===========================
@@ -594,10 +607,15 @@ const OrderPage = () => {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentComplete = () => {
-    // Clear cart and reset after payment is completed
-    setCart([]);
-    localStorage.removeItem("cartItems");
+  const handlePaymentComplete = async () => {
+    // Clear cart from backend and reset after payment is completed
+    if (user && user.email) {
+      try {
+        await dispatch(clearCartAsync(user.email)).unwrap();
+      } catch (error) {
+        console.error("Error clearing cart:", error);
+      }
+    }
     setTableNumber("");
     setSelectedChairsCount(1);
     setShowPaymentModal(false);
@@ -930,21 +948,11 @@ const OrderPage = () => {
 
             <div className="flex justify-between text-gray-700 mb-2 text-sm sm:text-base">
               <span>Subtotal</span>
-              <span>
-                ₹
-                {cart
-                  .reduce((sum, i) => sum + i.price * i.quantity, 0)
-                  .toFixed(2)}
-              </span>
+              <span>₹{cartTotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-700 mb-2 text-sm sm:text-base">
               <span>GST (5%)</span>
-              <span>
-                ₹
-                {(
-                  cart.reduce((sum, i) => sum + i.price * i.quantity, 0) * 0.05
-                ).toFixed(2)}
-              </span>
+              <span>₹{(cartTotal * 0.05).toFixed(2)}</span>
             </div>
             <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between font-bold text-gray-800 text-base sm:text-lg">
               <span>Total</span>
