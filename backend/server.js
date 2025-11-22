@@ -86,8 +86,6 @@ app.use(
   cors({
     origin: [
       "https://foodfantasy-cgu.vercel.app",
-      "https://food-fantasy-ten.vercel.app",
-      "https://foodfantasy-in.vercel.app",
       "https://foodfantasy-com.vercel.app",
       "http://localhost:5173",
     ],
