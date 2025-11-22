@@ -102,9 +102,18 @@ export const createOrder = async (req, res) => {
     const order = new Order(req.body);
     await order.save();
 
-    // ✅ Emit new order to Admin (real-time)
+    // ✅ Emit new order to Admin (real-time) - Use room-based broadcasting
     const io = req.app.get("io");
-    if (io && typeof io.emit === "function") {
+    if (io && typeof io.to === "function") {
+      // Emit to admins room for faster delivery
+      io.to("admins").emit("newOrderPlaced", order);
+      // Also emit to specific user if userId exists
+      if (order.userId) {
+        io.to(`user:${order.userId}`).emit("newOrderPlaced", order);
+      }
+      console.log("📦 Emitted newOrderPlaced event for order:", order._id);
+    } else if (io && typeof io.emit === "function") {
+      // Fallback for non-room-based setup
       io.emit("newOrderPlaced", order);
       console.log("📦 Emitted newOrderPlaced event for order:", order._id);
     }
@@ -155,9 +164,20 @@ export const createMultipleOrders = async (req, res) => {
 
     const orders = await Order.insertMany(req.body);
 
-    // ✅ Emit socket event for each new order to Admin
+    // ✅ Emit socket event for each new order to Admin - Use room-based broadcasting
     const io = req.app.get("io");
-    if (io && typeof io.emit === "function") {
+    if (io && typeof io.to === "function") {
+      orders.forEach((order) => {
+        // Emit to admins room for faster delivery
+        io.to("admins").emit("newOrderPlaced", order);
+        // Also emit to specific user if userId exists
+        if (order.userId) {
+          io.to(`user:${order.userId}`).emit("newOrderPlaced", order);
+        }
+        console.log("📦 Emitted newOrderPlaced event for order:", order._id);
+      });
+    } else if (io && typeof io.emit === "function") {
+      // Fallback for non-room-based setup
       orders.forEach((order) => {
         io.emit("newOrderPlaced", order);
         console.log("📦 Emitted newOrderPlaced event for order:", order._id);
@@ -242,15 +262,31 @@ export const updateOrderStatus = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
 
-    // ✅ Emit socket events for live updates
+    // ✅ Emit socket events for live updates - Use room-based broadcasting
     const io = req.app.get("io");
-    if (io && typeof io.emit === "function") {
-      // Emit order status change
+    if (io && typeof io.to === "function") {
+      // Emit order status change to admins and user
+      if (updateData.status) {
+        io.to("admins").emit("orderStatusChanged", order);
+        if (order.userId) {
+          io.to(`user:${order.userId}`).emit("orderStatusChanged", order);
+        }
+        console.log("🔄 Emitted orderStatusChanged event for order:", order._id, "Status:", order.status);
+      }
+      // Emit payment success if payment status changed to Paid
+      if (updateData.paymentStatus === "Paid") {
+        io.to("admins").emit("paymentSuccess", order);
+        if (order.userId) {
+          io.to(`user:${order.userId}`).emit("paymentSuccess", order);
+        }
+        console.log("💰 Emitted paymentSuccess event for order:", order._id);
+      }
+    } else if (io && typeof io.emit === "function") {
+      // Fallback for non-room-based setup
       if (updateData.status) {
         io.emit("orderStatusChanged", order);
         console.log("🔄 Emitted orderStatusChanged event for order:", order._id, "Status:", order.status);
       }
-      // Emit payment success if payment status changed to Paid
       if (updateData.paymentStatus === "Paid") {
         io.emit("paymentSuccess", order);
         console.log("💰 Emitted paymentSuccess event for order:", order._id);

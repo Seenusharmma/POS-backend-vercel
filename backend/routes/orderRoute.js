@@ -74,8 +74,17 @@ router.post("/add", async (req, res) => {
     // ✅ Save to DB
     const savedOrder = await newOrder.save();
 
-    // ✅ Emit real-time update if socket available
-    if (req.io && typeof req.io.emit === "function") {
+    // ✅ Emit real-time update if socket available - Use room-based broadcasting
+    if (req.io && typeof req.io.to === "function") {
+      // Emit to admins room for faster delivery
+      req.io.to("admins").emit("newOrderPlaced", savedOrder);
+      // Also emit to specific user if userId exists
+      if (savedOrder.userId) {
+        req.io.to(`user:${savedOrder.userId}`).emit("newOrderPlaced", savedOrder);
+      }
+      console.log("📦 Emitted newOrderPlaced event for order:", savedOrder._id);
+    } else if (req.io && typeof req.io.emit === "function") {
+      // Fallback for non-room-based setup
       req.io.emit("newOrderPlaced", savedOrder);
       console.log("📦 Emitted newOrderPlaced event for order:", savedOrder._id);
     }

@@ -330,8 +330,8 @@ const AdminPage = () => {
       setHighlightedOrder(newOrder._id);
       setTimeout(() => setHighlightedOrder(null), 3000);
       
-      // Refresh data to ensure consistency
-      getAllData();
+      // Don't call getAllData() here - state is already updated above
+      // This prevents duplicate notifications and unnecessary API calls
     });
 
     socket.on("orderStatusChanged", (updatedOrder) => {
@@ -373,8 +373,8 @@ const AdminPage = () => {
         );
       }
       
-      // Refresh data to ensure consistency
-      getAllData();
+      // Don't call getAllData() here - state is already updated above
+      // This prevents duplicate notifications
     });
 
     socket.on("paymentSuccess", (orderData) => {
@@ -402,32 +402,33 @@ const AdminPage = () => {
         )
       );
       
-      // Refresh data to ensure consistency
-      getAllData();
+      // Don't call getAllData() here - state is already updated above
+      // This prevents duplicate notifications
     });
 
     socket.on("foodUpdated", (updatedFood) => {
-      // 🔊 Play notification sound
-      playNotificationSound();
-      
-      toast.success(`🍽️ Food Updated: ${updatedFood.name}`, {
-        duration: 3000,
-        position: "top-right",
-        icon: "✅",
-        style: {
-          background: "#3b82f6",
-          color: "#fff",
-          fontSize: "16px",
-          fontWeight: "600",
-        },
+      // ✅ Only show notification if status actually changed (prevents duplicate from own actions)
+      setFoods((prev) => {
+        const existingFood = prev.find((f) => f._id === updatedFood._id);
+        // Only show notification if availability status changed (not from our own update)
+        if (existingFood && existingFood.available !== updatedFood.available) {
+          playNotificationSound();
+          toast.success(`🍽️ Food Updated: ${updatedFood.name}`, {
+            duration: 3000,
+            position: "top-right",
+            icon: "✅",
+            style: {
+              background: "#3b82f6",
+              color: "#fff",
+              fontSize: "16px",
+              fontWeight: "600",
+            },
+          });
+        }
+        return prev.map((f) => (f._id === updatedFood._id ? updatedFood : f));
       });
       
-      setFoods((prev) =>
-        prev.map((f) => (f._id === updatedFood._id ? updatedFood : f))
-      );
-      
-      // Refresh data
-      getAllData();
+      // Don't call getAllData() - state is already updated above
     });
 
     socket.on("newFoodAdded", (food) => {
@@ -446,10 +447,15 @@ const AdminPage = () => {
         },
       });
       
-      setFoods((prev) => [...prev, food]);
+      setFoods((prev) => {
+        const exists = prev.find((f) => f._id === food._id);
+        if (!exists) {
+          return [food, ...prev];
+        }
+        return prev;
+      });
       
-      // Refresh data
-      getAllData();
+      // Don't call getAllData() - state is already updated above
     });
     
     socket.on("foodDeleted", (id) => {
@@ -470,8 +476,7 @@ const AdminPage = () => {
       
       setFoods((prev) => prev.filter((f) => f._id !== id));
       
-      // Refresh data
-      getAllData();
+      // Don't call getAllData() - state is already updated above
     });
 
     return () => {
