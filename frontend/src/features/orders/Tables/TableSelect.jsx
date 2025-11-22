@@ -5,7 +5,7 @@ import { FaChair, FaCheckCircle } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import API_BASE from "../../../config/api";
 
-const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSelected }) => {
+const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSelected, compact = false }) => {
   const [tables, setTables] = useState([]);
   const [selectedChairs, setSelectedChairs] = useState({}); // { tableNumber: [chairNumbers] }
   const [loading, setLoading] = useState(true);
@@ -164,17 +164,18 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
   }
 
   return (
-    <div className="mb-6 w-full">
+    <div className={`${compact ? 'mb-0' : 'mb-6'} w-full`}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
-        <div className="w-full sm:flex-1">
-          <label className="block font-bold text-gray-800 text-xl sm:text-2xl mb-2">
-            🎫 Select Your Table & Seats
-      </label>
-          <p className="text-sm sm:text-base text-gray-600">
-            Click on available green chairs to select. You can choose multiple seats at the same table.
-          </p>
-        </div>
+      {!compact && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
+          <div className="w-full sm:flex-1">
+            <label className="block font-bold text-gray-800 text-xl sm:text-2xl mb-2">
+              🎫 Select Your Table & Seats
+            </label>
+            <p className="text-sm sm:text-base text-gray-600">
+              Click on available green chairs to select. You can choose multiple seats at the same table.
+            </p>
+          </div>
         {tableNumber && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -195,18 +196,19 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
           </motion.div>
         )}
       </div>
+      )}
 
       {/* Legend - Collapsible */}
       <motion.div
         initial={false}
-        className="mb-5 sm:mb-6 bg-white rounded-xl p-4 sm:p-5 border-2 border-gray-200 shadow-sm w-full"
+        className={`${compact ? 'mb-2 p-1.5 sm:p-2' : 'mb-5 sm:mb-6 p-4 sm:p-5'} bg-white ${compact ? 'rounded-lg' : 'rounded-xl'} border-2 border-gray-200 shadow-sm w-full`}
       >
         <button
           onClick={() => setShowLegend(!showLegend)}
           className="flex items-center justify-between w-full text-left group"
         >
-          <span className="font-bold text-gray-800 text-sm sm:text-base">📋 Legend</span>
-          <span className="text-gray-500 text-xl sm:text-2xl transition-transform group-hover:scale-110">
+          <span className={`font-bold text-gray-800 ${compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'}`}>📋 Legend</span>
+          <span className={`text-gray-500 ${compact ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl'} transition-transform group-hover:scale-110`}>
             {showLegend ? "−" : "+"}
           </span>
         </button>
@@ -218,24 +220,24 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
-              <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-4 pt-4 border-t border-gray-200">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-green-500 border-2 border-green-600 shadow-md flex items-center justify-center flex-shrink-0">
-                    <FaChair className="text-white text-sm" />
+              <div className={`flex flex-wrap items-center ${compact ? 'gap-1.5 sm:gap-2 mt-1.5 pt-1.5' : 'gap-4 sm:gap-6 mt-4 pt-4'} border-t border-gray-200`}>
+                <div className={`flex items-center ${compact ? 'gap-1' : 'gap-2 sm:gap-3'}`}>
+                  <div className={`${compact ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-7 h-7 sm:w-8 sm:h-8'} ${compact ? 'rounded-md' : 'rounded-lg'} bg-green-500 border-2 border-green-600 shadow-md flex items-center justify-center flex-shrink-0`}>
+                    <FaChair className={`text-white ${compact ? 'text-[8px]' : 'text-sm'}`} />
                   </div>
-                  <span className="text-gray-700 font-semibold text-sm sm:text-base">Available</span>
+                  <span className={`text-gray-700 font-semibold ${compact ? 'text-[10px]' : 'text-sm sm:text-base'}`}>Available</span>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-500 border-2 border-red-600 shadow-lg flex items-center justify-center flex-shrink-0">
-                    <FaCheckCircle className="text-white text-sm" />
+                <div className={`flex items-center ${compact ? 'gap-1' : 'gap-2 sm:gap-3'}`}>
+                  <div className={`${compact ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-7 h-7 sm:w-8 sm:h-8'} ${compact ? 'rounded-md' : 'rounded-lg'} bg-red-500 border-2 border-red-600 shadow-lg flex items-center justify-center flex-shrink-0`}>
+                    <FaCheckCircle className={`text-white ${compact ? 'text-[8px]' : 'text-sm'}`} />
                   </div>
-                  <span className="text-gray-700 font-semibold text-sm sm:text-base">Selected</span>
+                  <span className={`text-gray-700 font-semibold ${compact ? 'text-[10px]' : 'text-sm sm:text-base'}`}>Selected</span>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gray-400 border-2 border-gray-500 opacity-70 flex items-center justify-center flex-shrink-0">
-                    <FaChair className="text-white text-sm" />
+                <div className={`flex items-center ${compact ? 'gap-1' : 'gap-2 sm:gap-3'}`}>
+                  <div className={`${compact ? 'w-4 h-4 sm:w-5 sm:h-5' : 'w-7 h-7 sm:w-8 sm:h-8'} ${compact ? 'rounded-md' : 'rounded-lg'} bg-gray-400 border-2 border-gray-500 opacity-70 flex items-center justify-center flex-shrink-0`}>
+                    <FaChair className={`text-white ${compact ? 'text-[8px]' : 'text-sm'}`} />
                   </div>
-                  <span className="text-gray-700 font-semibold text-sm sm:text-base">Booked</span>
+                  <span className={`text-gray-700 font-semibold ${compact ? 'text-[10px]' : 'text-sm sm:text-base'}`}>Booked</span>
                 </div>
               </div>
             </motion.div>
@@ -244,8 +246,8 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
       </motion.div>
 
       {/* Tables Grid - Movie Theater Style */}
-      <div className="bg-gradient-to-br from-gray-50 via-white to-gray-50 rounded-2xl p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8 border-2 border-gray-200 shadow-inner max-h-[400px] sm:max-h-[500px] md:max-h-[600px] lg:max-h-[750px] xl:max-h-[800px] overflow-y-auto custom-scrollbar w-full">
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2 sm:gap-3 md:gap-4 lg:gap-5 xl:gap-6">
+      <div className={`bg-gradient-to-br from-gray-50 via-white to-gray-50 ${compact ? 'rounded-lg p-1 sm:p-1.5' : 'rounded-2xl p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8'} border-2 border-gray-200 shadow-inner ${compact ? 'max-h-[500px] sm:max-h-[600px]' : 'max-h-[400px] sm:max-h-[500px] md:max-h-[600px] lg:max-h-[750px] xl:max-h-[800px]'} overflow-y-auto custom-scrollbar w-full`}>
+        <div className={`grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 ${compact ? 'gap-1 sm:gap-1.5' : 'gap-2 sm:gap-3 md:gap-4 lg:gap-5 xl:gap-6'}`}>
           {tables.map((table, index) => {
             const isTableSelected = tableNumber === table.tableNumber.toString();
             const selectedCount = selectedChairs[table.tableNumber]?.length || 0;
@@ -257,29 +259,29 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.01, duration: 0.2 }}
                 whileHover={{ scale: 1.05, y: -3 }}
-                className={`relative bg-white rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6 border-2 transition-all duration-300 cursor-pointer w-full ${
+                className={`relative bg-white ${compact ? 'rounded-md p-1 sm:p-1.5' : 'rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6'} border-2 transition-all duration-300 cursor-pointer w-full ${
                   isTableSelected
                     ? "border-red-500 shadow-2xl ring-2 lg:ring-4 ring-red-200 scale-105"
                     : "border-gray-200 hover:border-gray-300 hover:shadow-xl"
                 }`}
               >
                 {/* Table Number Badge */}
-                <div className="text-center mb-1.5 sm:mb-2 md:mb-3 lg:mb-4">
+                <div className={`text-center ${compact ? 'mb-0.5 sm:mb-1' : 'mb-1.5 sm:mb-2 md:mb-3 lg:mb-4'}`}>
                   <span
-                    className={`inline-block px-1.5 sm:px-2 md:px-3 lg:px-4 py-0.5 sm:py-1 md:py-1.5 lg:py-2 rounded-md sm:rounded-lg lg:rounded-xl text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg font-bold ${
+                    className={`inline-block ${compact ? 'px-1 py-0.5 rounded text-[9px] sm:text-[10px]' : 'px-1.5 sm:px-2 md:px-3 lg:px-4 py-0.5 sm:py-1 md:py-1.5 lg:py-2 rounded-md sm:rounded-lg lg:rounded-xl text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg'} font-bold ${
                       isTableSelected
                         ? "bg-red-500 text-white shadow-lg"
                         : "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    Table {table.tableNumber}
+                    {compact ? table.tableNumber : `Table ${table.tableNumber}`}
                   </span>
                 </div>
 
                 {/* Chairs arranged around table (like cinema seats) */}
-                <div className="space-y-1 sm:space-y-1.5 md:space-y-2 lg:space-y-2.5 xl:space-y-3">
+                <div className={`${compact ? 'space-y-0.5 sm:space-y-1' : 'space-y-1 sm:space-y-1.5 md:space-y-2 lg:space-y-2.5 xl:space-y-3'}`}>
                   {/* Top row - 2 chairs */}
-                  <div className="flex justify-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5 xl:gap-3">
+                  <div className={`flex justify-center ${compact ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5 xl:gap-3'}`}>
                     {[0, 1].map((chairIndex) => {
                       const state = getChairState(table.tableNumber, chairIndex);
                       return (
@@ -319,19 +321,21 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
 
                   {/* Table representation - cleaner design */}
                   <div
-                    className={`h-4 sm:h-5 md:h-6 lg:h-8 xl:h-10 rounded-md sm:rounded-lg lg:rounded-xl mx-1 sm:mx-1.5 md:mx-2 lg:mx-2.5 xl:mx-3 my-1 sm:my-1.5 md:my-2 lg:my-2.5 xl:my-3 flex items-center justify-center transition-all ${
+                    className={`${compact ? 'h-2 sm:h-2.5' : 'h-4 sm:h-5 md:h-6 lg:h-8 xl:h-10'} ${compact ? 'rounded mx-0.5 sm:mx-1 my-0.5 sm:my-1' : 'rounded-md sm:rounded-lg lg:rounded-xl mx-1 sm:mx-1.5 md:mx-2 lg:mx-2.5 xl:mx-3 my-1 sm:my-1.5 md:my-2 lg:my-2.5 xl:my-3'} flex items-center justify-center transition-all ${
                       isTableSelected
                         ? "bg-gradient-to-r from-yellow-400 to-yellow-500 shadow-lg"
                         : "bg-gradient-to-r from-yellow-200 to-yellow-300"
                     }`}
                   >
-                    <span className="text-[8px] sm:text-[9px] md:text-[10px] lg:text-xs xl:text-sm font-bold text-yellow-900">
-                      {table.tableNumber}
-                    </span>
+                    {!compact && (
+                      <span className="text-[8px] sm:text-[9px] md:text-[10px] lg:text-xs xl:text-sm font-bold text-yellow-900">
+                        {table.tableNumber}
+                      </span>
+                    )}
                   </div>
 
                   {/* Bottom row - 2 chairs */}
-                  <div className="flex justify-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5 xl:gap-3">
+                  <div className={`flex justify-center ${compact ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5 xl:gap-3'}`}>
                     {[2, 3].map((chairIndex) => {
                       const state = getChairState(table.tableNumber, chairIndex);
                       return (
@@ -371,10 +375,10 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
                 </div>
 
                 {/* Availability info - cleaner design */}
-                <div className="text-center mt-1.5 sm:mt-2 md:mt-3 lg:mt-4 pt-1.5 sm:pt-2 md:pt-3 lg:pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-center gap-0.5 sm:gap-1">
+                <div className={`text-center ${compact ? 'mt-0.5 sm:mt-1 pt-0.5 sm:pt-1' : 'mt-1.5 sm:mt-2 md:mt-3 lg:mt-4 pt-1.5 sm:pt-2 md:pt-3 lg:pt-4'} border-t border-gray-200`}>
+                  <div className={`flex items-center justify-center ${compact ? 'gap-0.5' : 'gap-0.5 sm:gap-1'}`}>
                     <span
-                      className={`text-[9px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base font-bold ${
+                      className={`${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base'} font-bold ${
                         table.availableChairs > 0
                           ? "text-green-600"
                           : "text-red-600"
@@ -382,15 +386,17 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
                     >
                       {table.availableChairs}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] md:text-xs text-gray-400">/</span>
-                    <span className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base text-gray-600 font-medium">4</span>
-                    <span className="text-[8px] sm:text-[9px] md:text-[10px] lg:text-xs text-gray-500 ml-0.5 sm:ml-1">available</span>
+                    <span className={`${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px] md:text-xs'} text-gray-400`}>/</span>
+                    <span className={`${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base'} text-gray-600 font-medium`}>4</span>
+                    {!compact && (
+                      <span className="text-[8px] sm:text-[9px] md:text-[10px] lg:text-xs text-gray-500 ml-0.5 sm:ml-1">available</span>
+                    )}
                   </div>
                   {selectedCount > 0 && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base text-red-600 font-bold mt-0.5 sm:mt-1"
+                      className={`${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base'} text-red-600 font-bold ${compact ? 'mt-0.5' : 'mt-0.5 sm:mt-1'}`}
                     >
                       ✓ {selectedCount} selected
                     </motion.div>
@@ -409,18 +415,18 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="mt-4 p-3 sm:p-4 bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 rounded-xl shadow-lg w-full"
+            className={`${compact ? 'mt-2 p-2 sm:p-2.5' : 'mt-4 p-3 sm:p-4'} bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 ${compact ? 'rounded-lg' : 'rounded-xl'} shadow-lg w-full`}
           >
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <FaCheckCircle className="text-white text-sm sm:text-lg" />
+              <div className={`flex items-center ${compact ? 'gap-1.5' : 'gap-2 sm:gap-3'} flex-1 min-w-0`}>
+                <div className={`${compact ? 'w-6 h-6 sm:w-7 sm:h-7' : 'w-8 h-8 sm:w-10 sm:h-10'} bg-red-500 rounded-full flex items-center justify-center flex-shrink-0`}>
+                  <FaCheckCircle className={`text-white ${compact ? 'text-xs' : 'text-sm sm:text-lg'}`} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-bold text-red-700 truncate">
+                  <p className={`${compact ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'} font-bold text-red-700 truncate`}>
                     Table {tableNumber} Selected
                   </p>
-                  <p className="text-[10px] sm:text-xs text-red-600">
+                  <p className={`${compact ? 'text-[9px]' : 'text-[10px] sm:text-xs'} text-red-600`}>
                     {getSelectedChairsCount()} seat{getSelectedChairsCount() > 1 ? "s" : ""} chosen
                   </p>
                 </div>
@@ -437,7 +443,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
         )}
       </AnimatePresence>
 
-      {!tableNumber && (
+      {!tableNumber && !compact && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

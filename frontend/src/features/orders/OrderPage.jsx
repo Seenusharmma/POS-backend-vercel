@@ -11,7 +11,7 @@ import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
 import LogoLoader from "../../components/ui/LogoLoader";
-import TableSelect from "./Tables/TableSelect";
+import TableSelectionModal from "./Tables/TableSelectionModal";
 import PaymentModal from "./PaymentModal";
 
 const TOTAL_TABLES = 40;
@@ -26,6 +26,7 @@ const OrderPage = () => {
   const [total, setTotal] = useState(0);
   const [pageLoading, setPageLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showTableModal, setShowTableModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
   const [isInRestaurant, setIsInRestaurant] = useState(true); // Toggle for Dine-in/Delivery
   const [contactNumber, setContactNumber] = useState(""); // Contact number for delivery
@@ -618,13 +619,7 @@ const OrderPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8f3] to-white py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6 lg:px-10 mt-10 pb-20">
       <Toaster />
-      <motion.h1
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-gray-800 text-center mb-6 sm:mb-8 md:mb-10"
-      >
-        🛒 Your Cart
-      </motion.h1>
+
 
       {/* ===== CART SECTION ===== */}
       {cart.length === 0 ? (
@@ -747,12 +742,26 @@ const OrderPage = () => {
             {/* Table Selection - Only show when Dine-in */}
             {isInRestaurant && (
               <div className="mb-4">
-                <TableSelect
-                  tableNumber={tableNumber}
-                  setTableNumber={setTableNumber}
-                  availableTables={availableTables}
-                  onChairsSelected={setSelectedChairsCount}
-                />
+                <button
+                  onClick={() => setShowTableModal(true)}
+                  className={`w-full py-3 px-4 rounded-full font-semibold text-base sm:text-lg transition-all ${
+                    tableNumber
+                      ? "bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-400 text-yellow-800"
+                      : "bg-yellow-500 hover:bg-yellow-600 text-white shadow-md hover:shadow-lg"
+                  }`}
+                >
+                  {tableNumber ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span>✅ Table {tableNumber}</span>
+                      {selectedChairsCount > 0 && (
+                        <span className="text-sm">• {selectedChairsCount} seat{selectedChairsCount !== 1 ? "s" : ""}</span>
+                      )}
+                      <span className="text-sm opacity-75">(Click to change)</span>
+                    </span>
+                  ) : (
+                    <span>Select Table & Seats</span>
+                  )}
+                </button>
               </div>
             )}
 
@@ -1053,6 +1062,16 @@ const OrderPage = () => {
           onPaymentComplete={handlePaymentComplete}
         />
       )}
+
+      {/* Table Selection Modal */}
+      <TableSelectionModal
+        isOpen={showTableModal}
+        onClose={() => setShowTableModal(false)}
+        tableNumber={tableNumber}
+        setTableNumber={setTableNumber}
+        availableTables={availableTables}
+        onChairsSelected={setSelectedChairsCount}
+      />
     </div>
   );
 };
