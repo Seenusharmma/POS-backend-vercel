@@ -66,6 +66,26 @@ const orderSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    contactNumber: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    deliveryLocation: {
+      latitude: {
+        type: Number,
+        default: null,
+      },
+      longitude: {
+        type: Number,
+        default: null,
+      },
+      address: {
+        type: String,
+        trim: true,
+        default: "",
+      },
+    },
   },
   { timestamps: true } // ✅ adds createdAt & updatedAt automatically
 );

@@ -191,10 +191,24 @@ const AdminOrderHistory = () => {
                   </div>
                   <span className="hidden sm:inline">|</span>
                   {firstOrder.isInRestaurant === false ? (
-                    <span className="text-blue-600 font-medium">🚚 Delivery</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-blue-600 font-medium">🚚 Delivery</span>
+                      {firstOrder.contactNumber && (
+                        <span className="text-xs text-gray-600">📞 {firstOrder.contactNumber}</span>
+                      )}
+                      {firstOrder.deliveryLocation && (
+                        <span className="text-xs text-gray-600">
+                          📍 {firstOrder.deliveryLocation.address 
+                            ? firstOrder.deliveryLocation.address.substring(0, 40) + (firstOrder.deliveryLocation.address.length > 40 ? "..." : "")
+                            : firstOrder.deliveryLocation.latitude && firstOrder.deliveryLocation.longitude
+                            ? `${firstOrder.deliveryLocation.latitude.toFixed(4)}, ${firstOrder.deliveryLocation.longitude.toFixed(4)}`
+                            : "Location not available"}
+                        </span>
+                      )}
+                    </div>
                   ) : (
-                    <span>
-                      Table: <span className="font-medium">{firstOrder.tableNumber}</span>
+                    <span className="text-green-600 font-medium">
+                      🍽️ Dine-in - Table: <span className="font-semibold">{firstOrder.tableNumber}</span>
                     </span>
                   )}
                   <span className="hidden sm:inline">|</span>

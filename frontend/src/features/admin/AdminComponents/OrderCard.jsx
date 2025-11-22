@@ -40,11 +40,56 @@ const OrderCard = ({
 
       {/* Order Details */}
       <p className="font-semibold text-gray-800 text-sm sm:text-base mb-1">
-        <span className={order.isInRestaurant === false ? "text-blue-600" : "text-green-600"}>
-          {order.isInRestaurant === false ? "🚚 Delivery" : "🏪 Restaurant"}
-        </span>
-        {order.isInRestaurant === true && ` - Table ${order.tableNumber}`}: {order.foodName} ({order.type})
+        {/* Display Dine-in or Delivery based on isInRestaurant flag */}
+        {order.isInRestaurant === false ? (
+          <span className="text-blue-600">🚚 Delivery</span>
+        ) : (
+          <span className="text-green-600">🍽️ Dine-in - Table {order.tableNumber}</span>
+        )}
+        {" - "}
+        {order.foodName} ({order.type})
       </p>
+      
+      {/* Delivery Information - Show contact number and location for delivery orders */}
+      {order.isInRestaurant === false && (
+        <div className="mb-2 p-2 bg-blue-50 rounded border border-blue-200">
+          {order.contactNumber && (
+            <p className="text-xs sm:text-sm text-gray-700 mb-1">
+              📞 <strong>Contact:</strong> {order.contactNumber}
+            </p>
+          )}
+          {order.deliveryLocation && (
+            <div className="text-xs sm:text-sm text-gray-700">
+              <p className="mb-1">
+                📍 <strong>Location:</strong>{" "}
+                {order.deliveryLocation.address || 
+                  (order.deliveryLocation.latitude && order.deliveryLocation.longitude
+                    ? `${order.deliveryLocation.latitude.toFixed(6)}, ${order.deliveryLocation.longitude.toFixed(6)}`
+                    : "No address provided")}
+              </p>
+              {order.deliveryLocation.latitude && order.deliveryLocation.longitude ? (
+                <a
+                  href={`https://www.google.com/maps?q=${order.deliveryLocation.latitude},${order.deliveryLocation.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  🗺️ Open in Google Maps
+                </a>
+              ) : order.deliveryLocation.address ? (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.deliveryLocation.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  🗺️ Search Address in Google Maps
+                </a>
+              ) : null}
+            </div>
+          )}
+        </div>
+      )}
       
       <p className="text-xs sm:text-sm text-gray-600 mb-2">
         Qty: {order.quantity} • ₹{order.price} •{" "}

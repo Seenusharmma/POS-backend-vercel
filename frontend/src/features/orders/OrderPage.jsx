@@ -27,7 +27,12 @@ const OrderPage = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
-  const [isInRestaurant, setIsInRestaurant] = useState(true); // Toggle for in/out restaurant
+  const [isInRestaurant, setIsInRestaurant] = useState(true); // Toggle for Dine-in/Delivery
+  const [contactNumber, setContactNumber] = useState(""); // Contact number for delivery
+  const [deliveryLocation, setDeliveryLocation] = useState(null); // Location object with lat, lng, address or just address for manual
+  const [isGettingLocation, setIsGettingLocation] = useState(false); // Loading state for location
+  const [locationType, setLocationType] = useState("live"); // "live" or "manual"
+  const [manualLocation, setManualLocation] = useState(""); // Manual location address input
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const pollingStopRef = useRef(null);
@@ -551,14 +556,37 @@ const OrderPage = () => {
   const handleSubmit = () => {
     if (!user) return toast.error("Please login first!");
     if (isInRestaurant && !tableNumber) return toast.error("Select a table!");
+    if (!isInRestaurant && !contactNumber) return toast.error("Please enter your contact number!");
+    if (!isInRestaurant && locationType === "live" && !deliveryLocation) {
+      return toast.error("Please share your live location!");
+    }
+    if (!isInRestaurant && locationType === "manual" && !manualLocation.trim()) {
+      return toast.error("Please enter your delivery address!");
+    }
     if (cart.length === 0) return toast.error("Your cart is empty!");
+
+    // Prepare delivery location based on type
+    let finalDeliveryLocation = null;
+    if (!isInRestaurant) {
+      if (locationType === "live" && deliveryLocation) {
+        finalDeliveryLocation = deliveryLocation;
+      } else if (locationType === "manual" && manualLocation.trim()) {
+        finalDeliveryLocation = {
+          address: manualLocation.trim(),
+          latitude: null,
+          longitude: null,
+        };
+      }
+    }
 
     // Store cart data for payment modal
     setPendingCartData({
       cart,
-      tableNumber: isInRestaurant ? tableNumber : 0, // Use 0 for takeaway/out of restaurant
+      tableNumber: isInRestaurant ? tableNumber : 0, // Use 0 for delivery orders
       selectedChairsCount: isInRestaurant ? selectedChairsCount : 1,
       isInRestaurant, // Include the toggle state
+      contactNumber: !isInRestaurant ? contactNumber : "", // Include contact number for delivery
+      deliveryLocation: finalDeliveryLocation, // Include location for delivery
       user,
     });
 
@@ -673,7 +701,7 @@ const OrderPage = () => {
           <div className="bg-white shadow-lg rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:sticky lg:top-10 h-fit">
             <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Bill Summary</h3>
 
-            {/* Toggle Button for In/Out Restaurant */}
+            {/* Toggle Button for Dine-in/Delivery */}
             <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -683,18 +711,23 @@ const OrderPage = () => {
                     <FaHome className="text-blue-600 text-lg" />
                   )}
                   <span className="text-sm font-medium text-gray-700">
-                    {isInRestaurant ? "In Restaurant" : "Takeaway / Delivery"}
+                    {isInRestaurant ? "Dine-in" : "Delivery"}
                   </span>
                 </div>
                 <button
                   onClick={() => {
                     setIsInRestaurant(!isInRestaurant);
                     if (!isInRestaurant) {
-                      // When switching to "In Restaurant", reset table selection
+                      // When switching to "Dine-in", reset table selection
                       setTableNumber("");
                       setSelectedChairsCount(1);
+                      // Clear delivery fields
+                      setContactNumber("");
+                      setDeliveryLocation(null);
+                      setManualLocation("");
+                      setLocationType("live");
                     } else {
-                      // When switching to "Out of Restaurant", clear table
+                      // When switching to "Delivery", clear table
                       setTableNumber("");
                     }
                   }}
@@ -711,7 +744,7 @@ const OrderPage = () => {
               </div>
             </div>
 
-            {/* Table Selection - Only show when in restaurant */}
+            {/* Table Selection - Only show when Dine-in */}
             {isInRestaurant && (
               <div className="mb-4">
                 <TableSelect
@@ -720,6 +753,178 @@ const OrderPage = () => {
                   availableTables={availableTables}
                   onChairsSelected={setSelectedChairsCount}
                 />
+              </div>
+            )}
+
+            {/* Delivery Form - Only show when Delivery is selected */}
+            {!isInRestaurant && (
+              <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <FaHome className="text-blue-600" />
+                  Delivery Information
+                </h3>
+                
+                {/* Contact Number Input */}
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contact Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    placeholder="Enter your contact number"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                {/* Delivery Location - Live or Manual */}
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Delivery Location <span className="text-red-500">*</span>
+                  </label>
+                  
+                  {/* Location Type Selector */}
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationType("live");
+                        setManualLocation("");
+                        // Keep deliveryLocation if it exists, otherwise clear it
+                      }}
+                      className={`flex-1 px-3 py-2 rounded-lg font-medium transition-colors ${
+                        locationType === "live"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      📍 Live Location
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLocationType("manual");
+                        setDeliveryLocation(null);
+                      }}
+                      className={`flex-1 px-3 py-2 rounded-lg font-medium transition-colors ${
+                        locationType === "manual"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      ✏️ Manual Entry
+                    </button>
+                  </div>
+
+                  {/* Live Location Option */}
+                  {locationType === "live" && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!navigator.geolocation) {
+                            toast.error("Geolocation is not supported by your browser");
+                            return;
+                          }
+                          
+                          setIsGettingLocation(true);
+                          navigator.geolocation.getCurrentPosition(
+                            async (position) => {
+                              const { latitude, longitude } = position.coords;
+                              
+                              // Try to get address from coordinates using reverse geocoding
+                              let address = "";
+                              try {
+                                const response = await fetch(
+                                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+                                );
+                                const data = await response.json();
+                                if (data.display_name) {
+                                  address = data.display_name;
+                                }
+                              } catch (error) {
+                                console.warn("Could not fetch address:", error);
+                                address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                              }
+                              
+                              setDeliveryLocation({
+                                latitude,
+                                longitude,
+                                address: address || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                              });
+                              setIsGettingLocation(false);
+                              toast.success("Location shared successfully! 📍");
+                            },
+                            (error) => {
+                              setIsGettingLocation(false);
+                              console.error("Error getting location:", error);
+                              toast.error("Failed to get your location. Please allow location access.");
+                            },
+                            {
+                              enableHighAccuracy: true,
+                              timeout: 10000,
+                              maximumAge: 0,
+                            }
+                          );
+                        }}
+                        disabled={isGettingLocation}
+                        className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
+                          deliveryLocation
+                            ? "bg-green-100 text-green-700 border border-green-300"
+                            : isGettingLocation
+                            ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {isGettingLocation ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <span className="animate-spin">⏳</span>
+                            Getting location...
+                          </span>
+                        ) : deliveryLocation ? (
+                          <span className="flex items-center justify-center gap-2">
+                            ✅ Location Shared
+                            <span className="text-xs">({deliveryLocation.address.substring(0, 30)}...)</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            📍 Share Live Location
+                          </span>
+                        )}
+                      </button>
+                      {deliveryLocation && deliveryLocation.latitude && (
+                        <div className="mt-2 p-2 bg-white rounded border border-green-200">
+                          <p className="text-xs text-gray-600 mb-1">
+                            <strong>Lat:</strong> {deliveryLocation.latitude.toFixed(6)},{" "}
+                            <strong>Lng:</strong> {deliveryLocation.longitude.toFixed(6)}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            <strong>Address:</strong> {deliveryLocation.address}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Manual Location Entry */}
+                  {locationType === "manual" && (
+                    <div>
+                      <textarea
+                        value={manualLocation}
+                        onChange={(e) => setManualLocation(e.target.value)}
+                        placeholder="Enter your complete delivery address (e.g., House/Building number, Street, Area, City, PIN code)"
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                        required
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Please provide a complete address including house number, street, area, and city for accurate delivery.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -775,9 +980,15 @@ const OrderPage = () => {
                   <p className="text-xs sm:text-sm text-gray-500 capitalize">
                     {order.category} • {order.type}
                   </p>
-                  <p className="text-xs sm:text-sm text-gray-500">
-                    Table {order.tableNumber}
-                  </p>
+                  {order.isInRestaurant === false ? (
+                    <p className="text-xs sm:text-sm text-blue-600 font-medium">
+                      🚚 Delivery
+                    </p>
+                  ) : (
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      🍽️ Dine-in - Table {order.tableNumber}
+                    </p>
+                  )}
                   <p className="mt-2 font-medium text-red-600 text-sm sm:text-base">
                     ₹{Number(order.price).toFixed(2)}
                   </p>
@@ -835,6 +1046,8 @@ const OrderPage = () => {
           tableNumber={pendingCartData.tableNumber}
           selectedChairsCount={pendingCartData.selectedChairsCount}
           isInRestaurant={pendingCartData.isInRestaurant}
+          contactNumber={pendingCartData.contactNumber || ""}
+          deliveryLocation={pendingCartData.deliveryLocation || null}
           user={pendingCartData.user}
           socketRef={socketRef}
           onPaymentComplete={handlePaymentComplete}

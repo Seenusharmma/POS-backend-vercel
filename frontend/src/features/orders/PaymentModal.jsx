@@ -15,6 +15,8 @@ const PaymentModal = ({
   tableNumber, 
   selectedChairsCount,
   isInRestaurant = true,
+  contactNumber = "",
+  deliveryLocation = null,
   user,
   socketRef: parentSocketRef,
   onPaymentComplete
@@ -29,8 +31,8 @@ const PaymentModal = ({
   const UPI_ID = "roshansharma7250-2@oksbi";
   const PAYEE_NAME = "FoodFantasy";
   const orderNote = isInRestaurant 
-    ? `Order for Table ${tableNumber}` 
-    : "Takeaway / Delivery Order";
+    ? `Order for Table ${tableNumber} - Dine-in` 
+    : "Delivery Order";
   
   // Generate UPI payment link with proper encoding
   const generateUPILink = () => {
@@ -56,7 +58,7 @@ const PaymentModal = ({
     // Now create orders AFTER payment is confirmed
     setIsCreatingOrder(true);
     try {
-      // Ensure tableNumber is properly set (0 for takeaway, actual number for in-restaurant)
+      // Ensure tableNumber is properly set (0 for delivery, actual number for dine-in)
       const finalTableNumber = isInRestaurant ? Number(tableNumber) : 0;
       
       // Validate and prepare payload before sending
@@ -73,6 +75,13 @@ const PaymentModal = ({
         paymentStatus: "Paid",
         paymentMethod: selectedPaymentMethod,
         image: i.image || "",
+        isInRestaurant: isInRestaurant, // Include the dine-in/delivery flag
+        contactNumber: !isInRestaurant ? contactNumber : "", // Include contact number for delivery
+        deliveryLocation: !isInRestaurant && deliveryLocation ? {
+          latitude: deliveryLocation.latitude || null, // Can be null for manual entry
+          longitude: deliveryLocation.longitude || null, // Can be null for manual entry
+          address: deliveryLocation.address || "",
+        } : null, // Include location for delivery
       }));
 
       console.log("Sending order payload:", validatedPayload); // Debug log
@@ -92,8 +101,8 @@ const PaymentModal = ({
 
       // Show success toast
       const orderTypeText = isInRestaurant 
-        ? `Table ${tableNumber} - ${selectedChairsCount} chair(s)`
-        : "Takeaway / Delivery";
+        ? `Table ${tableNumber} - ${selectedChairsCount} chair(s) - Dine-in`
+        : "Delivery";
       toast.success(`✅ Order successful! ${orderTypeText}`, {
         duration: 4000,
         icon: '🎉',
@@ -170,9 +179,9 @@ const PaymentModal = ({
             <div className="mb-6 bg-gray-50 rounded-lg p-4">
               <h3 className="font-semibold text-gray-700 mb-2">Order Summary</h3>
               {isInRestaurant ? (
-                <p className="text-sm text-gray-600">Table: {tableNumber} • Chairs: {selectedChairsCount}</p>
+                <p className="text-sm text-gray-600">🍽️ Dine-in - Table: {tableNumber} • Chairs: {selectedChairsCount}</p>
               ) : (
-                <p className="text-sm text-gray-600">📦 Takeaway / Delivery Order</p>
+                <p className="text-sm text-gray-600">🚚 Delivery Order</p>
               )}
               <p className="text-lg font-bold text-red-600 mt-2">
                 Total: ₹{Number(totalAmount).toFixed(2)}

@@ -369,8 +369,8 @@ const OrderSlip = ({
               </div>
               {isInRestaurant ? (
                 <div className="flex justify-between">
-                  <span style={{ color: "#4b5563" }}>Table:</span>
-                  <span className="font-semibold" style={{ color: "#000000" }}>#{tableNumber} ({selectedChairsCount} chair{selectedChairsCount > 1 ? "s" : ""})</span>
+                  <span style={{ color: "#4b5563" }}>Type:</span>
+                  <span className="font-semibold" style={{ color: "#059669" }}>🍽️ Dine-in - Table #{tableNumber} ({selectedChairsCount} chair{selectedChairsCount > 1 ? "s" : ""})</span>
                 </div>
               ) : (
                 <div className="flex justify-between">

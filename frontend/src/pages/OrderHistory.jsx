@@ -413,8 +413,8 @@ const OrderHistory = () => {
                   {firstOrder.isInRestaurant === false ? (
                     <span className="text-blue-600 font-medium">🚚 Delivery</span>
                   ) : (
-                    <span>
-                      Table: <span className="font-medium">{firstOrder.tableNumber}</span>
+                    <span className="text-green-600 font-medium">
+                      🍽️ Dine-in - Table: <span className="font-semibold">{firstOrder.tableNumber}</span>
                     </span>
                   )}
                   <span className="hidden sm:inline">|</span>

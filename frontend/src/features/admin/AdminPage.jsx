@@ -207,7 +207,22 @@ const AdminPage = () => {
               newOrders.forEach(newOrder => {
                 if (newOrder && newOrder._id) {
                   playNotificationSound();
-                  toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber || "Takeaway"}`, {
+                  // Show "Delivery" if isInRestaurant is false, otherwise show "Dine-in" with table number
+                  let orderType = newOrder.isInRestaurant === false 
+                    ? "🚚 Delivery" 
+                    : `🍽️ Dine-in - Table ${newOrder.tableNumber}`;
+                  
+                  // Add delivery info if available
+                  if (newOrder.isInRestaurant === false) {
+                    if (newOrder.contactNumber) {
+                      orderType += ` | 📞 ${newOrder.contactNumber}`;
+                    }
+                    if (newOrder.deliveryLocation?.address) {
+                      orderType += ` | 📍 ${newOrder.deliveryLocation.address.substring(0, 30)}...`;
+                    }
+                  }
+                  
+                  toast.success(`📦 New Order: ${newOrder.foodName} - ${orderType}`, {
                     duration: 5000,
                     position: "top-right",
                     icon: "🆕",
@@ -429,7 +444,22 @@ const AdminPage = () => {
       playNotificationSound();
       
       // Show notification toast
-      toast.success(`📦 New Order: ${newOrder.foodName} - Table ${newOrder.tableNumber || "Takeaway"}`, {
+      // Show "Delivery" if isInRestaurant is false, otherwise show "Dine-in" with table number
+      let orderType = newOrder.isInRestaurant === false 
+        ? "🚚 Delivery" 
+        : `🍽️ Dine-in - Table ${newOrder.tableNumber}`;
+      
+      // Add delivery info if available
+      if (newOrder.isInRestaurant === false) {
+        if (newOrder.contactNumber) {
+          orderType += ` | 📞 ${newOrder.contactNumber}`;
+        }
+        if (newOrder.deliveryLocation?.address) {
+          orderType += ` | 📍 ${newOrder.deliveryLocation.address.substring(0, 30)}...`;
+        }
+      }
+      
+      toast.success(`📦 New Order: ${newOrder.foodName} - ${orderType}`, {
         duration: 5000,
         position: "top-right",
         icon: "🆕",
