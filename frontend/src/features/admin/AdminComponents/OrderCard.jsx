@@ -129,12 +129,13 @@ const OrderCard = ({
           </div>
         )}
 
-        {/* Delete Order Button */}
+        {/* Delete Order Button - Prominent for easy access */}
         <button
           onClick={() => onDeleteOrder(order._id)}
-          className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1 rounded text-xs sm:text-sm"
+          className="bg-red-600 hover:bg-red-700 text-white px-2 sm:px-3 py-1.5 rounded text-xs sm:text-sm font-semibold transition-colors shadow-sm hover:shadow-md flex items-center gap-1"
+          title="Delete this order permanently"
         >
-          Delete
+          🗑️ Delete
         </button>
       </div>
 

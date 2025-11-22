@@ -494,6 +494,19 @@ const AdminPage = () => {
       }
     });
 
+    // Listen for order deletion events
+    socket.on("orderDeleted", (deletedOrderId) => {
+      if (!deletedOrderId) return;
+      
+      // Remove deleted order from state immediately
+      setOrders((prev) => prev.filter((order) => order._id !== deletedOrderId));
+      
+      // Clear highlight if deleted order was highlighted
+      if (highlightedOrder === deletedOrderId) {
+        setHighlightedOrder(null);
+      }
+    });
+
     socket.on("orderStatusChanged", (updatedOrder) => {
       const statusMessages = {
         Pending: "⏳ Order status: Pending",
@@ -650,6 +663,7 @@ const AdminPage = () => {
       socket.off("reconnect_failed");
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
+      socket.off("orderDeleted");
       socket.off("paymentSuccess");
       socket.off("foodUpdated");
       socket.off("newFoodAdded");
@@ -892,13 +906,48 @@ const AdminPage = () => {
   };
 
   const deleteOrder = async (id) => {
-    if (!window.confirm("❗Delete this order permanently?")) return;
+    // Find the order to show details in confirmation
+    const orderToDelete = orders.find(o => o._id === id);
+    const orderDetails = orderToDelete 
+      ? `${orderToDelete.foodName} (${orderToDelete.status})`
+      : "this order";
+    
+    // Better confirmation dialog
+    const confirmed = window.confirm(
+      `🗑️ Are you sure you want to delete ${orderDetails}?\n\n` +
+      `This action cannot be undone.`
+    );
+    
+    if (!confirmed) return;
+    
     try {
-      await axios.delete(`${API_BASE}/api/orders/${id}`);
-      toast.success("🗑️ Order deleted successfully!");
+      // Add admin flag to request header
+      await axios.delete(`${API_BASE}/api/orders/${id}`, {
+        headers: {
+          'x-admin-request': 'true'
+        },
+        params: {
+          admin: 'true'
+        }
+      });
+      
+      toast.success("🗑️ Order deleted successfully!", {
+        duration: 3000,
+        icon: "✅",
+      });
+      
+      // Remove from local state immediately for better UX
+      setOrders(prevOrders => prevOrders.filter(order => order._id !== id));
+      
+      // Refresh data to ensure sync
       getAllData();
-    } catch {
-      toast.error("Failed to delete order.");
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      const errorMessage = error.response?.data?.message || "Failed to delete order.";
+      toast.error(errorMessage, {
+        duration: 4000,
+        icon: "❌",
+      });
     }
   };
 
