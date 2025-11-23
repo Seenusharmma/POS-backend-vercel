@@ -5,6 +5,10 @@ import tailwindcss from '@tailwindcss/vite';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    include: ['leaflet', 'react-leaflet'],
+    exclude: ['locatorjs'], // Exclude locatorjs to suppress warnings
+  },
   build: {
     // Suppress console warnings in production
     rollupOptions: {

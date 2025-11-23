@@ -226,7 +226,7 @@ const AdminPage = () => {
             setTimeout(() => {
               newOrders.forEach(newOrder => {
                 if (newOrder && newOrder._id) {
-                  playNotificationSound();
+          playNotificationSound();
                   // Show "Delivery" if isInRestaurant is false, otherwise show "Dine-in" with table number
                   let orderType = newOrder.isInRestaurant === false 
                     ? "🚚 Delivery" 
@@ -243,18 +243,18 @@ const AdminPage = () => {
                   }
                   
                   toast.success(`📦 New Order: ${newOrder.foodName} - ${orderType}`, {
-                    duration: 5000,
-                    position: "top-right",
-                    icon: "🆕",
-                    style: {
-                      background: "#10b981",
-                      color: "#fff",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                    },
-                  });
-                  setHighlightedOrder(newOrder._id);
-                  setTimeout(() => setHighlightedOrder(null), 3000);
+            duration: 5000,
+            position: "top-right",
+            icon: "🆕",
+            style: {
+              background: "#10b981",
+              color: "#fff",
+              fontSize: "16px",
+              fontWeight: "600",
+            },
+          });
+              setHighlightedOrder(newOrder._id);
+              setTimeout(() => setHighlightedOrder(null), 3000);
                 }
               });
             }, 0);
@@ -266,45 +266,45 @@ const AdminPage = () => {
             if (oldOrder && oldOrder.status !== newOrder.status) {
               // Use setTimeout to defer notifications outside render cycle
               setTimeout(() => {
-                playNotificationSound();
-                const statusMessages = {
-                  Pending: "⏳ Order status: Pending",
-                  Cooking: "👨‍🍳 Order is being cooked",
-                  Ready: "✅ Order is ready",
-                  Served: "🍽️ Order has been served",
-                  Completed: "🎉 Order completed",
-                };
-                toast.success(
+            playNotificationSound();
+            const statusMessages = {
+              Pending: "⏳ Order status: Pending",
+              Cooking: "👨‍🍳 Order is being cooked",
+              Ready: "✅ Order is ready",
+              Served: "🍽️ Order has been served",
+              Completed: "🎉 Order completed",
+            };
+            toast.success(
                   `${statusMessages[newOrder.status] || "Order status updated"}: ${newOrder.foodName}`,
-                  {
-                    duration: 4000,
-                    position: "top-right",
-                    style: {
-                      background: "#3b82f6",
-                      color: "#fff",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                    },
-                  }
-                );
+              {
+                duration: 4000,
+                position: "top-right",
+                style: {
+                  background: "#3b82f6",
+                  color: "#fff",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                },
+              }
+            );
               }, 0);
-            }
-            
+        }
+
             // Check payment status changes
             if (oldOrder && oldOrder.paymentStatus !== newOrder.paymentStatus && newOrder.paymentStatus === "Paid") {
               setTimeout(() => {
-                playNotificationSound();
+            playNotificationSound();
                 toast.success(`💰 Payment Confirmed: ${newOrder.foodName}`, {
-                  duration: 4000,
-                  position: "top-right",
-                  icon: "✅",
-                  style: {
-                    background: "#10b981",
-                    color: "#fff",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                  },
-                });
+              duration: 4000,
+              position: "top-right",
+              icon: "✅",
+              style: {
+                background: "#10b981",
+                color: "#fff",
+                fontSize: "16px",
+                fontWeight: "600",
+              },
+            });
               }, 0);
             }
           });
@@ -693,7 +693,7 @@ const AdminPage = () => {
       if (pollingStopRef.current) {
         // Stop the pollOrders mechanism
         if (typeof pollingStopRef.current === 'function') {
-          pollingStopRef.current();
+        pollingStopRef.current();
         }
         pollingStopRef.current = null;
       }
