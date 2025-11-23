@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAppSelector, useAppDispatch, useFoodFilter } from "../../store/hooks";
 import { logoutUser } from "../../store/slices/authSlice";
@@ -13,6 +13,7 @@ import {
 } from "react-icons/fa";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
+import { checkAdminStatus } from "../../services/adminApi";
 
 const Navbar = () => {
   const dispatch = useAppDispatch();
@@ -20,13 +21,29 @@ const Navbar = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { foodFilter, toggleFilter } = useFoodFilter();
   const isLoginPage = location.pathname === "/login";
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const handleLogout = () => {
     dispatch(logoutUser());
   };
 
-  const ADMIN_EMAIL = "roshansharma7250@gmail.com";
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  // Check admin status via API
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (user?.email) {
+        try {
+          const result = await checkAdminStatus(user.email);
+          setIsAdmin(result.isAdmin || false);
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    };
+    checkAdmin();
+  }, [user]);
 
   const menuItems = [
     { name: "Home", icon: <FaHome />, path: "/" },

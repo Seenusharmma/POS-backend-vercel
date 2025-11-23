@@ -1,16 +1,34 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppSelector } from "../../store/hooks";
 import { FaHome, FaUtensils, FaShoppingBag, FaHistory, FaUser, FaUserCog } from "react-icons/fa";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
+import { checkAdminStatus } from "../../services/adminApi";
 
 const BottomNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
-  const ADMIN_EMAIL = "roshansharma7250@gmail.com";
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check admin status via API
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (user?.email) {
+        try {
+          const result = await checkAdminStatus(user.email);
+          setIsAdmin(result.isAdmin || false);
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    };
+    checkAdmin();
+  }, [user]);
 
   const tabs = [
     { name: "Home", icon: FaHome, path: "/", protected: false },

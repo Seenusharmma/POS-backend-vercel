@@ -12,6 +12,7 @@ import { useAppSelector } from "../store/hooks";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import LogoLoader from "../components/ui/LogoLoader"; // ✅ Import loader
+import { checkAdminStatus } from "../services/adminApi";
 
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,19 +22,34 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
 
-  const ADMIN_EMAIL = "roshansharma7250@gmail.com";
-
   // ✅ Show logo loader when page first loads
   useEffect(() => {
     const timer = setTimeout(() => setPageLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
 
-  // ✅ Redirect logged-in user
+  // ✅ Redirect logged-in user based on admin status
   useEffect(() => {
+    const redirectUser = async () => {
+      if (user?.email) {
+        try {
+          // Check if user is admin via API
+          const adminResult = await checkAdminStatus(user.email);
+          if (adminResult.isAdmin) {
+            navigate("/admin");
+          } else {
+            navigate("/");
+          }
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+          // On error, redirect to home (safer default)
+          navigate("/");
+        }
+      }
+    };
+
     if (user) {
-      if (user.email === ADMIN_EMAIL) navigate("/admin");
-      else navigate("/");
+      redirectUser();
     }
   }, [user, navigate]);
 
@@ -67,8 +83,19 @@ const LoginPage = () => {
         toast.success("🎉 Account created successfully!");
       }
 
-      if (email === ADMIN_EMAIL) navigate("/admin");
-      else navigate("/");
+      // Check admin status and redirect accordingly
+      try {
+        const adminResult = await checkAdminStatus(email);
+        if (adminResult.isAdmin) {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+      } catch (adminError) {
+        console.error("Error checking admin status:", adminError);
+        // On error, redirect to home
+        navigate("/");
+      }
     } catch (err) {
       const code = err.code || "";
       if (code === "auth/user-not-found") toast.error("User not found.");
@@ -87,8 +114,20 @@ const LoginPage = () => {
       const result = await signInWithPopup(auth, provider);
       const email = result.user.email;
       toast.success("✅ Google Sign-In successful!");
-      if (email === ADMIN_EMAIL) navigate("/admin");
-      else navigate("/");
+      
+      // Check admin status and redirect accordingly
+      try {
+        const adminResult = await checkAdminStatus(email);
+        if (adminResult.isAdmin) {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+      } catch (adminError) {
+        console.error("Error checking admin status:", adminError);
+        // On error, redirect to home
+        navigate("/");
+      }
     } catch {
       toast.error("Google Sign-In failed. Please try again.");
     }
