@@ -15,6 +15,7 @@ import ProtectedRoute from "./components/layout/ProtectedRoute";
 import Footer from "./components/common/Footer";
 import TotalSales from "./features/admin/TotalSales";
 import BottomNav from "./components/common/BottomNav";
+import WebUIOverlay from "./components/overlay/WebUIOverlay";
 
 const AppContent = () => {
   const location = useLocation();
@@ -80,6 +81,7 @@ const AppContent = () => {
       </Routes>
       {!isLoginPage && <Footer />}
       <BottomNav />
+      <WebUIOverlay />
     </>
   );
 };

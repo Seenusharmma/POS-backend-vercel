@@ -14,10 +14,24 @@ import { pollOrders } from "../../utils/polling";
 import LogoLoader from "../../components/ui/LogoLoader";
 import TableSelectionModal from "./Tables/TableSelectionModal";
 import PaymentModal from "./PaymentModal";
+import { useGeolocated } from "react-geolocated";
 
 const TOTAL_TABLES = 40;
 
 const OrderPage = () => {
+  // Use react-geolocated hook
+  const { coords, isGeolocationAvailable, isGeolocationEnabled, positionError } = useGeolocated({
+    positionOptions: {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0,
+    },
+    watchPosition: false, // Get position once, not continuously
+    userDecisionTimeout: null,
+    suppressLocationOnMount: true, // Don't request location on mount - we'll request manually
+    geolocationProvider: navigator.geolocation,
+    isOptimisticGeolocationEnabled: true,
+  });
   const { user } = useAppSelector((state) => state.auth);
   const cart = useAppSelector((state) => state.cart.items);
   const cartTotal = useAppSelector((state) => state.cart.total);
@@ -36,7 +50,6 @@ const OrderPage = () => {
   const [isGettingLocation, setIsGettingLocation] = useState(false); // Loading state for location
   const [locationType, setLocationType] = useState("live"); // "live" or "manual"
   const [manualLocation, setManualLocation] = useState(""); // Manual location address input
-  const [locationPermission, setLocationPermission] = useState(null); // "granted", "denied", "prompt", or null
   const [showPermissionInfo, setShowPermissionInfo] = useState(false); // Show permission info modal
   const socketRef = useRef(null);
   const audioRef = useRef(null);
@@ -520,23 +533,66 @@ const OrderPage = () => {
     fetchAllOrders();
   }, [fetchAllOrders]);
 
-  // Check initial location permission status
-  useEffect(() => {
-    if (navigator.permissions && navigator.permissions.query && locationType === "live") {
-      navigator.permissions.query({ name: 'geolocation' })
-        .then((permission) => {
-          setLocationPermission(permission.state);
-          
-          // Listen for permission changes
-          permission.onchange = () => {
-            setLocationPermission(permission.state);
-          };
-        })
-        .catch((error) => {
-          console.warn("Could not check location permission:", error);
-        });
+  // Reverse geocoding function
+  const reverseGeocode = async (latitude, longitude) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+      );
+      const data = await response.json();
+      if (data.display_name) {
+        return data.display_name;
+      }
+      return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    } catch (error) {
+      console.warn("Could not fetch address:", error);
+      return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
     }
-  }, [locationType]);
+  };
+
+  // Handle location when coords are available
+  useEffect(() => {
+    if (coords && locationType === "live" && isGettingLocation) {
+      const { latitude, longitude } = coords;
+      
+      // Get address from coordinates
+      reverseGeocode(latitude, longitude).then((address) => {
+        setDeliveryLocation({
+          latitude,
+          longitude,
+          address: address || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+        });
+        setIsGettingLocation(false);
+        setShowPermissionInfo(false);
+        toast.success("Location shared successfully! 📍");
+      });
+    }
+  }, [coords, locationType, isGettingLocation]);
+
+  // Handle geolocation errors
+  useEffect(() => {
+    if (positionError && isGettingLocation) {
+      setIsGettingLocation(false);
+      let errorMessage = "Failed to get your location. ";
+      
+      switch (positionError.code) {
+        case positionError.PERMISSION_DENIED:
+          errorMessage += "Location access was denied. Please enable location permissions in your browser settings, or use manual entry instead.";
+          break;
+        case positionError.POSITION_UNAVAILABLE:
+          errorMessage += "Location information is unavailable. Please check your device's location settings.";
+          break;
+        case positionError.TIMEOUT:
+          errorMessage += "Location request timed out. Please try again or use manual entry.";
+          break;
+        default:
+          errorMessage += "Please allow location access or use manual entry instead.";
+          break;
+      }
+      
+      toast.error(errorMessage, { duration: 5000 });
+    }
+  }, [positionError, isGettingLocation]);
 
   /* ===========================
       🛒 CART LOGIC (Redux + Backend Sync)
@@ -908,114 +964,117 @@ const OrderPage = () => {
                       <button
                         type="button"
                         onClick={async () => {
-                          if (!navigator.geolocation) {
+                          // Check if geolocation is available
+                          if (!isGeolocationAvailable) {
                             toast.error("Geolocation is not supported by your browser. Please use manual entry instead.");
                             return;
                           }
 
-                          // Check if permissions API is available (modern browsers)
-                          let permissionStatus = null;
-                          if (navigator.permissions && navigator.permissions.query) {
-                            try {
-                              const permission = await navigator.permissions.query({ name: 'geolocation' });
-                              permissionStatus = permission.state;
-                              setLocationPermission(permissionStatus);
-                              
-                              // Listen for permission changes
-                              permission.onchange = () => {
-                                setLocationPermission(permission.state);
-                              };
-                            } catch (error) {
-                              console.warn("Permission API not fully supported:", error);
-                            }
-                          }
-
-                          // If permission was previously denied, show helpful message
-                          if (permissionStatus === 'denied') {
+                          // Check if geolocation is enabled
+                          if (!isGeolocationEnabled) {
                             toast.error(
-                              "Location access was denied. Please enable location permissions in your browser settings, or use manual entry instead.",
+                              "Location access is disabled. Please enable location permissions in your browser settings, or use manual entry instead.",
                               { duration: 5000 }
                             );
                             return;
                           }
 
-                          // Show permission request message
-                          if (permissionStatus === 'prompt' || permissionStatus === null) {
-                            toast.info(
-                              "Please allow location access when prompted by your browser.",
+                          // If there's a position error, show appropriate message
+                          if (positionError) {
+                            let errorMessage = "Failed to get your location. ";
+                            switch (positionError.code) {
+                              case positionError.PERMISSION_DENIED:
+                                errorMessage += "Location access was denied. Please enable location permissions in your browser settings, or use manual entry instead.";
+                                break;
+                              case positionError.POSITION_UNAVAILABLE:
+                                errorMessage += "Location information is unavailable. Please check your device's location settings.";
+                                break;
+                              case positionError.TIMEOUT:
+                                errorMessage += "Location request timed out. Please try again or use manual entry.";
+                                break;
+                              default:
+                                errorMessage += "Please allow location access or use manual entry instead.";
+                                break;
+                            }
+                            toast.error(errorMessage, { duration: 5000 });
+                            return;
+                          }
+
+                          // If coords are already available, use them
+                          if (coords) {
+                            setIsGettingLocation(true);
+                            const { latitude, longitude } = coords;
+                            
+                            // Get address from coordinates
+                            const address = await reverseGeocode(latitude, longitude);
+                            
+                            setDeliveryLocation({
+                              latitude,
+                              longitude,
+                              address: address || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                            });
+                            setIsGettingLocation(false);
+                            setShowPermissionInfo(false);
+                            toast.success("Location shared successfully! 📍");
+                          } else {
+                            // Request location using navigator.geolocation directly
+                            // (react-geolocated provides status, but we trigger manually)
+                            setIsGettingLocation(true);
+                            toast(
+                              "📍 Please allow location access when prompted by your browser.",
                               { duration: 3000, icon: "📍" }
                             );
-                          }
-                          
-                          setIsGettingLocation(true);
-                          
-                          navigator.geolocation.getCurrentPosition(
-                            async (position) => {
-                              const { latitude, longitude } = position.coords;
-                              
-                              // Try to get address from coordinates using reverse geocoding
-                              let address = "";
-                              try {
-                                const response = await fetch(
-                                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
-                                );
-                                const data = await response.json();
-                                if (data.display_name) {
-                                  address = data.display_name;
+                            
+                            // Use navigator.geolocation directly since react-geolocated
+                            // with suppressLocationOnMount won't auto-request
+                            navigator.geolocation.getCurrentPosition(
+                              async (position) => {
+                                const { latitude, longitude } = position.coords;
+                                const address = await reverseGeocode(latitude, longitude);
+                                
+                                setDeliveryLocation({
+                                  latitude,
+                                  longitude,
+                                  address: address || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                                });
+                                setIsGettingLocation(false);
+                                setShowPermissionInfo(false);
+                                toast.success("Location shared successfully! 📍");
+                              },
+                              (error) => {
+                                setIsGettingLocation(false);
+                                let errorMessage = "Failed to get your location. ";
+                                switch (error.code) {
+                                  case error.PERMISSION_DENIED:
+                                    errorMessage += "Location access was denied. Please enable location permissions in your browser settings, or use manual entry instead.";
+                                    break;
+                                  case error.POSITION_UNAVAILABLE:
+                                    errorMessage += "Location information is unavailable. Please check your device's location settings.";
+                                    break;
+                                  case error.TIMEOUT:
+                                    errorMessage += "Location request timed out. Please try again or use manual entry.";
+                                    break;
+                                  default:
+                                    errorMessage += "Please allow location access or use manual entry instead.";
+                                    break;
                                 }
-                              } catch (error) {
-                                console.warn("Could not fetch address:", error);
-                                address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                                toast.error(errorMessage, { duration: 5000 });
+                              },
+                              {
+                                enableHighAccuracy: true,
+                                timeout: 15000,
+                                maximumAge: 0,
                               }
-                              
-                              setDeliveryLocation({
-                                latitude,
-                                longitude,
-                                address: address || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-                              });
-                              setLocationPermission('granted');
-                              setIsGettingLocation(false);
-                              setShowPermissionInfo(false);
-                              toast.success("Location shared successfully! 📍");
-                            },
-                            (error) => {
-                              setIsGettingLocation(false);
-                              console.error("Error getting location:", error);
-                              
-                              // Provide specific error messages based on error code
-                              let errorMessage = "Failed to get your location. ";
-                              switch (error.code) {
-                                case error.PERMISSION_DENIED:
-                                  errorMessage += "Location access was denied. Please enable location permissions in your browser settings, or use manual entry instead.";
-                                  setLocationPermission('denied');
-                                  break;
-                                case error.POSITION_UNAVAILABLE:
-                                  errorMessage += "Location information is unavailable. Please check your device's location settings.";
-                                  break;
-                                case error.TIMEOUT:
-                                  errorMessage += "Location request timed out. Please try again or use manual entry.";
-                                  break;
-                                default:
-                                  errorMessage += "Please allow location access or use manual entry instead.";
-                                  break;
-                              }
-                              
-                              toast.error(errorMessage, { duration: 5000 });
-                            },
-                            {
-                              enableHighAccuracy: true,
-                              timeout: 15000, // Increased timeout for mobile devices
-                              maximumAge: 0,
-                            }
-                          );
+                            );
+                          }
                         }}
-                        disabled={isGettingLocation}
+                        disabled={isGettingLocation || !isGeolocationAvailable || (!isGeolocationEnabled && !coords)}
                         className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
                           deliveryLocation
                             ? "bg-green-100 text-green-700 border border-green-300"
                             : isGettingLocation
                             ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                            : locationPermission === 'denied'
+                            : !isGeolocationEnabled || positionError
                             ? "bg-red-100 text-red-700 border border-red-300"
                             : "bg-blue-600 text-white hover:bg-blue-700"
                         }`}
@@ -1030,9 +1089,9 @@ const OrderPage = () => {
                             ✅ Location Shared
                             <span className="text-xs">({deliveryLocation.address.substring(0, 30)}...)</span>
                           </span>
-                        ) : locationPermission === 'denied' ? (
+                        ) : !isGeolocationEnabled || positionError ? (
                           <span className="flex items-center justify-center gap-2">
-                            ❌ Location Access Denied
+                            ❌ Location Access {!isGeolocationEnabled ? "Disabled" : "Denied"}
                             <span className="text-xs">(Use manual entry)</span>
                           </span>
                         ) : (
@@ -1044,12 +1103,14 @@ const OrderPage = () => {
                       </button>
                       
                       {/* Permission Status Indicator */}
-                      {locationPermission && !deliveryLocation && (
+                      {!deliveryLocation && (
                         <div className="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
                           <p className="text-xs text-gray-600">
-                            {locationPermission === 'granted' && "✅ Location permission granted"}
-                            {locationPermission === 'denied' && "❌ Location permission denied - Please use manual entry or enable in browser settings"}
-                            {locationPermission === 'prompt' && "⏳ Waiting for permission..."}
+                            {!isGeolocationAvailable && "❌ Geolocation not available in this browser"}
+                            {isGeolocationAvailable && !isGeolocationEnabled && "❌ Location access disabled - Please enable in browser settings or use manual entry"}
+                            {isGeolocationAvailable && isGeolocationEnabled && !coords && !positionError && "⏳ Waiting for location..."}
+                            {isGeolocationAvailable && isGeolocationEnabled && coords && "✅ Location ready"}
+                            {positionError && "❌ Location error - Please use manual entry"}
                           </p>
                         </div>
                       )}
