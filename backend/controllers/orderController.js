@@ -317,7 +317,7 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-// ❌ Delete completed order (User)
+// ❌ Delete order (User can only delete completed, Admin can delete any)
 export const deleteOrder = async (req, res) => {
   try {
     // Ensure database connection (for serverless)
@@ -327,27 +327,38 @@ export const deleteOrder = async (req, res) => {
     }
 
     const { id } = req.params;
+    // Check if this is an admin request (from query param or header)
+    const isAdmin = req.query.admin === 'true' || req.headers['x-admin-request'] === 'true';
 
     const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // Only allow delete if status is "Completed"
-    if (order.status !== "Completed") {
+    // If not admin, only allow delete if status is "Completed"
+    if (!isAdmin && order.status !== "Completed") {
       return res.status(400).json({
         success: false,
         message: "You can only delete completed orders",
       });
     }
 
+    // Admin can delete any order, regular users can only delete completed orders
     await Order.findByIdAndDelete(id);
 
-    // ✅ Emit delete event for real-time sync (to admin + other clients)
+    // ✅ Emit delete event for real-time sync (to all admins and clients)
     const io = req.app.get("io");
-    if (io && typeof io.emit === "function") {
-      io.emit("orderDeleted", id);
-      console.log("🗑️ Emitted orderDeleted event for order:", id);
+    if (io) {
+      // Emit to admins room for faster delivery
+      if (typeof io.to === "function") {
+        io.to("admins").emit("orderDeleted", id);
+        // Also broadcast to all clients for real-time updates
+        io.emit("orderDeleted", id);
+      } else if (typeof io.emit === "function") {
+        // Fallback for non-room-based setup
+        io.emit("orderDeleted", id);
+      }
+      console.log("🗑️ Emitted orderDeleted event for order:", id, isAdmin ? "(Admin delete)" : "(User delete)");
     }
 
     res.status(200).json({
