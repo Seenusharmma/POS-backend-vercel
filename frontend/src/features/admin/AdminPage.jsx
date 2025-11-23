@@ -11,18 +11,22 @@ import { pollOrders } from "../../utils/polling";
 import LogoLoader from "../../components/ui/LogoLoader";
 import TotalSales from "./TotalSales";
 import AdminOrderHistory from "./AdminOrderHistory";
-import { useFoodFilter } from "../../store/hooks";
+import { useFoodFilter, useAppSelector } from "../../store/hooks";
+import { checkAdminStatus } from "../../services/adminApi";
 import {
   AdminTabs,
   OrdersSection,
   FoodListSection,
   AddFoodForm,
 } from "./AdminComponents";
+import AdminManagement from "./AdminComponents/AdminManagement";
 
 const AdminPage = () => {
   const { filterFoods: applyGlobalFilter } = useFoodFilter();
+  const { user } = useAppSelector((state) => state.auth);
   const [foods, setFoods] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [foodForm, setFoodForm] = useState({
     name: "",
     category: "",
@@ -86,6 +90,22 @@ const AdminPage = () => {
       setTimeout(() => setPageLoading(false), 800);
     }
   };
+
+  // Check if user is super admin
+  useEffect(() => {
+    const checkSuperAdmin = async () => {
+      if (user?.email) {
+        try {
+          const result = await checkAdminStatus(user.email);
+          setIsSuperAdmin(result.isSuperAdmin || false);
+        } catch (error) {
+          console.error("Error checking super admin status:", error);
+          setIsSuperAdmin(false);
+        }
+      }
+    };
+    checkSuperAdmin();
+  }, [user]);
 
   useEffect(() => {
     // Check if we're on a serverless platform (Vercel, etc.)
@@ -977,7 +997,7 @@ const AdminPage = () => {
       </h2>
 
       {/* 🧭 Tabs */}
-      <AdminTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      <AdminTabs activeTab={activeTab} onTabChange={setActiveTab} isSuperAdmin={isSuperAdmin} />
 
       <AnimatePresence mode="wait">
         {/* 🧾 Orders Tab */}
@@ -1027,6 +1047,9 @@ const AdminPage = () => {
 
         {/* 💰 Total Sales */}
         {activeTab === "sales" && <TotalSales />}
+
+        {/* 👥 Admin Management Tab (Super Admin Only) */}
+        {activeTab === "admins" && isSuperAdmin && <AdminManagement />}
       </AnimatePresence>
     </div>
   );

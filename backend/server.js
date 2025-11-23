@@ -7,6 +7,7 @@ import { connectDB } from "./config/db.js";
 import foodRoutes from "./routes/foodRoute.js";
 import orderRoutes from "./routes/orderRoute.js";
 import cartRoutes from "./routes/cartRoute.js";
+import adminRoutes from "./routes/adminRoute.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
@@ -186,6 +187,7 @@ try {
   app.use("/api/foods", foodRoutes);
   app.use("/api/orders", orderRoutes);
   app.use("/api/cart", cartRoutes);
+  app.use("/api/admin", adminRoutes);
 } catch (error) {
   console.error("❌ Error setting up routes:", error);
 }

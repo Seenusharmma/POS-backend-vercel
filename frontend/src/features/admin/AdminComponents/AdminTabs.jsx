@@ -4,15 +4,23 @@ import { motion } from "framer-motion";
 /**
  * Admin Tabs Navigation Component
  * Displays tab navigation for admin dashboard
+ * @param {string} activeTab - Currently active tab
+ * @param {function} onTabChange - Callback when tab changes
+ * @param {boolean} isSuperAdmin - Whether current user is super admin (shows Admins tab)
  */
-const AdminTabs = ({ activeTab, onTabChange }) => {
-  const tabs = [
+const AdminTabs = ({ activeTab, onTabChange, isSuperAdmin = false }) => {
+  const baseTabs = [
     { id: "orders", label: "🧾 Orders", shortLabel: "🧾" },
     { id: "history", label: "📜 History", shortLabel: "📜" },
     { id: "foods", label: "🍽️ Food List", shortLabel: "🍽️" },
     { id: "addFood", label: "➕ Add Food", shortLabel: "➕" },
     { id: "sales", label: "💰 Total Sales", shortLabel: "💰" },
   ];
+
+  // Only show Admins tab for super admin
+  const tabs = isSuperAdmin
+    ? [...baseTabs, { id: "admins", label: "👥 Admins", shortLabel: "👥" }]
+    : baseTabs;
 
   return (
     <div className="flex justify-center mb-4 sm:mb-6 md:mb-8 border-b border-gray-200 overflow-x-auto scrollbar-hide">

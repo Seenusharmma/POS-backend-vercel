@@ -12,7 +12,8 @@
     "restart:pm2": "pm2 restart ecosystem.config.cjs",
     "build": "echo 'Build complete'",
     "vercel-build": "echo 'Vercel build complete'",
-    "postinstall": "echo 'Dependencies installed successfully'"
+    "postinstall": "echo 'Dependencies installed successfully'",
+    "init:superadmin": "node scripts/initSuperAdmin.js"
   },
   "keywords": [],
   "author": "",
