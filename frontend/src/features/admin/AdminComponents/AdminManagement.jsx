@@ -122,7 +122,7 @@ const AdminManagement = () => {
 
   if (loading) {
     return (
-      <div className="bg-white shadow-lg rounded-lg sm:rounded-xl p-6">
+      <div className="bg-white shadow-lg rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6">
         <LogoLoader />
       </div>
     );
@@ -135,16 +135,16 @@ const AdminManagement = () => {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -15 }}
         transition={{ duration: 0.4 }}
-        className="bg-white shadow-lg rounded-lg sm:rounded-xl p-6"
+        className="bg-white shadow-lg rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6"
       >
-        <h3 className="text-lg sm:text-xl font-bold text-gray-700 mb-4">
+        <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4">
           👥 Admin Management
         </h3>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800 font-semibold">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 sm:p-4">
+          <p className="text-yellow-800 font-semibold text-sm sm:text-base">
             ⚠️ Access Denied
           </p>
-          <p className="text-yellow-700 text-sm mt-2">
+          <p className="text-yellow-700 text-xs sm:text-sm mt-2">
             Only super admins can manage other admins.
           </p>
         </div>
@@ -160,26 +160,28 @@ const AdminManagement = () => {
       transition={{ duration: 0.4 }}
       className="bg-white shadow-lg rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6"
     >
-      <h3 className="text-lg sm:text-xl font-bold text-gray-700 mb-4">
+      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4">
         👥 Admin Management
       </h3>
 
       {/* Add Admin Form */}
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="font-semibold text-gray-800 mb-3">➕ Add New Admin</h4>
-        <form onSubmit={handleAddAdmin} className="flex flex-col sm:flex-row gap-2">
+      <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-2 sm:mb-3">
+          ➕ Add New Admin
+        </h4>
+        <form onSubmit={handleAddAdmin} className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <input
             type="email"
             value={newAdminEmail}
             onChange={(e) => setNewAdminEmail(e.target.value)}
             placeholder="Enter email address"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             disabled={addingAdmin}
           />
           <button
             type="submit"
             disabled={addingAdmin || !newAdminEmail.trim()}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 sm:px-6 py-2 text-sm sm:text-base rounded-lg font-semibold transition-colors shadow-sm hover:shadow-md"
           >
             {addingAdmin ? "Adding..." : "Add Admin"}
           </button>
@@ -188,14 +190,16 @@ const AdminManagement = () => {
 
       {/* Admins List */}
       <div>
-        <h4 className="font-semibold text-gray-800 mb-3">
+        <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-2 sm:mb-3">
           📋 Current Admins ({admins.length})
         </h4>
         
         {admins.length === 0 ? (
-          <p className="text-gray-500 text-sm">No admins found.</p>
+          <div className="text-center py-8 sm:py-12">
+            <p className="text-gray-500 text-sm sm:text-base">No admins found.</p>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 sm:space-y-3">
             <AnimatePresence>
               {admins.map((admin, index) => (
                 <motion.div
@@ -204,23 +208,27 @@ const AdminManagement = () => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ delay: index * 0.05 }}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-800">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1 sm:mb-0">
+                      <span className="font-semibold text-gray-800 text-sm sm:text-base break-all sm:break-words">
                         {admin.email}
                       </span>
                       {admin.isSuperAdmin && (
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded w-fit">
                           👑 Super Admin
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Added: {new Date(admin.createdAt).toLocaleDateString()}
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1 break-words">
+                      <span className="block sm:inline">
+                        Added: {new Date(admin.createdAt).toLocaleDateString()}
+                      </span>
                       {admin.createdBy !== "system" && (
-                        <span> • By: {admin.createdBy}</span>
+                        <span className="block sm:inline sm:ml-1">
+                          • By: <span className="break-all">{admin.createdBy}</span>
+                        </span>
                       )}
                     </p>
                   </div>
@@ -228,10 +236,11 @@ const AdminManagement = () => {
                   {!admin.isSuperAdmin && (
                     <button
                       onClick={() => handleRemoveAdmin(admin.email)}
-                      className="ml-4 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm font-semibold transition-colors"
+                      className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded text-xs sm:text-sm font-semibold transition-colors shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-2"
                       title="Remove admin"
                     >
-                      🗑️ Remove
+                      <span>🗑️</span>
+                      <span>Remove</span>
                     </button>
                   )}
                 </motion.div>
