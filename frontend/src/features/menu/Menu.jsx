@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
-import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart } from "react-icons/fa";
+import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart, FaArrowUp } from "react-icons/fa";
 import { IoSearch } from "react-icons/io5";
 import toast, { Toaster } from "react-hot-toast";
 import API_BASE from "../../config/api";
@@ -25,6 +25,7 @@ const Menu = () => {
   const [showSizeModal, setShowSizeModal] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
   const socketRef = useRef(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   // 🥗 Fetch foods
   useEffect(() => {
@@ -56,6 +57,28 @@ const Menu = () => {
       );
     setFilteredFoods(updated);
   }, [categoryFilter, searchQuery, foods, applyGlobalFilter]);
+
+  // Show/hide scroll button based on scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      // Show button when scrolled down more than 300px
+      setShowScrollButton(scrollTop > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    // Check initial scroll position
+    handleScroll();
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
 
   // Cart is now managed by Redux and synced with backend
@@ -488,6 +511,27 @@ const Menu = () => {
               </motion.div>
               ))}
             </AnimatePresence>
+          </motion.div>
+        )}
+
+        {/* Scroll to Top Button - positioned at bottom of food items */}
+        {showScrollButton && filteredFoods.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="flex justify-center mt-8 sm:mt-10"
+          >
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={scrollToTop}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-6 sm:px-8 py-3 sm:py-3.5 rounded-full shadow-lg flex items-center gap-2 font-semibold text-sm sm:text-base transition-all duration-300"
+              aria-label="Scroll to top"
+            >
+              <FaArrowUp className="text-sm sm:text-base" />
+              <span>Scroll to Top</span>
+            </motion.button>
           </motion.div>
         )}
       </div>

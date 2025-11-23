@@ -30,22 +30,19 @@ const WebUIOverlay = () => {
         damping: 15,
         delay: 0.5 
       }}
-      whileHover={{ scale: 1.1 }}
+      whileHover={{ scale: 1.05, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.95 }}
-      className="fixed bottom-20 sm:bottom-24 md:bottom-28 left-4 sm:left-6 md:left-8 z-40 cursor-pointer group"
+      className="fixed bottom-4 sm:bottom-6 left-4 sm:left-6 md:left-8 z-40 cursor-pointer group"
       onClick={handleClick}
       title="Visit WebUI.in"
     >
       <div className="relative">
-        {/* Glow effect on hover */}
-        <div className="absolute inset-0 bg-blue-500 rounded-full blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
-        
         {/* Icon container */}
-        <div className="relative bg-white rounded-full p-3 sm:p-4 shadow-lg hover:shadow-xl transition-shadow duration-300 border-2 border-blue-100 group-hover:border-blue-300">
+        <div className="relative bg-white rounded-full p-2 sm:p-2.5 shadow-lg border border-blue-100 hover:bg-blue-50 transition-colors duration-200">
           <img
             src="/webui.svg"
             alt="WebUI"
-            className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 transition-transform duration-300 group-hover:rotate-12"
+            className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8"
           />
         </div>
         
