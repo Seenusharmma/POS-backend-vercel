@@ -4,6 +4,7 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import { connectDB } from "./config/db.js";
+import { connectRedis } from "./config/redis.js";
 import foodRoutes from "./routes/foodRoute.js";
 import orderRoutes from "./routes/orderRoute.js";
 import cartRoutes from "./routes/cartRoute.js";
@@ -97,6 +98,21 @@ if (!isVercel) {
 
 // ✅ MongoDB Connection (non-blocking for serverless)
 // On Vercel, connections are established per request, so we don't block startup
+// ✅ Initialize Redis connection
+if (!isVercel) {
+  connectRedis()
+    .then((result) => {
+      if (result) {
+        console.log("✅ Redis connected successfully");
+      } else {
+        console.warn("⚠️ Redis connection unavailable, app will continue without caching");
+      }
+    })
+    .catch((err) => {
+      console.warn("⚠️ Redis connection failed, app will continue without caching:", err.message);
+    });
+}
+
 if (!isVercel) {
   // Local development: Connect immediately with retry logic
   connectDB(0, 3) // Start with 0 retries, max 3 retries
@@ -130,6 +146,19 @@ if (!isVercel) {
     })
     .catch((err) => {
       console.warn("⚠️ MongoDB pre-connection failed, will retry on first request:", err.message);
+    });
+  
+  // Try to connect Redis on Vercel (non-blocking)
+  connectRedis()
+    .then((result) => {
+      if (result) {
+        console.log("✅ Redis pre-connected successfully");
+      } else {
+        console.warn("⚠️ Redis pre-connection failed, will retry on first request");
+      }
+    })
+    .catch((err) => {
+      console.warn("⚠️ Redis pre-connection failed, will retry on first request:", err.message);
     });
 }
 

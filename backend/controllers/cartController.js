@@ -1,4 +1,5 @@
 import Cart from "../models/cartModel.js";
+import { getCache, setCache, invalidateCache, CACHE_KEYS, CACHE_TTL } from "../utils/cache.js";
 
 // Get user's cart
 export const getCart = async (req, res) => {
@@ -9,12 +10,24 @@ export const getCart = async (req, res) => {
       return res.status(400).json({ message: "userEmail is required" });
     }
 
+    // Try to get from cache first
+    const cacheKey = `${CACHE_KEYS.CART}${userEmail}`;
+    const cachedCart = await getCache(cacheKey);
+    if (cachedCart !== null) {
+      console.log("✅ Serving cart from cache");
+      return res.status(200).json({ cart: cachedCart });
+    }
+
     let cart = await Cart.findOne({ userEmail });
 
     if (!cart) {
       // Return empty cart if not found
       return res.status(200).json({ cart: [] });
     }
+
+    // Cache the result
+    await setCache(cacheKey, cart.items || [], CACHE_TTL.CART);
+    console.log(`✅ Cart cached for ${CACHE_TTL.CART} seconds`);
 
     res.status(200).json({ cart: cart.items || [] });
   } catch (error) {
@@ -80,6 +93,10 @@ export const addToCart = async (req, res) => {
 
     await cart.save();
 
+    // ✅ Invalidate cart cache
+    const cacheKey = `${CACHE_KEYS.CART}${userEmail}`;
+    await invalidateCache(cacheKey);
+
     console.log("✅ Item added to cart successfully");
 
     res.status(200).json({ 
@@ -129,6 +146,10 @@ export const updateCartItem = async (req, res) => {
     cart.items[itemIndex].quantity = quantity;
     await cart.save();
 
+    // ✅ Invalidate cart cache
+    const cacheKey = `${CACHE_KEYS.CART}${userEmail}`;
+    await invalidateCache(cacheKey);
+
     res.status(200).json({ 
       message: "Cart item updated successfully",
       cart: cart.items 
@@ -158,6 +179,10 @@ export const removeFromCart = async (req, res) => {
     cart.items = cart.items.filter((item) => item.foodId !== foodId);
     await cart.save();
 
+    // ✅ Invalidate cart cache
+    const cacheKey = `${CACHE_KEYS.CART}${userEmail}`;
+    await invalidateCache(cacheKey);
+
     res.status(200).json({ 
       message: "Item removed from cart successfully",
       cart: cart.items 
@@ -186,6 +211,10 @@ export const clearCart = async (req, res) => {
 
     cart.items = [];
     await cart.save();
+
+    // ✅ Invalidate cart cache
+    const cacheKey = `${CACHE_KEYS.CART}${userEmail}`;
+    await invalidateCache(cacheKey);
 
     res.status(200).json({ 
       message: "Cart cleared successfully",

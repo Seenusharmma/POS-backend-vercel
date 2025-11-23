@@ -1,10 +1,18 @@
 import Order from "../models/orderModel.js";
 import mongoose from "mongoose";
 import { connectDB } from "../config/db.js";
+import { getCache, setCache, invalidateCache, CACHE_KEYS, CACHE_TTL } from "../utils/cache.js";
 
 // 📦 Get all orders
 export const getOrders = async (req, res) => {
   try {
+    // Try to get from cache first
+    const cachedOrders = await getCache(CACHE_KEYS.ORDERS);
+    if (cachedOrders !== null) {
+      console.log("✅ Serving orders from cache");
+      return res.status(200).json(cachedOrders);
+    }
+
     // Ensure database connection (for serverless) with retry logic
     let retries = 0;
     const maxRetries = 3;
@@ -47,6 +55,10 @@ export const getOrders = async (req, res) => {
         setTimeout(() => reject(new Error("Query timeout")), 10000)
       )
     ]);
+    
+    // Cache the result
+    await setCache(CACHE_KEYS.ORDERS, orders, CACHE_TTL.ORDERS);
+    console.log(`✅ Orders cached for ${CACHE_TTL.ORDERS} seconds`);
     
     console.log(`✅ Fetched ${orders.length} orders successfully`);
     res.status(200).json(orders);
@@ -101,6 +113,9 @@ export const createOrder = async (req, res) => {
 
     const order = new Order(req.body);
     await order.save();
+
+    // ✅ Invalidate orders cache
+    await invalidateCache(CACHE_KEYS.ORDERS);
 
     // ✅ Emit new order to Admin (real-time) - Use room-based broadcasting
     const io = req.app.get("io");
@@ -262,6 +277,9 @@ export const updateOrderStatus = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
 
+    // ✅ Invalidate orders cache
+    await invalidateCache(CACHE_KEYS.ORDERS);
+
     // ✅ Emit socket events for live updates - Use room-based broadcasting
     const io = req.app.get("io");
     if (io && typeof io.to === "function") {
@@ -345,6 +363,9 @@ export const deleteOrder = async (req, res) => {
 
     // Admin can delete any order, regular users can only delete completed orders
     await Order.findByIdAndDelete(id);
+
+    // ✅ Invalidate orders cache
+    await invalidateCache(CACHE_KEYS.ORDERS);
 
     // ✅ Emit delete event for real-time sync (to all admins and clients)
     const io = req.app.get("io");

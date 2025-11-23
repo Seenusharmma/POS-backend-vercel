@@ -2,12 +2,20 @@ import Food from "../models/foodModel.js";
 import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
 import { connectDB } from "../config/db.js";
+import { getCache, setCache, invalidateCache, CACHE_KEYS, CACHE_TTL } from "../utils/cache.js";
 
 /* ================================
    🥗 GET - All Foods
 ================================ */
 export const getFoods = async (req, res) => {
   try {
+    // Try to get from cache first
+    const cachedFoods = await getCache(CACHE_KEYS.FOODS);
+    if (cachedFoods !== null) {
+      console.log("✅ Serving foods from cache");
+      return res.status(200).json(cachedFoods);
+    }
+
     // Ensure database connection (for serverless)
     if (mongoose.connection.readyState !== 1) {
       console.log("🔄 Establishing database connection for getFoods...");
@@ -21,7 +29,13 @@ export const getFoods = async (req, res) => {
       }
     }
 
+    // Fetch from database
     const foods = await Food.find().sort({ createdAt: -1 });
+    
+    // Cache the result
+    await setCache(CACHE_KEYS.FOODS, foods, CACHE_TTL.FOODS);
+    console.log("✅ Foods cached for", CACHE_TTL.FOODS, "seconds");
+    
     res.status(200).json(foods);
   } catch (error) {
     console.error("❌ Error fetching foods:", error);
@@ -131,6 +145,9 @@ export const addFood = async (req, res) => {
 
     await food.save();
 
+    // Invalidate foods cache
+    await invalidateCache(CACHE_KEYS.FOODS);
+
     // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
     if (io && typeof io.emit === "function") {
@@ -232,6 +249,9 @@ export const updateFood = async (req, res) => {
     const food = await Food.findByIdAndUpdate(id, updateData, { new: true });
     if (!food) return res.status(404).json({ message: "Food not found" });
 
+    // Invalidate foods cache
+    await invalidateCache([CACHE_KEYS.FOODS, `${CACHE_KEYS.FOOD}${id}`]);
+
     // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
     if (io && typeof io.emit === "function") {
@@ -285,6 +305,9 @@ export const deleteFood = async (req, res) => {
     }
 
     await food.deleteOne();
+
+    // Invalidate foods cache
+    await invalidateCache([CACHE_KEYS.FOODS, `${CACHE_KEYS.FOOD}${id}`]);
 
     // ✅ Emit socket event for real-time updates to all users
     const io = req.app.get("io");
