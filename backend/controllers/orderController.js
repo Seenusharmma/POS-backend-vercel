@@ -317,7 +317,7 @@ export const updateOrderStatus = async (req, res) => {
   }
 };
 
-// ❌ Delete order (Admin can delete any order, Users can only delete completed orders)
+// ❌ Delete completed order (User)
 export const deleteOrder = async (req, res) => {
   try {
     // Ensure database connection (for serverless)
@@ -327,17 +327,14 @@ export const deleteOrder = async (req, res) => {
     }
 
     const { id } = req.params;
-    // Check if request is from admin (you can add admin authentication check here)
-    // For now, we'll allow deletion of any order (admin functionality)
-    const isAdmin = req.headers['x-admin-request'] === 'true' || req.query.admin === 'true';
 
     const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // If not admin, only allow delete if status is "Completed"
-    if (!isAdmin && order.status !== "Completed") {
+    // Only allow delete if status is "Completed"
+    if (order.status !== "Completed") {
       return res.status(400).json({
         success: false,
         message: "You can only delete completed orders",
@@ -346,20 +343,9 @@ export const deleteOrder = async (req, res) => {
 
     await Order.findByIdAndDelete(id);
 
-    // ✅ Emit delete event for real-time sync (to admin + other clients) - Use room-based broadcasting
+    // ✅ Emit delete event for real-time sync (to admin + other clients)
     const io = req.app.get("io");
-    if (io && typeof io.to === "function") {
-      // Emit to admins room
-      io.to("admins").emit("orderDeleted", id);
-      // Also emit to specific user if userId exists
-      if (order.userId) {
-        io.to(`user:${order.userId}`).emit("orderDeleted", id);
-      }
-      // Emit to users room as fallback
-      io.to("users").emit("orderDeleted", id);
-      console.log("🗑️ Emitted orderDeleted event for order:", id);
-    } else if (io && typeof io.emit === "function") {
-      // Fallback for non-room-based setup
+    if (io && typeof io.emit === "function") {
       io.emit("orderDeleted", id);
       console.log("🗑️ Emitted orderDeleted event for order:", id);
     }

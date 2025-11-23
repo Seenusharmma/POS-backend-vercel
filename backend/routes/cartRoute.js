@@ -9,19 +9,19 @@ import {
 
 const router = express.Router();
 
-// Get user's cart
+// GET /api/cart - Get user's cart
 router.get("/", getCart);
 
-// Add item to cart
+// POST /api/cart/add - Add item to cart
 router.post("/add", addToCart);
 
-// Update item quantity in cart
+// PUT /api/cart/update - Update item quantity
 router.put("/update", updateCartItem);
 
-// Remove item from cart
+// DELETE /api/cart/remove - Remove item from cart
 router.delete("/remove", removeFromCart);
 
-// Clear entire cart
+// DELETE /api/cart/clear - Clear entire cart
 router.delete("/clear", clearCart);
 
 export default router;
