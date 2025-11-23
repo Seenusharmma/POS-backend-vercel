@@ -14,7 +14,7 @@ import { pollOrders } from "../../utils/polling";
 import LogoLoader from "../../components/ui/LogoLoader";
 import TableSelectionModal from "./Tables/TableSelectionModal";
 import PaymentModal from "./PaymentModal";
-import MapLocationPicker from "../../components/location/MapLocationPicker";
+import LocationTracker from "../../components/location/LocationTracker";
 
 const TOTAL_TABLES = 40;
 
@@ -34,7 +34,7 @@ const OrderPage = () => {
   const [isInRestaurant, setIsInRestaurant] = useState(true); // Toggle for Dine-in/Delivery
   const [contactNumber, setContactNumber] = useState(""); // Contact number for delivery
   const [deliveryLocation, setDeliveryLocation] = useState(null); // Location object with lat, lng, address or just address for manual
-  const [locationType, setLocationType] = useState("map"); // "map" or "manual"
+  const [locationType, setLocationType] = useState("live"); // "live" or "manual"
   const [manualLocation, setManualLocation] = useState(""); // Manual location address input
   const socketRef = useRef(null);
   const audioRef = useRef(null);
@@ -576,8 +576,8 @@ const OrderPage = () => {
     if (!user) return toast.error("Please login first!");
     if (isInRestaurant && !tableNumber) return toast.error("Select a table!");
     if (!isInRestaurant && !contactNumber) return toast.error("Please enter your contact number!");
-    if (!isInRestaurant && locationType === "map" && !deliveryLocation) {
-      return toast.error("Please select your location on the map!");
+    if (!isInRestaurant && locationType === "live" && !deliveryLocation) {
+      return toast.error("Please allow location access or enter address manually!");
     }
     if (!isInRestaurant && locationType === "manual" && !manualLocation.trim()) {
       return toast.error("Please enter your delivery address!");
@@ -587,7 +587,7 @@ const OrderPage = () => {
     // Prepare delivery location based on type
     let finalDeliveryLocation = null;
     if (!isInRestaurant) {
-      if (locationType === "map" && deliveryLocation) {
+      if (locationType === "live" && deliveryLocation) {
         finalDeliveryLocation = deliveryLocation;
       } else if (locationType === "manual" && manualLocation.trim()) {
         finalDeliveryLocation = {
@@ -822,16 +822,16 @@ const OrderPage = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setLocationType("map");
+                        setLocationType("live");
                         setManualLocation("");
                       }}
                       className={`flex-1 px-3 py-2 rounded-lg font-medium transition-colors ${
-                        locationType === "map"
+                        locationType === "live"
                           ? "bg-blue-600 text-white"
                           : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                       }`}
                     >
-                      🗺️ Map Selection
+                      📍 Live Location
                     </button>
                     <button
                       type="button"
@@ -849,10 +849,10 @@ const OrderPage = () => {
                     </button>
                   </div>
 
-                  {/* Map Location Picker */}
-                  {locationType === "map" && (
+                  {/* Live Location Tracker */}
+                  {locationType === "live" && (
                     <div>
-                      <MapLocationPicker
+                      <LocationTracker
                         onLocationSelect={handleLocationSelect}
                         initialLocation={deliveryLocation}
                       />
