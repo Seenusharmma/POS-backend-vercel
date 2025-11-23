@@ -90,6 +90,7 @@ const transformCartItems = (backendItems) => {
     quantity: item.quantity,
     price: item.price,
     image: item.image,
+    selectedSize: item.selectedSize || null,
   }));
 };
 

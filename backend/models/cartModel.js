@@ -50,6 +50,15 @@ const cartSchema = new mongoose.Schema(
           type: String,
           default: "",
         },
+        selectedSize: {
+          type: String,
+          enum: {
+            values: ["Small", "Medium", "Large", "Half", "Full"],
+            message: "{VALUE} is not a valid size",
+          },
+          default: null,
+          required: false,
+        },
       },
     ],
   },

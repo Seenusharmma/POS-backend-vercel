@@ -47,7 +47,11 @@ const OrderCard = ({
           <span className="text-green-600">🍽️ Dine-in - Table {order.tableNumber}</span>
         )}
         {" - "}
-        {order.foodName} ({order.type})
+        {order.foodName}
+        {order.selectedSize && (
+          <span className="text-orange-600 font-semibold"> ({order.selectedSize})</span>
+        )}
+        {" "}({order.type})
       </p>
       
       {/* Delivery Information - Show contact number and location for delivery orders */}

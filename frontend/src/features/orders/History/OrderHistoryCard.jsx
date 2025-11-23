@@ -205,7 +205,13 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
                     >
                       <div className="flex-1">
                         <p className="font-medium text-sm text-gray-800">
-                          {order.foodName} × {order.quantity}
+                          {order.foodName}
+                          {order.selectedSize && (
+                            <span className="ml-1 text-xs text-orange-600 font-semibold">
+                              ({order.selectedSize})
+                            </span>
+                          )}
+                          {" "}× {order.quantity}
                         </p>
                         <p className="text-xs text-gray-500 capitalize">
                           {order.category} • {order.type}

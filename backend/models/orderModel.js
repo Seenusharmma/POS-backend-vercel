@@ -39,6 +39,12 @@ const orderSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    selectedSize: {
+      type: String,
+      enum: ["Small", "Medium", "Large", "Half", "Full"],
+      default: null,
+      required: false,
+    },
     status: {
       type: String,
       enum: ["Pending", "Cooking", "Ready", "Served", "Completed"],

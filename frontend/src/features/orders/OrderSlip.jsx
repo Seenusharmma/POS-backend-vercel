@@ -389,6 +389,11 @@ const OrderSlip = ({
                     <div className="flex-1">
                       <p className="font-semibold text-sm" style={{ color: "#111827" }}>
                         {order.foodName || order.name}
+                        {order.selectedSize && (
+                          <span className="ml-1 text-xs" style={{ color: "#ea580c" }}>
+                            ({order.selectedSize})
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs" style={{ color: "#4b5563" }}>
                         {order.type} • {order.category}

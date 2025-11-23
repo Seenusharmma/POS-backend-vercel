@@ -144,13 +144,58 @@ router.post("/add", upload.single("image"), async (req, res) => {
     }
 
     // ✅ Validation
-    const { name, category, type, price } = req.body;
+    const { name, category, type, price, hasSizes, sizeType, sizes, halfFull } = req.body;
     
-    if (!name || !category || !type || !price) {
+    // If sizes are enabled, price is not required (sizes have their own prices)
+    // If sizes are disabled, price is required
+    const hasSizesBool = hasSizes === "true" || hasSizes === true;
+    const finalSizeType = hasSizesBool ? (sizeType || "standard") : null;
+    
+    if (!name || !category || !type) {
       return res.status(400).json({
         success: false,
-        message: "Please provide name, category, type, and price",
+        message: "Please provide name, category, and type",
       });
+    }
+
+    if (!hasSizesBool && (!price || Number(price) <= 0)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide a valid price when sizes are disabled",
+      });
+    }
+
+    if (hasSizesBool) {
+      if (finalSizeType === "half-full") {
+        // Validate Half/Full sizes
+        const halfFullPrices = {
+          Half: halfFull?.Half ? Number(halfFull.Half) : null,
+          Full: halfFull?.Full ? Number(halfFull.Full) : null,
+        };
+        
+        // At least one Half/Full price should be provided
+        if (!halfFullPrices.Half && !halfFullPrices.Full) {
+          return res.status(400).json({
+            success: false,
+            message: "Please provide at least one size price (Half or Full)",
+          });
+        }
+      } else {
+        // Validate Standard sizes
+        const sizePrices = {
+          Small: sizes?.Small ? Number(sizes.Small) : null,
+          Medium: sizes?.Medium ? Number(sizes.Medium) : null,
+          Large: sizes?.Large ? Number(sizes.Large) : null,
+        };
+        
+        // At least one size price should be provided
+        if (!sizePrices.Small && !sizePrices.Medium && !sizePrices.Large) {
+          return res.status(400).json({
+            success: false,
+            message: "Please provide at least one size price (Small, Medium, or Large)",
+          });
+        }
+      }
     }
 
     const validTypes = ["Veg", "Non-Veg", "Other"];
@@ -161,8 +206,8 @@ router.post("/add", upload.single("image"), async (req, res) => {
       });
     }
 
-    const priceNum = Number(price);
-    if (isNaN(priceNum) || priceNum <= 0) {
+    const priceNum = hasSizesBool ? 0 : Number(price); // Default price when sizes are enabled
+    if (!hasSizesBool && (isNaN(priceNum) || priceNum <= 0)) {
       return res.status(400).json({
         success: false,
         message: "Price must be a positive number",
@@ -181,6 +226,46 @@ router.post("/add", upload.single("image"), async (req, res) => {
       console.log("✅ Uploaded to Cloudinary:", imageUrl);
     }
 
+    // Parse sizes based on sizeType
+    let parsedSizes = null;
+    let parsedHalfFull = null;
+    
+    if (hasSizesBool) {
+      if (finalSizeType === "half-full") {
+        // Parse Half/Full sizes
+        parsedHalfFull = {
+          Half: halfFull?.Half ? Number(halfFull.Half) : null,
+          Full: halfFull?.Full ? Number(halfFull.Full) : null,
+        };
+        parsedSizes = {
+          Small: null,
+          Medium: null,
+          Large: null,
+        };
+      } else {
+        // Parse Standard sizes (Small/Medium/Large)
+        parsedSizes = {
+          Small: sizes?.Small ? Number(sizes.Small) : null,
+          Medium: sizes?.Medium ? Number(sizes.Medium) : null,
+          Large: sizes?.Large ? Number(sizes.Large) : null,
+        };
+        parsedHalfFull = {
+          Half: null,
+          Full: null,
+        };
+      }
+    } else {
+      parsedSizes = {
+        Small: null,
+        Medium: null,
+        Large: null,
+      };
+      parsedHalfFull = {
+        Half: null,
+        Full: null,
+      };
+    }
+
     const food = new Food({
       name: name.trim(),
       category: category.trim(),
@@ -188,6 +273,10 @@ router.post("/add", upload.single("image"), async (req, res) => {
       price: priceNum,
       image: imageUrl,
       available: req.body.available !== "false" && req.body.available !== false,
+      hasSizes: hasSizesBool,
+      sizeType: finalSizeType,
+      sizes: parsedSizes,
+      halfFull: parsedHalfFull,
     });
 
     await food.save();
@@ -251,6 +340,25 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     // ✅ Trim string fields
     if (updateData.name) updateData.name = updateData.name.trim();
     if (updateData.category) updateData.category = updateData.category.trim();
+    
+    // ✅ Handle size options
+    if (updateData.hasSizes === "true" || updateData.hasSizes === true) {
+      updateData.hasSizes = true;
+      if (updateData.sizes) {
+        updateData.sizes = {
+          Small: updateData.sizes.Small ? Number(updateData.sizes.Small) : null,
+          Medium: updateData.sizes.Medium ? Number(updateData.sizes.Medium) : null,
+          Large: updateData.sizes.Large ? Number(updateData.sizes.Large) : null,
+        };
+      }
+    } else if (updateData.hasSizes === "false" || updateData.hasSizes === false) {
+      updateData.hasSizes = false;
+      updateData.sizes = {
+        Small: null,
+        Medium: null,
+        Large: null,
+      };
+    }
 
     // ✅ Upload new image if provided
     if (req.file) {

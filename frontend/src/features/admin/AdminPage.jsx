@@ -33,6 +33,17 @@ const AdminPage = () => {
     type: "",
     price: "",
     available: true,
+    hasSizes: false,
+    sizeType: "standard", // "standard" or "half-full"
+    sizes: {
+      Small: "",
+      Medium: "",
+      Large: "",
+    },
+    halfFull: {
+      Half: "",
+      Full: "",
+    },
   });
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -720,8 +731,50 @@ const AdminPage = () => {
   /* ================================
      🍛 Food CRUD
   ================================ */
-  const handleChange = (e) =>
-    setFoodForm({ ...foodForm, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    // Handle checkbox for hasSizes
+    if (name === "hasSizes") {
+      setFoodForm({ ...foodForm, hasSizes: checked });
+      return;
+    }
+    
+    // Handle sizeType selection
+    if (name === "sizeType") {
+      setFoodForm({ ...foodForm, sizeType: value });
+      return;
+    }
+    
+    // Handle nested size fields (Small/Medium/Large)
+    if (name.startsWith("size_")) {
+      const sizeKey = name.replace("size_", "");
+      setFoodForm({
+        ...foodForm,
+        sizes: {
+          ...foodForm.sizes,
+          [sizeKey]: value,
+        },
+      });
+      return;
+    }
+    
+    // Handle nested halfFull fields (Half/Full)
+    if (name.startsWith("halfFull_")) {
+      const halfFullKey = name.replace("halfFull_", "");
+      setFoodForm({
+        ...foodForm,
+        halfFull: {
+          ...foodForm.halfFull,
+          [halfFullKey]: value,
+        },
+      });
+      return;
+    }
+    
+    // Handle regular fields
+    setFoodForm({ ...foodForm, [name]: value });
+  };
 
   const handleImageFile = async (file) => {
     if (!file) return;
@@ -808,7 +861,31 @@ const AdminPage = () => {
   const saveFood = async () => {
     try {
       const formData = new FormData();
-      Object.entries(foodForm).forEach(([key, val]) => formData.append(key, val));
+      
+      // Append regular fields
+      formData.append("name", foodForm.name);
+      formData.append("category", foodForm.category);
+      formData.append("type", foodForm.type);
+      formData.append("price", foodForm.price);
+      formData.append("available", foodForm.available);
+      formData.append("hasSizes", foodForm.hasSizes);
+      
+      // Append size prices if hasSizes is true
+      if (foodForm.hasSizes) {
+        formData.append("sizeType", foodForm.sizeType || "standard");
+        
+        if (foodForm.sizeType === "half-full") {
+          // Append Half/Full prices
+          formData.append("halfFull[Half]", foodForm.halfFull.Half || "");
+          formData.append("halfFull[Full]", foodForm.halfFull.Full || "");
+        } else {
+          // Append Standard sizes (Small/Medium/Large)
+          formData.append("sizes[Small]", foodForm.sizes.Small || "");
+          formData.append("sizes[Medium]", foodForm.sizes.Medium || "");
+          formData.append("sizes[Large]", foodForm.sizes.Large || "");
+        }
+      }
+      
       if (image) formData.append("image", image);
 
       let res;
@@ -835,6 +912,12 @@ const AdminPage = () => {
       type: "",
       price: "",
       available: true,
+      hasSizes: false,
+      sizes: {
+        Small: "",
+        Medium: "",
+        Large: "",
+      },
     });
     setImage(null);
     setPreview(null);
@@ -846,11 +929,17 @@ const AdminPage = () => {
 
   const editFood = (food) => {
     setFoodForm({
-      name: food.name,
-      category: food.category,
-      type: food.type,
-      price: food.price,
-      available: food.available,
+      name: food.name || "",
+      category: food.category || "",
+      type: food.type || "",
+      price: food.price || "",
+      available: food.available !== undefined ? food.available : true,
+      hasSizes: food.hasSizes || false,
+      sizes: {
+        Small: food.sizes?.Small || "",
+        Medium: food.sizes?.Medium || "",
+        Large: food.sizes?.Large || "",
+      },
     });
     setPreview(food.image || null);
     setEditMode(true);

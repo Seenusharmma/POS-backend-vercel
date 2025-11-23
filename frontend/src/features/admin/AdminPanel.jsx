@@ -296,6 +296,11 @@ const AdminPanel = () => {
                   </div>
                   <p className="font-semibold text-gray-800">
                     Table {order.tableNumber}: {order.foodName}
+                    {order.selectedSize && (
+                      <span className="ml-2 text-sm text-orange-600 font-semibold">
+                        ({order.selectedSize})
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs sm:text-sm text-gray-500 capitalize">
                     {order.type} | Qty: {order.quantity}

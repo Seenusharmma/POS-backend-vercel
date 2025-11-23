@@ -26,7 +26,9 @@ export const getCart = async (req, res) => {
 // Add item to cart
 export const addToCart = async (req, res) => {
   try {
-    const { userEmail, userId, userName, foodId, foodName, category, type, quantity, price, image } = req.body;
+    const { userEmail, userId, userName, foodId, foodName, category, type, quantity, price, image, selectedSize } = req.body;
+
+    console.log("📦 Add to cart request:", { userEmail, foodId, foodName, price, selectedSize });
 
     if (!userEmail || !foodId || !foodName || !price) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -44,17 +46,21 @@ export const addToCart = async (req, res) => {
       });
     }
 
-    // Check if item already exists in cart
+    // Check if item already exists in cart (same foodId and same size)
+    const size = selectedSize && ["Small", "Medium", "Large"].includes(selectedSize) 
+      ? selectedSize 
+      : null;
+    
     const existingItemIndex = cart.items.findIndex(
-      (item) => item.foodId === foodId
+      (item) => item.foodId === foodId && item.selectedSize === size
     );
 
     if (existingItemIndex >= 0) {
-      // Update quantity if item exists
+      // Update quantity if item exists with same size
       cart.items[existingItemIndex].quantity += quantity || 1;
     } else {
-      // Add new item
-      cart.items.push({
+      // Add new item (different size or new item)
+      const newItem = {
         foodId,
         foodName,
         category: category || "Uncategorized",
@@ -62,18 +68,36 @@ export const addToCart = async (req, res) => {
         quantity: quantity || 1,
         price,
         image: image || "",
-      });
+      };
+      
+      // Only add selectedSize if it's a valid value
+      if (size) {
+        newItem.selectedSize = size;
+      }
+      
+      cart.items.push(newItem);
     }
 
     await cart.save();
+
+    console.log("✅ Item added to cart successfully");
 
     res.status(200).json({ 
       message: "Item added to cart successfully",
       cart: cart.items 
     });
   } catch (error) {
-    console.error("Error adding to cart:", error);
-    res.status(500).json({ message: "Failed to add item to cart", error: error.message });
+    console.error("❌ Error adding to cart:", error);
+    console.error("Error details:", {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+    });
+    res.status(500).json({ 
+      message: "Failed to add item to cart", 
+      error: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined
+    });
   }
 };
 

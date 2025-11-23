@@ -87,7 +87,8 @@ const Home = () => {
       });
     } catch (error) {
       console.error("Error adding to cart:", error);
-      toast.error("Failed to add item to cart. Please try again.");
+      const errorMessage = error?.message || error?.response?.data?.message || "Failed to add item to cart. Please try again.";
+      toast.error(errorMessage);
     }
   };
 

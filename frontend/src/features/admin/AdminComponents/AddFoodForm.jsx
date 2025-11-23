@@ -83,27 +83,213 @@ const AddFoodForm = ({
             </select>
           </div>
 
-          {/* Price */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Price (₹) <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">
-                ₹
-              </span>
-              <input
-                name="price"
-                type="number"
-                value={foodForm.price}
-                onChange={onFormChange}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-                className="w-full border-2 border-gray-300 rounded-lg pl-10 pr-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-              />
+          {/* Price - Only show if sizes are disabled */}
+          {!foodForm.hasSizes && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Price (₹) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">
+                  ₹
+                </span>
+                <input
+                  name="price"
+                  type="number"
+                  value={foodForm.price}
+                  onChange={onFormChange}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  className="w-full border-2 border-gray-300 rounded-lg pl-10 pr-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                />
+              </div>
             </div>
+          )}
+
+          {/* Size Options Toggle */}
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                name="hasSizes"
+                checked={foodForm.hasSizes}
+                onChange={onFormChange}
+                className="w-5 h-5 text-orange-500 border-gray-300 rounded focus:ring-orange-500 focus:ring-2 cursor-pointer"
+              />
+              <span className="text-sm font-semibold text-gray-700">
+                Enable Size Options
+              </span>
+            </label>
+            <p className="text-xs text-gray-500 mt-1 ml-8">
+              Check this if the food item has different sizes with different prices
+            </p>
           </div>
+
+          {/* Size Type Selection - Show when hasSizes is enabled */}
+          {foodForm.hasSizes && (
+            <div className="mb-3">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Size Type <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sizeType"
+                    value="standard"
+                    checked={foodForm.sizeType === "standard"}
+                    onChange={onFormChange}
+                    className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500 focus:ring-2 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-700">Small, Medium, Large</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="sizeType"
+                    value="half-full"
+                    checked={foodForm.sizeType === "half-full"}
+                    onChange={onFormChange}
+                    className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500 focus:ring-2 cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-700">Half, Full</span>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Standard Size Prices - Show when hasSizes is enabled and sizeType is standard */}
+          {foodForm.hasSizes && foodForm.sizeType === "standard" && (
+            <div className="space-y-3 p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Size Prices (₹) <span className="text-red-500">*</span>
+              </label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Small Size */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Small
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">
+                      ₹
+                    </span>
+                    <input
+                      name="size_Small"
+                      type="number"
+                      value={foodForm.sizes?.Small || ""}
+                      onChange={onFormChange}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="w-full border-2 border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Medium Size */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Medium
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">
+                      ₹
+                    </span>
+                    <input
+                      name="size_Medium"
+                      type="number"
+                      value={foodForm.sizes?.Medium || ""}
+                      onChange={onFormChange}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="w-full border-2 border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Large Size */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Large
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">
+                      ₹
+                    </span>
+                    <input
+                      name="size_Large"
+                      type="number"
+                      value={foodForm.sizes?.Large || ""}
+                      onChange={onFormChange}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="w-full border-2 border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Half/Full Size Prices - Show when hasSizes is enabled and sizeType is half-full */}
+          {foodForm.hasSizes && foodForm.sizeType === "half-full" && (
+            <div className="space-y-3 p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Size Prices (₹) <span className="text-red-500">*</span>
+              </label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Half Size */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Half
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">
+                      ₹
+                    </span>
+                    <input
+                      name="halfFull_Half"
+                      type="number"
+                      value={foodForm.halfFull?.Half || ""}
+                      onChange={onFormChange}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="w-full border-2 border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Full Size */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Full
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-semibold">
+                      ₹
+                    </span>
+                    <input
+                      name="halfFull_Full"
+                      type="number"
+                      value={foodForm.halfFull?.Full || ""}
+                      onChange={onFormChange}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      className="w-full border-2 border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column - Image Upload */}

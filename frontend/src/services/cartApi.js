@@ -22,21 +22,119 @@ export const fetchCart = async (userEmail) => {
 // Add item to cart in backend
 export const addItemToCart = async (userData, foodItem, quantity = 1) => {
   try {
-    const response = await axios.post(`${API_BASE}/api/cart/add`, {
+    // Ensure foodId is a string
+    const foodId = foodItem._id ? String(foodItem._id) : foodItem.id;
+    
+    if (!foodId) {
+      throw new Error("Food ID is missing");
+    }
+
+    // Debug: Log the food item to see what we're working with
+    console.log("🔍 Food item received:", {
+      name: foodItem.name,
+      _id: foodItem._id,
+      price: foodItem.price,
+      priceType: typeof foodItem.price,
+      hasSizes: foodItem.hasSizes,
+      selectedSize: foodItem.selectedSize,
+      sizes: foodItem.sizes,
+    });
+
+    // Determine the price
+    let itemPrice = 0;
+    const hasSizes = foodItem.hasSizes === true || foodItem.hasSizes === "true";
+    
+    // Check if food has sizes - if so, require size selection
+    if (hasSizes) {
+      if (!foodItem.selectedSize) {
+        console.error("❌ Size selection required but not provided");
+        throw new Error("Please select a size for this item before adding to cart.");
+      }
+      
+      // Priority 1: Use the price that was explicitly set from size selection modal
+      // This is the most reliable source as it's set directly from the modal
+      const explicitPrice = foodItem.price;
+      if (explicitPrice !== undefined && explicitPrice !== null && explicitPrice !== "" && Number(explicitPrice) > 0) {
+        itemPrice = Number(explicitPrice);
+        console.log("✅ Using explicit price from modal:", itemPrice);
+      }
+      // Priority 2: Get price from sizes object (for standard sizes) or halfFull (for half-full sizes)
+      else {
+        const sizeType = foodItem.sizeType || "standard";
+        let sizePrice = null;
+        
+        if (sizeType === "half-full") {
+          // Get price from halfFull object
+          sizePrice = foodItem.halfFull && foodItem.halfFull[foodItem.selectedSize];
+        } else {
+          // Get price from sizes object (Small/Medium/Large)
+          sizePrice = foodItem.sizes && foodItem.sizes[foodItem.selectedSize];
+        }
+        
+        if (sizePrice !== null && sizePrice !== undefined && Number(sizePrice) > 0) {
+          itemPrice = Number(sizePrice);
+          console.log("✅ Using price from size object:", itemPrice);
+        } else {
+          console.error("❌ Size price is invalid:", sizePrice);
+          throw new Error(`Invalid price for ${foodItem.selectedSize} size. Please try again.`);
+        }
+      }
+    } else {
+      // For foods without sizes, use the base price
+      const basePrice = foodItem.price;
+      if (basePrice !== undefined && basePrice !== null && basePrice !== "") {
+        itemPrice = Number(basePrice);
+        if (itemPrice <= 0 || isNaN(itemPrice)) {
+          console.error("❌ Invalid base price:", basePrice);
+          throw new Error("Invalid price for this item. Please contact support.");
+        }
+        console.log("✅ Using base price:", itemPrice);
+      } else {
+        console.error("❌ No price found for food without sizes");
+        throw new Error("Price not available for this item. Please contact support.");
+      }
+    }
+
+    // Final validation
+    if (!itemPrice || itemPrice <= 0 || isNaN(itemPrice)) {
+      console.error("❌ Invalid price after calculation:", {
+        foodName: foodItem.name,
+        price: foodItem.price,
+        hasSizes: foodItem.hasSizes,
+        selectedSize: foodItem.selectedSize,
+        sizes: foodItem.sizes,
+        calculatedPrice: itemPrice,
+      });
+      throw new Error(`Invalid price: ${itemPrice}. Please select a size if this item has size options.`);
+    }
+    
+    console.log("✅ Final calculated price:", itemPrice);
+
+    const payload = {
       userEmail: userData.email,
       userId: userData.uid,
       userName: userData.displayName || "Guest User",
-      foodId: foodItem._id,
+      foodId: foodId,
       foodName: foodItem.name || foodItem.foodName,
       category: foodItem.category || "Uncategorized",
       type: foodItem.type || "Veg",
-      quantity,
-      price: foodItem.price,
+      quantity: quantity || 1,
+      price: itemPrice,
       image: foodItem.image || "",
-    });
+    };
+
+    // Only include selectedSize if it's a valid value
+    if (foodItem.selectedSize && ["Small", "Medium", "Large"].includes(foodItem.selectedSize)) {
+      payload.selectedSize = foodItem.selectedSize;
+    }
+
+    console.log("📤 Sending cart add request:", payload);
+
+    const response = await axios.post(`${API_BASE}/api/cart/add`, payload);
     return response.data.cart || [];
   } catch (error) {
-    console.error("Error adding to cart:", error);
+    console.error("❌ Error adding to cart:", error);
+    console.error("Error response:", error.response?.data);
     throw error;
   }
 };

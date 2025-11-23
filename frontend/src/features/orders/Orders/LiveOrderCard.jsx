@@ -12,15 +12,27 @@ const LiveOrderCard = ({ order, upiID, payeeName }) => {
 
   return (
     <div className="bg-white border rounded-2xl p-5 shadow hover:shadow-md transition">
-      <h4 className="font-semibold text-gray-800 text-lg">{order.foodName}</h4>
+      <h4 className="font-semibold text-gray-800 text-lg">
+        {order.foodName}
+        {order.selectedSize && (
+          <span className="ml-2 text-sm text-orange-600 font-semibold">
+            ({order.selectedSize})
+          </span>
+        )}
+      </h4>
       <p className="text-gray-500 capitalize">
         {order.category} • {order.type}
       </p>
       <p className="text-gray-500">Table {order.tableNumber}</p>
 
-      <p className="mt-2 font-medium text-red-600">
-        ₹{Number(order.price).toFixed(2)}
-      </p>
+      <div className="mt-2 flex items-center justify-between">
+        <p className="font-medium text-red-600">
+          ₹{Number(order.price).toFixed(2)}
+        </p>
+        <p className="text-sm text-gray-600 font-semibold">
+          Qty: {order.quantity || 1}
+        </p>
+      </div>
 
       <p className="text-sm mt-1">
         Status:{" "}

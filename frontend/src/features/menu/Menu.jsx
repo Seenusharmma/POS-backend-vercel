@@ -10,6 +10,7 @@ import LogoLoader from "../../components/ui/LogoLoader";
 import { useFoodFilter, useAppSelector, useAppDispatch } from "../../store/hooks";
 import { addToCartAsync } from "../../store/slices/cartSlice";
 import { getSocketConfig, createSocketConnection, isServerlessPlatform } from "../../utils/socketConfig";
+import SizeSelectionModal from "../../components/common/SizeSelectionModal";
 
 const Menu = () => {
   const { filterFoods: applyGlobalFilter } = useFoodFilter();
@@ -21,6 +22,8 @@ const Menu = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [showSizeModal, setShowSizeModal] = useState(false);
+  const [selectedFood, setSelectedFood] = useState(null);
   const socketRef = useRef(null);
 
   // 🥗 Fetch foods
@@ -159,6 +162,44 @@ const Menu = () => {
     };
   }, [user]);
 
+  const handleAddClick = (food) => {
+    // Check if food has sizes - if so, open size selection modal
+    const sizeType = food.sizeType || "standard";
+    const hasStandardSizes = food.hasSizes && food.sizes && (food.sizes.Small || food.sizes.Medium || food.sizes.Large);
+    const hasHalfFullSizes = food.hasSizes && food.halfFull && (food.halfFull.Half || food.halfFull.Full);
+    const hasValidSizes = sizeType === "half-full" ? hasHalfFullSizes : hasStandardSizes;
+    
+    if (food.hasSizes && hasValidSizes) {
+      setSelectedFood(food);
+      setShowSizeModal(true);
+    } else if (food.hasSizes) {
+      // Food has sizes enabled but no size prices set - show error
+      toast.error("Size options are not available for this item. Please contact admin.");
+      return;
+    } else {
+      // Food doesn't have sizes - add directly
+      addToCart(food);
+    }
+  };
+
+  const handleSizeConfirm = (selectedSize, selectedPrice) => {
+    if (!selectedFood) return;
+    
+    const foodWithSize = {
+      ...selectedFood,
+      selectedSize,
+      price: Number(selectedPrice),
+      hasSizes: selectedFood.hasSizes || false,
+      sizeType: selectedFood.sizeType || "standard", // Preserve sizeType (standard or half-full)
+      sizes: selectedFood.sizes || null,
+      halfFull: selectedFood.halfFull || null, // Ensure halfFull object is included
+    };
+    
+    addToCart(foodWithSize);
+    setShowSizeModal(false);
+    setSelectedFood(null);
+  };
+
   const addToCart = async (food) => {
     if (!user || !user.email) {
       toast.error("Please login to add items to cart!");
@@ -180,8 +221,40 @@ const Menu = () => {
       });
     } catch (error) {
       console.error("Error adding to cart:", error);
-      toast.error("Failed to add item to cart. Please try again.");
+      const errorMessage = error?.message || error?.response?.data?.message || "Failed to add item to cart. Please try again.";
+      toast.error(errorMessage);
     }
+  };
+
+  // Calculate price display for foods with sizes
+  const getPriceDisplay = (food) => {
+    if (food.hasSizes) {
+      const sizeType = food.sizeType || "standard";
+      let prices = [];
+      
+      if (sizeType === "half-full" && food.halfFull) {
+        prices = [
+          food.halfFull.Half,
+          food.halfFull.Full,
+        ].filter((p) => p !== null && p !== undefined && p > 0);
+      } else if (food.sizes) {
+        prices = [
+          food.sizes.Small,
+          food.sizes.Medium,
+          food.sizes.Large,
+        ].filter((p) => p !== null && p !== undefined && p > 0);
+      }
+      
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        if (minPrice === maxPrice) {
+          return `₹${minPrice}`;
+        }
+        return `₹${minPrice} - ₹${maxPrice}`;
+      }
+    }
+    return `₹${food.price || 0}`;
   };
 
 
@@ -369,6 +442,13 @@ const Menu = () => {
                       {food.type}
                     </span>
 
+                    {/* Sizes Available Badge */}
+                    {food.hasSizes && (
+                      <span className="absolute top-2 sm:top-3 right-2 sm:right-3 text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md z-10 bg-orange-100 text-orange-700 border border-orange-500 font-semibold">
+                        Sizes
+                      </span>
+                    )}
+
                     {/* Dish Name on Gradient */}
                     <h3 className="absolute bottom-0 left-0 right-0 px-3 sm:px-4 pb-3 sm:pb-4 font-bold text-white text-base sm:text-lg z-10 drop-shadow-lg">
                       {food.name}
@@ -389,11 +469,16 @@ const Menu = () => {
                     </div>
                   </div>
                   <div className="flex justify-between items-center mt-auto pt-1">
-                    <span className="text-base sm:text-lg font-bold text-orange-600">
-                      ₹{food.price}
-                    </span>
+                    <div>
+                      <span className="text-base sm:text-lg font-bold text-orange-600">
+                        {getPriceDisplay(food)}
+                      </span>
+                      {food.hasSizes && (
+                        <p className="text-xs text-gray-500 mt-0.5">Select size</p>
+                      )}
+                    </div>
                     <button
-                      onClick={() => addToCart(food)}
+                      onClick={() => handleAddClick(food)}
                       className="bg-orange-600 hover:bg-orange-700 text-white px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1"
                     >
                       <FaShoppingCart className="text-xs sm:text-sm" /> Add
@@ -418,6 +503,19 @@ const Menu = () => {
           <FaShoppingCart />
           View Cart ({cart.length})
         </motion.div>
+      )}
+
+      {/* Size Selection Modal */}
+      {selectedFood && (
+        <SizeSelectionModal
+          food={selectedFood}
+          isOpen={showSizeModal}
+          onClose={() => {
+            setShowSizeModal(false);
+            setSelectedFood(null);
+          }}
+          onConfirm={handleSizeConfirm}
+        />
       )}
     </div>
   );

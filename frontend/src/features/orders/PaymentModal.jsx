@@ -75,6 +75,7 @@ const PaymentModal = ({
         paymentStatus: "Paid",
         paymentMethod: selectedPaymentMethod,
         image: i.image || "",
+        selectedSize: i.selectedSize || null, // Include selected size if available
         isInRestaurant: isInRestaurant, // Include the dine-in/delivery flag
         contactNumber: !isInRestaurant ? contactNumber : "", // Include contact number for delivery
         deliveryLocation: !isInRestaurant && deliveryLocation ? {

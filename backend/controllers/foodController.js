@@ -61,7 +61,7 @@ export const addFood = async (req, res) => {
       }
     }
 
-    const { name, category, type, price, available } = req.body;
+    const { name, category, type, price, available, hasSizes, sizeType, sizes, halfFull } = req.body;
     let imageUrl = null;
 
     if (req.file) {
@@ -74,6 +74,48 @@ export const addFood = async (req, res) => {
       console.log("✅ Uploaded to Cloudinary:", imageUrl);
     }
 
+    // Parse sizes based on sizeType
+    let parsedSizes = null;
+    let parsedHalfFull = null;
+    const hasSizesBool = hasSizes === "true" || hasSizes === true;
+    const finalSizeType = hasSizesBool ? (sizeType || "standard") : null;
+
+    if (hasSizesBool) {
+      if (finalSizeType === "half-full") {
+        // Parse Half/Full sizes
+        parsedHalfFull = {
+          Half: halfFull?.Half ? Number(halfFull.Half) : null,
+          Full: halfFull?.Full ? Number(halfFull.Full) : null,
+        };
+        parsedSizes = {
+          Small: null,
+          Medium: null,
+          Large: null,
+        };
+      } else {
+        // Parse Standard sizes (Small/Medium/Large)
+        parsedSizes = {
+          Small: sizes?.Small ? Number(sizes.Small) : null,
+          Medium: sizes?.Medium ? Number(sizes.Medium) : null,
+          Large: sizes?.Large ? Number(sizes.Large) : null,
+        };
+        parsedHalfFull = {
+          Half: null,
+          Full: null,
+        };
+      }
+    } else {
+      parsedSizes = {
+        Small: null,
+        Medium: null,
+        Large: null,
+      };
+      parsedHalfFull = {
+        Half: null,
+        Full: null,
+      };
+    }
+
     const food = new Food({
       name: name.trim(),
       category: category.trim(),
@@ -81,6 +123,10 @@ export const addFood = async (req, res) => {
       price: Number(price),
       available: available !== "false" && available !== false,
       image: imageUrl,
+      hasSizes: hasSizesBool,
+      sizeType: finalSizeType,
+      sizes: parsedSizes,
+      halfFull: parsedHalfFull,
     });
 
     await food.save();
@@ -135,6 +181,53 @@ export const updateFood = async (req, res) => {
     if (updateData.price) updateData.price = Number(updateData.price);
     if (updateData.name) updateData.name = updateData.name.trim();
     if (updateData.category) updateData.category = updateData.category.trim();
+    
+    // ✅ Handle size options
+    if (updateData.hasSizes === "true" || updateData.hasSizes === true) {
+      updateData.hasSizes = true;
+      const finalSizeType = updateData.sizeType || "standard";
+      updateData.sizeType = finalSizeType;
+
+      if (finalSizeType === "half-full") {
+        // Handle Half/Full sizes
+        if (updateData.halfFull) {
+          updateData.halfFull = {
+            Half: updateData.halfFull.Half ? Number(updateData.halfFull.Half) : null,
+            Full: updateData.halfFull.Full ? Number(updateData.halfFull.Full) : null,
+          };
+        }
+        updateData.sizes = {
+          Small: null,
+          Medium: null,
+          Large: null,
+        };
+      } else {
+        // Handle Standard sizes (Small/Medium/Large)
+        if (updateData.sizes) {
+          updateData.sizes = {
+            Small: updateData.sizes.Small ? Number(updateData.sizes.Small) : null,
+            Medium: updateData.sizes.Medium ? Number(updateData.sizes.Medium) : null,
+            Large: updateData.sizes.Large ? Number(updateData.sizes.Large) : null,
+          };
+        }
+        updateData.halfFull = {
+          Half: null,
+          Full: null,
+        };
+      }
+    } else if (updateData.hasSizes === "false" || updateData.hasSizes === false) {
+      updateData.hasSizes = false;
+      updateData.sizeType = null;
+      updateData.sizes = {
+        Small: null,
+        Medium: null,
+        Large: null,
+      };
+      updateData.halfFull = {
+        Half: null,
+        Full: null,
+      };
+    }
 
     const food = await Food.findByIdAndUpdate(id, updateData, { new: true });
     if (!food) return res.status(404).json({ message: "Food not found" });

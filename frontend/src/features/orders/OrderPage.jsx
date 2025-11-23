@@ -678,7 +678,14 @@ const OrderPage = () => {
                     className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg flex-shrink-0"
                   />
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{item.name}</h3>
+                    <h3 className="font-semibold text-gray-800 text-base sm:text-lg truncate">
+                      {item.name}
+                      {item.selectedSize && (
+                        <span className="ml-2 text-xs sm:text-sm text-orange-600 font-semibold">
+                          ({item.selectedSize})
+                        </span>
+                      )}
+                    </h3>
                     <p className="text-gray-500 text-xs sm:text-sm capitalize">
                       {item.category} • {item.type}
                     </p>
@@ -917,6 +924,11 @@ const OrderPage = () => {
                 >
                   <h4 className="font-semibold text-gray-800 text-base sm:text-lg mb-1">
                     {order.foodName}
+                    {order.selectedSize && (
+                      <span className="ml-2 text-xs sm:text-sm text-orange-600 font-semibold">
+                        ({order.selectedSize})
+                      </span>
+                    )}
                   </h4>
                   <p className="text-xs sm:text-sm text-gray-500 capitalize">
                     {order.category} • {order.type}
@@ -930,9 +942,14 @@ const OrderPage = () => {
                       🍽️ Dine-in - Table {order.tableNumber}
                     </p>
                   )}
-                  <p className="mt-2 font-medium text-red-600 text-sm sm:text-base">
-                    ₹{Number(order.price).toFixed(2)}
-                  </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="font-medium text-red-600 text-sm sm:text-base">
+                      ₹{Number(order.price).toFixed(2)}
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600 font-semibold">
+                      Qty: {order.quantity || 1}
+                    </p>
+                  </div>
                   <p className="mt-1 text-xs sm:text-sm">
                     Status:{" "}
                     <span

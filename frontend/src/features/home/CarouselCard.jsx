@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { FaShoppingCart, FaCheck, FaPlus } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
+import SizeSelectionModal from "../../components/common/SizeSelectionModal";
 
 const CarouselCard = ({ food, type, onAddToCart }) => {
   const [isAdded, setIsAdded] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [showSizeModal, setShowSizeModal] = useState(false);
   
   if (!food) return null;
 
@@ -18,10 +21,74 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
   const handleAddToCart = (e) => {
     e.stopPropagation();
     if (food && onAddToCart) {
-      onAddToCart(food);
-      setIsAdded(true);
-      setTimeout(() => setIsAdded(false), 2000);
+      // Check if food has sizes - if so, open size selection modal
+      const sizeType = food.sizeType || "standard";
+      const hasStandardSizes = food.hasSizes && food.sizes && (food.sizes.Small || food.sizes.Medium || food.sizes.Large);
+      const hasHalfFullSizes = food.hasSizes && food.halfFull && (food.halfFull.Half || food.halfFull.Full);
+      const hasValidSizes = sizeType === "half-full" ? hasHalfFullSizes : hasStandardSizes;
+      
+      if (food.hasSizes && hasValidSizes) {
+        setShowSizeModal(true);
+      } else if (food.hasSizes) {
+        // Food has sizes enabled but no size prices set - show error
+        toast.error("Size options are not available for this item. Please contact admin.");
+        return;
+      } else {
+        // Food doesn't have sizes - add directly
+        onAddToCart(food);
+        setIsAdded(true);
+        setTimeout(() => setIsAdded(false), 2000);
+      }
     }
+  };
+
+  const handleSizeConfirm = (selectedSize, selectedPrice) => {
+    console.log("🎯 Size confirmed:", { selectedSize, selectedPrice, food: food.name });
+    const foodWithSize = {
+      ...food,
+      selectedSize,
+      price: Number(selectedPrice), // Ensure price is a number
+      hasSizes: food.hasSizes || false, // Ensure hasSizes is set
+      sizeType: food.sizeType || "standard", // Preserve sizeType (standard or half-full)
+      sizes: food.sizes || null, // Ensure sizes object is included
+      halfFull: food.halfFull || null, // Ensure halfFull object is included
+    };
+    console.log("📦 Food with size to add:", foodWithSize);
+    onAddToCart(foodWithSize);
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 2000);
+    setShowSizeModal(false);
+  };
+
+  // Calculate price range for foods with sizes
+  const getPriceDisplay = () => {
+    if (food.hasSizes) {
+      const sizeType = food.sizeType || "standard";
+      let prices = [];
+      
+      if (sizeType === "half-full" && food.halfFull) {
+        prices = [
+          food.halfFull.Half,
+          food.halfFull.Full,
+        ].filter((p) => p !== null && p !== undefined);
+      } else if (food.sizes) {
+        prices = [
+          food.sizes.Small,
+          food.sizes.Medium,
+          food.sizes.Large,
+        ].filter((p) => p !== null && p !== undefined);
+      }
+      
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        if (minPrice === maxPrice) {
+          return minPrice;
+        }
+        return `${minPrice} - ${maxPrice}`;
+      }
+    }
+    return food?.price || 0;
   };
 
   return (
@@ -104,13 +171,20 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
         >
           {/* Enhanced price display */}
           <div className="flex flex-col">
-            <span className="text-[7px] sm:text-[8px] md:text-[9px] text-white/70 font-medium mb-0.5 sm:mb-1 uppercase tracking-widest">Price</span>
-            <div className="flex items-baseline gap-0.5 sm:gap-1">
+            <span className="text-[7px] sm:text-[8px] md:text-[9px] text-white/70 font-medium mb-0.5 sm:mb-1 uppercase tracking-widest">
+              {food?.hasSizes ? "Price Range" : "Price"}
+            </span>
+            <div className="flex items-baseline gap-0.5 sm:gap-1 flex-wrap">
               <span className="text-xs sm:text-sm md:text-base text-white/90 font-semibold">₹</span>
               <span className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-black text-white drop-shadow-2xl leading-none">
-                {food?.price || 0}
+                {getPriceDisplay()}
               </span>
             </div>
+            {food?.hasSizes && (
+              <span className="text-[8px] sm:text-[9px] text-white/80 mt-0.5">
+                Select size
+              </span>
+            )}
           </div>
           
           {/* Advanced add to cart button - more intuitive design */}
@@ -197,6 +271,14 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Size Selection Modal */}
+      <SizeSelectionModal
+        food={food}
+        isOpen={showSizeModal}
+        onClose={() => setShowSizeModal(false)}
+        onConfirm={handleSizeConfirm}
+      />
     </motion.div>
   );
 };
