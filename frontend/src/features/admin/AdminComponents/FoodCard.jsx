@@ -76,11 +76,54 @@ const FoodCard = ({ food, onEdit, onDelete, onToggleAvailability }) => {
 
         {/* Price and Actions Row - Swiggy Style */}
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-400 mb-0.5">Price</p>
-            <p className="font-bold text-lg sm:text-xl text-gray-900">
-              ₹{Number(food.price).toFixed(0)}
-            </p>
+            {food.hasSizes ? (
+              <div className="space-y-1">
+                {food.sizeType === "half-full" && food.halfFull ? (
+                  // Half/Full sizes
+                  <div className="space-y-0.5">
+                    {food.halfFull.Half && (
+                      <p className="text-xs sm:text-sm text-gray-700">
+                        <span className="font-semibold">Half:</span> ₹{Number(food.halfFull.Half).toFixed(0)}
+                      </p>
+                    )}
+                    {food.halfFull.Full && (
+                      <p className="text-xs sm:text-sm text-gray-700">
+                        <span className="font-semibold">Full:</span> ₹{Number(food.halfFull.Full).toFixed(0)}
+                      </p>
+                    )}
+                  </div>
+                ) : food.sizes ? (
+                  // Standard sizes (Small, Medium, Large)
+                  <div className="space-y-0.5">
+                    {food.sizes.Small && (
+                      <p className="text-xs sm:text-sm text-gray-700">
+                        <span className="font-semibold">Small:</span> ₹{Number(food.sizes.Small).toFixed(0)}
+                      </p>
+                    )}
+                    {food.sizes.Medium && (
+                      <p className="text-xs sm:text-sm text-gray-700">
+                        <span className="font-semibold">Medium:</span> ₹{Number(food.sizes.Medium).toFixed(0)}
+                      </p>
+                    )}
+                    {food.sizes.Large && (
+                      <p className="text-xs sm:text-sm text-gray-700">
+                        <span className="font-semibold">Large:</span> ₹{Number(food.sizes.Large).toFixed(0)}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="font-bold text-lg sm:text-xl text-gray-900">
+                    ₹{Number(food.price || 0).toFixed(0)}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="font-bold text-lg sm:text-xl text-gray-900">
+                ₹{Number(food.price || 0).toFixed(0)}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <button

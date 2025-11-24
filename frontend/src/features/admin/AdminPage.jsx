@@ -913,10 +913,15 @@ const AdminPage = () => {
       price: "",
       available: true,
       hasSizes: false,
+      sizeType: "standard",
       sizes: {
         Small: "",
         Medium: "",
         Large: "",
+      },
+      halfFull: {
+        Half: "",
+        Full: "",
       },
     });
     setImage(null);
@@ -935,10 +940,15 @@ const AdminPage = () => {
       price: food.price || "",
       available: food.available !== undefined ? food.available : true,
       hasSizes: food.hasSizes || false,
+      sizeType: food.sizeType || "standard",
       sizes: {
         Small: food.sizes?.Small || "",
         Medium: food.sizes?.Medium || "",
         Large: food.sizes?.Large || "",
+      },
+      halfFull: {
+        Half: food.halfFull?.Half || "",
+        Full: food.halfFull?.Full || "",
       },
     });
     setPreview(food.image || null);
