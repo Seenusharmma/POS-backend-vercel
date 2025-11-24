@@ -1,6 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaChevronRight, FaChevronLeft, FaShoppingCart, FaLeaf, FaDrumstickBite } from "react-icons/fa";
+import SizeSelectionModal from "../../components/common/SizeSelectionModal";
+import { useFoodFilter } from "../../store/hooks";
 
 const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick, foods = [], onAddToCart }) => {
   const menuRef = useRef(null);
@@ -12,11 +14,41 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
   const isUserScrollingRef = useRef(false);
   const isAutoScrollingRef = useRef(false);
   const loadingTimeoutRef = useRef(null);
+  const [showSizeModal, setShowSizeModal] = useState(false);
+  const [selectedFood, setSelectedFood] = useState(null);
+  
+  // Use the shared food filter from Redux (same as navbar toggle)
+  const { foodFilter, filterFoods } = useFoodFilter();
 
-  // Get foods for selected category
+  // Filter foods by type using the shared filter
+  const filteredFoods = useMemo(() => {
+    const availableFoods = foods.filter(f => f.available !== false);
+    return filterFoods(availableFoods);
+  }, [foods, filterFoods]);
+
+  // Get foods for selected category (with type filter applied)
   const selectedCategoryFoods = selectedCategory
-    ? foods.filter(f => f.category === selectedCategory && f.available !== false)
+    ? filteredFoods.filter(f => f.category === selectedCategory)
     : [];
+
+  // Get filtered categories with counts
+  const filteredCategories = useMemo(() => {
+    const categoryMap = {};
+    filteredFoods.forEach(f => {
+      if (!categoryMap[f.category]) {
+        categoryMap[f.category] = {
+          count: 0,
+          image: f.image,
+        };
+      }
+      categoryMap[f.category].count += 1;
+    });
+    return Object.entries(categoryMap).map(([name, data]) => ({ 
+      name, 
+      count: data.count,
+      image: data.image,
+    }));
+  }, [filteredFoods]);
 
   // Handle loading state when category changes
   useEffect(() => {
@@ -38,9 +70,9 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
     }
   }, [selectedCategory]);
 
-  // Get category image - use first food's image from that category
+  // Get category image - use first food's image from that category (from filtered foods)
   const getCategoryImage = (categoryName) => {
-    const categoryFood = foods.find(f => f.category === categoryName && f.image);
+    const categoryFood = filteredFoods.find(f => f.category === categoryName && f.image);
     return categoryFood?.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop";
   };
 
@@ -208,7 +240,7 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
         autoScrollRef.current = null;
       }
     };
-  }, [categories?.length, selectedCategoryFoods?.length, isPaused, selectedCategory]);
+  }, [filteredCategories?.length, selectedCategoryFoods?.length, isPaused, selectedCategory]);
 
   // Cleanup loading timeout on unmount
   useEffect(() => {
@@ -222,6 +254,76 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
   // Handle back to categories
   const handleBack = () => {
     onCategoryClick && onCategoryClick(selectedCategory);
+  };
+
+  // Calculate price display for foods with sizes
+  const getPriceDisplay = (food) => {
+    if (food.hasSizes) {
+      const sizeType = food.sizeType || "standard";
+      let prices = [];
+      
+      if (sizeType === "half-full" && food.halfFull) {
+        prices = [
+          food.halfFull.Half,
+          food.halfFull.Full,
+        ].filter((p) => p !== null && p !== undefined);
+      } else if (food.sizes) {
+        prices = [
+          food.sizes.Small,
+          food.sizes.Medium,
+          food.sizes.Large,
+        ].filter((p) => p !== null && p !== undefined);
+      }
+      
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        if (minPrice === maxPrice) {
+          return `₹${minPrice}`;
+        }
+        return `₹${minPrice} - ₹${maxPrice}`;
+      }
+    }
+    return `₹${food.price || 0}`;
+  };
+
+  // Handle add to cart click
+  const handleAddToCartClick = (food) => {
+    // Check if food has sizes - if so, open size selection modal
+    const sizeType = food.sizeType || "standard";
+    const hasStandardSizes = food.hasSizes && food.sizes && (food.sizes.Small || food.sizes.Medium || food.sizes.Large);
+    const hasHalfFullSizes = food.hasSizes && food.halfFull && (food.halfFull.Half || food.halfFull.Full);
+    const hasValidSizes = sizeType === "half-full" ? hasHalfFullSizes : hasStandardSizes;
+    
+    if (food.hasSizes && hasValidSizes) {
+      setSelectedFood(food);
+      setShowSizeModal(true);
+    } else if (food.hasSizes) {
+      // Food has sizes enabled but no size prices set - add with base price
+      onAddToCart && onAddToCart(food);
+    } else {
+      // Food doesn't have sizes - add directly
+      onAddToCart && onAddToCart(food);
+    }
+  };
+
+  // Handle size confirmation from modal
+  const handleSizeConfirm = (selectedSize, selectedPrice) => {
+    if (!selectedFood) return;
+    
+    const foodWithSize = {
+      ...selectedFood,
+      selectedSize,
+      price: Number(selectedPrice),
+      hasSizes: selectedFood.hasSizes || false,
+      sizeType: selectedFood.sizeType || "standard",
+      sizes: selectedFood.sizes || null,
+      halfFull: selectedFood.halfFull || null,
+    };
+    
+    onAddToCart && onAddToCart(foodWithSize);
+    setShowSizeModal(false);
+    setSelectedFood(null);
   };
 
   return (
@@ -267,8 +369,34 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                 </h3>
                 <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-500 mt-0.5">
                   {selectedCategoryFoods.length} {selectedCategoryFoods.length === 1 ? 'item' : 'items'}
+                  {foodFilter && (
+                    <span className="ml-1 text-orange-600">
+                      ({foodFilter === "Veg" ? "Veg" : "Non-Veg"})
+                    </span>
+                  )}
                 </p>
               </div>
+            </div>
+          </motion.div>
+        )}
+        
+        {/* Header when no category selected - show filter indicator */}
+        {!selectedCategory && (
+          <motion.div 
+            className="mb-1.5 sm:mb-2 md:mb-3 shrink-0 relative z-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15 }}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-xs sm:text-sm md:text-base font-bold text-gray-800">
+                Menu Categories
+                {foodFilter && (
+                  <span className="ml-2 text-xs text-orange-600 font-normal">
+                    ({foodFilter === "Veg" ? "Veg Only" : "Non-Veg Only"})
+                  </span>
+                )}
+              </h3>
             </div>
           </motion.div>
         )}
@@ -471,13 +599,18 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
 
                           {/* Price and Add Button - Compact */}
                           <div className="flex items-center justify-between gap-2 md:gap-3 mt-auto">
-                            <div className="flex flex-col">
+                            <div className="flex flex-col min-w-0 flex-1">
                               <span className="text-sm md:text-base lg:text-lg xl:text-xl font-bold text-orange-600 leading-none">
-                                ₹{food.price}
+                                {getPriceDisplay(food)}
                               </span>
+                              {food.hasSizes && (
+                                <p className="text-[8px] md:text-[9px] lg:text-[10px] text-gray-500 mt-0.5 truncate">
+                                  Select size
+                                </p>
+                              )}
                             </div>
                             <motion.button
-                              onClick={() => onAddToCart && onAddToCart(food)}
+                              onClick={() => handleAddToCartClick(food)}
                               className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 
                                        active:from-orange-700 active:to-orange-800 text-white 
                                        w-8 h-8 md:w-10 md:h-10 lg:w-12 lg:h-12 rounded-full 
@@ -517,8 +650,8 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                 transition={{ duration: 0.3 }}
                 className="space-y-1.5 sm:space-y-2 md:space-y-2.5"
               >
-                {categories && categories.length > 0 ? (
-                  categories.map((cat, index) => {
+                {filteredCategories && filteredCategories.length > 0 ? (
+                  filteredCategories.map((cat, index) => {
                     const isSelected = selectedCategory === cat.name;
                     const categoryImage = cat.image || getCategoryImage(cat.name);
                     const categoryIcon = getCategoryIcon(cat.name);
@@ -625,7 +758,10 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                   >
                     <div className="text-5xl mb-4">🍽️</div>
                     <p className="text-gray-400 text-sm sm:text-base">
-                      No categories available
+                      {foodFilter 
+                        ? `No ${foodFilter === "Veg" ? "Veg" : "Non-Veg"} categories available`
+                        : "No categories available"
+                      }
                     </p>
                   </motion.div>
                 )}
@@ -634,6 +770,19 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {/* Size Selection Modal */}
+      {selectedFood && (
+        <SizeSelectionModal
+          food={selectedFood}
+          isOpen={showSizeModal}
+          onClose={() => {
+            setShowSizeModal(false);
+            setSelectedFood(null);
+          }}
+          onConfirm={handleSizeConfirm}
+        />
+      )}
     </div>
   );
 };
