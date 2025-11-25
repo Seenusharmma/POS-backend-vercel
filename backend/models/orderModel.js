@@ -1,3 +1,13 @@
+/**
+ * TABLE OPTIONS CONFIGURATION:
+ * - Total Tables: 40 tables (numbered 1-40)
+ * - Chairs per Table: 4 chairs per table
+ * - Table Numbering: Tables are numbered from 1 to 40
+ * - Chair Indices: Each table has 4 chairs indexed 0-3 (top row: 0,1 | bottom row: 2,3)
+ * - Delivery Orders: Use tableNumber = 0 for delivery/takeaway orders (not dine-in)
+ * - Table Selection: Users can select multiple chairs at the same table
+ * - Availability: Tables are considered booked if they have active orders (status !== "Completed" && status !== "Served")
+ */
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
@@ -13,6 +23,10 @@ const orderSchema = new mongoose.Schema(
     tableNumber: {
       type: Number,
       required: true,
+      // TABLE OPTIONS: 
+      // - For dine-in: Table number 1-40 (40 total tables available)
+      // - For delivery/takeaway: Use tableNumber = 0
+      // - Each table has 4 chairs (indices 0-3)
     },
     foodName: {
       type: String,
@@ -49,16 +63,6 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Cooking", "Ready", "Served", "Completed"],
       default: "Pending",
-    },
-    paymentStatus: {
-      type: String,
-      enum: ["Unpaid", "Paid"],
-      default: "Unpaid",
-    },
-    paymentMethod: {
-      type: String,
-      enum: ["UPI", "Cash", "Other"],
-      default: "UPI",
     },
     userId: {
       type: String,

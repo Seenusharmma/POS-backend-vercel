@@ -23,7 +23,6 @@ const LiveOrderCard = ({ order, upiID, payeeName }) => {
       <p className="text-gray-500 capitalize">
         {order.category} • {order.type}
       </p>
-      <p className="text-gray-500">Table {order.tableNumber}</p>
 
       <div className="mt-2 flex items-center justify-between">
         <p className="font-medium text-red-600">

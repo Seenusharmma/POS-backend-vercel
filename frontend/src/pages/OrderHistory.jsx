@@ -44,12 +44,12 @@ const OrderHistory = () => {
     setLoading(false);
   }, [user]);
 
-  // Group orders by order session (same table, same date, same user)
+  // Group orders by order session (same date, same user)
   const groupOrdersBySession = useCallback((ordersList) => {
     const groups = {};
     ordersList.forEach((order) => {
       const date = new Date(order.createdAt).toDateString();
-      const key = `${order.tableNumber}_${date}_${order.userEmail}`;
+      const key = `${date}_${order.userEmail}`;
       if (!groups[key]) {
         groups[key] = [];
       }
@@ -270,31 +270,6 @@ const OrderHistory = () => {
     });
 
     // Listen for payment success - Real-time UI update
-    socket.on("paymentSuccess", (orderData) => {
-      if (
-        orderData &&
-        (orderData.userEmail === user.email || orderData.userId === user.uid)
-      ) {
-        // Update UI immediately
-        setOrders((prev) =>
-          prev.map((o) =>
-            o._id === orderData._id ? { ...o, paymentStatus: "Paid" } : o
-          )
-        );
-        toast.success("💰 Payment Done! Your payment has been confirmed.", {
-          duration: 5000,
-          icon: "✅",
-          style: {
-            background: "#10b981",
-            color: "#fff",
-            fontSize: "16px",
-            fontWeight: "600",
-          },
-          position: "top-center",
-        });
-        fetchHistory();
-      }
-    });
 
     // ✅ Set up polling for serverless platforms (Vercel)
     if (isServerless) {
@@ -361,36 +336,6 @@ const OrderHistory = () => {
             fetchHistory();
           }
 
-          // Handle payment status changes
-          if (
-            updatedOrder.paymentStatus !== oldOrder.paymentStatus &&
-            updatedOrder.paymentStatus === "Paid"
-          ) {
-            setOrders((prev) =>
-              prev.map((o) =>
-                o._id === updatedOrder._id
-                  ? {
-                      ...o,
-                      paymentStatus: "Paid",
-                      paymentMethod: updatedOrder.paymentMethod,
-                    }
-                  : o
-              )
-            );
-            toast.success("💰 Payment Done! Your payment has been confirmed.", {
-              duration: 5000,
-              icon: "✅",
-              style: {
-                background: "#10b981",
-                color: "#fff",
-                fontSize: "16px",
-                fontWeight: "600",
-              },
-              position: "top-center",
-            });
-            // Refresh history after payment update
-            fetchHistory();
-          }
         },
         3000 // Poll every 3 seconds
       );
@@ -402,7 +347,6 @@ const OrderHistory = () => {
       socket.off("connect_error");
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
-      socket.off("paymentSuccess");
 
       // Stop polling if it's running
       if (pollingStopRef.current) {
@@ -478,11 +422,8 @@ const OrderHistory = () => {
         }}
         orders={selectedOrderGroup}
         totalAmount={
-          selectedOrderGroup.reduce((sum, o) => sum + (o.price || 0), 0) * 1.05
+          selectedOrderGroup.reduce((sum, o) => sum + (o.price || 0), 0)
         }
-        tableNumber={selectedOrderGroup[0]?.tableNumber || 0}
-        selectedChairsCount={1}
-        isInRestaurant={selectedOrderGroup[0]?.isInRestaurant !== false}
         userName={user?.displayName || "Guest User"}
         userEmail={user?.email || ""}
         orderDate={selectedOrderGroup[0]?.createdAt || new Date()}

@@ -10,9 +10,6 @@ const OrderSlip = ({
   onClose, 
   orders, 
   totalAmount, 
-  tableNumber, 
-  selectedChairsCount,
-  isInRestaurant,
   userName,
   userEmail,
   orderDate
@@ -45,10 +42,8 @@ const OrderSlip = ({
     );
   }
 
-  // Calculate totals
-  const subtotal = orders.reduce((sum, order) => sum + (order.price || 0), 0);
-  const gst = subtotal * 0.05;
-  const total = subtotal + gst;
+  // Calculate total (no GST)
+  const total = orders.reduce((sum, order) => sum + (order.price || 0), 0);
 
   // Format date
   const formattedDate = orderDate 
@@ -367,17 +362,6 @@ const OrderSlip = ({
                 <span style={{ color: "#4b5563" }}>Customer:</span>
                 <span className="font-semibold" style={{ color: "#000000" }}>{userName || "Guest"}</span>
               </div>
-              {isInRestaurant ? (
-                <div className="flex justify-between">
-                  <span style={{ color: "#4b5563" }}>Type:</span>
-                  <span className="font-semibold" style={{ color: "#059669" }}>🍽️ Dine-in - Table #{tableNumber} ({selectedChairsCount} chair{selectedChairsCount > 1 ? "s" : ""})</span>
-                </div>
-              ) : (
-                <div className="flex justify-between">
-                  <span style={{ color: "#4b5563" }}>Type:</span>
-                  <span className="font-semibold" style={{ color: "#2563eb" }}>🚚 Delivery</span>
-                </div>
-              )}
             </div>
 
             {/* Items */}
@@ -410,25 +394,9 @@ const OrderSlip = ({
 
             {/* Totals */}
             <div className="mb-4 space-y-1 text-sm" style={{ color: "#000000" }}>
-              <div className="flex justify-between">
-                <span style={{ color: "#4b5563" }}>Subtotal:</span>
-                <span className="font-semibold" style={{ color: "#000000" }}>₹{subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span style={{ color: "#4b5563" }}>GST (5%):</span>
-                <span className="font-semibold" style={{ color: "#000000" }}>₹{gst.toFixed(2)}</span>
-              </div>
               <div className="flex justify-between text-lg font-bold border-t-2 pt-2 mt-2" style={{ borderColor: "#1f2937" }}>
                 <span style={{ color: "#000000" }}>Total:</span>
                 <span style={{ color: "#dc2626" }}>₹{total.toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Payment Status */}
-            <div className="mb-4 p-2 rounded text-center" style={{ backgroundColor: "#f0fdf4", borderColor: "#bbf7d0", borderWidth: "1px", borderStyle: "solid" }}>
-              <div className="flex items-center justify-center gap-2">
-                <FaCheckCircle style={{ color: "#16a34a" }} />
-                <span className="text-sm font-semibold" style={{ color: "#15803d" }}>Payment Successful</span>
               </div>
             </div>
 

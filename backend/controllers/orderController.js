@@ -1,7 +1,18 @@
+/**
+ * TABLE OPTIONS CONFIGURATION:
+ * - Total Tables: 40 tables (numbered 1-40)
+ * - Chairs per Table: 4 chairs per table
+ * - Table Numbering: Tables are numbered from 1 to 40
+ * - Chair Indices: Each table has 4 chairs indexed 0-3 (top row: 0,1 | bottom row: 2,3)
+ * - Delivery Orders: Use tableNumber = 0 for delivery/takeaway orders (not dine-in)
+ * - Table Selection: Users can select multiple chairs at the same table
+ * - Availability: Tables are considered booked if they have active orders (status !== "Completed" && status !== "Served")
+ */
 import Order from "../models/orderModel.js";
 import mongoose from "mongoose";
 import { connectDB } from "../config/db.js";
 import { getCache, setCache, invalidateCache, CACHE_KEYS, CACHE_TTL } from "../utils/cache.js";
+import { sendPushToUser } from "../utils/sendPushNotification.js";
 
 // 📦 Get all orders
 export const getOrders = async (req, res) => {
@@ -94,14 +105,18 @@ export const createOrder = async (req, res) => {
     }
 
     // ✅ Validation
-    const { userEmail, tableNumber, foodName, quantity, price } = req.body;
+    const { userEmail, foodName, quantity, price } = req.body;
     
-    // Allow tableNumber to be 0 for takeaway/delivery orders
-    if (!userEmail || (tableNumber === undefined || tableNumber === null) || !foodName || !quantity || !price) {
+    if (!userEmail || !foodName || !quantity || !price) {
       return res.status(400).json({
         success: false,
-        message: "Please provide userEmail, tableNumber, foodName, quantity, and price",
+        message: "Please provide userEmail, foodName, quantity, and price",
       });
+    }
+    
+    // Set default tableNumber to 0
+    if (req.body.tableNumber === undefined || req.body.tableNumber === null) {
+      req.body.tableNumber = 0;
     }
 
     if (Number(quantity) <= 0 || Number(price) <= 0) {
@@ -133,6 +148,19 @@ export const createOrder = async (req, res) => {
       console.log("📦 Emitted newOrderPlaced event for order:", order._id);
     }
 
+    // 📱 Send push notification to user
+    if (order.userEmail) {
+      sendPushToUser(
+        order.userEmail,
+        "📦 Order Placed!",
+        `Your order for ${order.foodName} has been placed successfully!`,
+        {
+          tag: `order-${order._id}`,
+          data: { orderId: order._id, type: "new_order" }
+        }
+      ).catch(err => console.error("Push notification error:", err));
+    }
+
     res.status(201).json({
       success: true,
       message: "Order placed successfully",
@@ -161,12 +189,16 @@ export const createMultipleOrders = async (req, res) => {
 
     // ✅ Validate each order
     for (const order of req.body) {
-      // Allow tableNumber to be 0 for takeaway/delivery orders
-      if (!order.userEmail || (order.tableNumber === undefined || order.tableNumber === null) || !order.foodName || !order.quantity || !order.price) {
+      if (!order.userEmail || !order.foodName || !order.quantity || !order.price) {
         return res.status(400).json({
           success: false,
-          message: "Each order must have userEmail, tableNumber, foodName, quantity, and price",
+          message: "Each order must have userEmail, foodName, quantity, and price",
         });
+      }
+      
+      // Set default tableNumber to 0 if not provided
+      if (order.tableNumber === undefined || order.tableNumber === null) {
+        order.tableNumber = 0;
       }
       
       if (Number(order.quantity) <= 0 || Number(order.price) <= 0) {
@@ -298,6 +330,27 @@ export const updateOrderStatus = async (req, res) => {
         io.to("users").emit("orderStatusChanged", order);
         
         console.log("🔄 Emitted orderStatusChanged event for order:", order._id, "Status:", order.status, "User:", order.userEmail || order.userId);
+
+        // 📱 Send push notification to user about status change
+        if (order.userEmail) {
+          const statusMessages = {
+            Pending: "⏳ Your order is pending",
+            Cooking: "👨‍🍳 Your order is being cooked",
+            Ready: "✅ Your order is ready!",
+            Served: "🍽️ Your order has been served",
+            Completed: "🎉 Your order is completed!"
+          };
+          
+          sendPushToUser(
+            order.userEmail,
+            statusMessages[order.status] || "Order Status Updated",
+            `${order.foodName} - Status: ${order.status}`,
+            {
+              tag: `order-${order._id}`,
+              data: { orderId: order._id, status: order.status, type: "status_change" }
+            }
+          ).catch(err => console.error("Push notification error:", err));
+        }
       }
       // ✅ Emit payment success if payment status changed to Paid
       if (updateData.paymentStatus === "Paid") {

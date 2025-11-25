@@ -90,7 +90,7 @@ const AdminOrderHistory = () => {
     const groups = {};
     ordersList.forEach((order) => {
       const date = new Date(order.createdAt).toDateString();
-      const key = `${order.tableNumber}_${date}_${order.userEmail}`;
+      const key = `${date}_${order.userEmail}`;
       if (!groups[key]) {
         groups[key] = [];
       }
@@ -132,7 +132,6 @@ const AdminOrderHistory = () => {
           {groupOrdersBySession(orders).map((orderGroup, groupIndex) => {
             const firstOrder = orderGroup[0];
             const totalAmount = orderGroup.reduce((sum, o) => sum + (o.price || 0), 0);
-            const totalWithGST = totalAmount * 1.05;
             
             return (
               <motion.div
@@ -153,7 +152,7 @@ const AdminOrderHistory = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm sm:text-base font-semibold text-red-600">
-                      Total: ₹{totalWithGST.toFixed(2)}
+                      Total: ₹{totalAmount.toFixed(2)}
                     </span>
                     <button
                       onClick={() => handleViewOrderSlip(orderGroup)}
@@ -196,47 +195,9 @@ const AdminOrderHistory = () => {
                     <span className="font-medium">{firstOrder.userName || "Guest"}</span>
                   </div>
                   <span className="hidden sm:inline">|</span>
-                  {firstOrder.isInRestaurant === false ? (
-                    <div className="flex flex-col gap-1">
-                      <span className="text-blue-600 font-medium">🚚 Delivery</span>
-                      {firstOrder.contactNumber && (
-                        <span className="text-xs text-gray-600">📞 {firstOrder.contactNumber}</span>
-                      )}
-                      {firstOrder.deliveryLocation && (
-                        <span className="text-xs text-gray-600">
-                          📍 {firstOrder.deliveryLocation.address 
-                            ? firstOrder.deliveryLocation.address.substring(0, 40) + (firstOrder.deliveryLocation.address.length > 40 ? "..." : "")
-                            : firstOrder.deliveryLocation.latitude && firstOrder.deliveryLocation.longitude
-                            ? `${firstOrder.deliveryLocation.latitude.toFixed(4)}, ${firstOrder.deliveryLocation.longitude.toFixed(4)}`
-                            : "Location not available"}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-green-600 font-medium">
-                      🍽️ Dine-in - Table: <span className="font-semibold">{firstOrder.tableNumber}</span>
-                    </span>
-                  )}
                   <span className="hidden sm:inline">|</span>
                   <span>
                     Items: <span className="font-medium">{orderGroup.length}</span>
-                  </span>
-                  <span className="hidden sm:inline">|</span>
-                  <span>
-                    Payment:{" "}
-                    <span className={`font-semibold ${
-                      firstOrder.paymentStatus === "Paid" ? "text-green-600" : "text-yellow-600"
-                    }`}>
-                      {firstOrder.paymentStatus === "Paid" ? "✅ Paid" : "💳 Pending"}
-                    </span>
-                  </span>
-                  <span className="hidden sm:inline">|</span>
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                    firstOrder.paymentMethod === "Cash" 
-                      ? "bg-yellow-100 text-yellow-700" 
-                      : "bg-blue-100 text-blue-700"
-                  }`}>
-                    {firstOrder.paymentMethod === "Cash" ? "💵 Cash" : "📱 UPI"}
                   </span>
                 </div>
 
@@ -260,10 +221,7 @@ const AdminOrderHistory = () => {
           setSelectedOrderGroup([]);
         }}
         orders={selectedOrderGroup}
-        totalAmount={selectedOrderGroup.reduce((sum, o) => sum + (o.price || 0), 0) * 1.05}
-        tableNumber={selectedOrderGroup[0]?.tableNumber || 0}
-        selectedChairsCount={1}
-        isInRestaurant={selectedOrderGroup[0]?.isInRestaurant !== false}
+        totalAmount={selectedOrderGroup.reduce((sum, o) => sum + (o.price || 0), 0)}
         userName={selectedOrderGroup[0]?.userName || "Guest User"}
         userEmail={selectedOrderGroup[0]?.userEmail || ""}
         orderDate={selectedOrderGroup[0]?.createdAt || new Date()}

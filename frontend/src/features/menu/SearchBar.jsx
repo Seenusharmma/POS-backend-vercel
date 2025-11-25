@@ -1,19 +1,45 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { IoSearch } from "react-icons/io5";
+import Fuse from "fuse.js";
 
 const SearchBar = ({ searchQuery, setSearchQuery, foods }) => {
   const [suggestions, setSuggestions] = useState([]);
+
+  // Initialize Fuse.js with optimized configuration
+  const fuse = useMemo(() => {
+    if (!foods || foods.length === 0) return null;
+    
+    return new Fuse(foods, {
+      keys: [
+        { name: "name", weight: 0.7 }, // Name is most important
+        { name: "category", weight: 0.2 }, // Category is secondary
+        { name: "type", weight: 0.1 }, // Type is least important
+      ],
+      threshold: 0.4, // 0.0 = perfect match, 1.0 = match anything
+      includeScore: true,
+      minMatchCharLength: 2,
+      ignoreLocation: true, // Search anywhere in the string
+      findAllMatches: true,
+    });
+  }, [foods]);
 
   const handleSearch = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
 
-    if (!query.trim()) return setSuggestions([]);
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
 
-    const matched = foods
-      .filter((f) => f.name.toLowerCase().includes(query.toLowerCase()))
-      .slice(0, 5);
+    if (!fuse) {
+      setSuggestions([]);
+      return;
+    }
 
+    // Use Fuse.js for fuzzy search
+    const results = fuse.search(query, { limit: 5 });
+    const matched = results.map((result) => result.item);
     setSuggestions(matched);
   };
 

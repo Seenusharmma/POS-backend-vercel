@@ -4,11 +4,19 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Redis connection configuration
+const MAX_RETRY_ATTEMPTS = 5; // Stop retrying after 5 attempts
+
 const redisConfig = {
   host: process.env.REDIS_HOST || "localhost",
   port: process.env.REDIS_PORT || 6379,
   password: process.env.REDIS_PASSWORD || undefined,
   retryStrategy: (times) => {
+    // Stop retrying after MAX_RETRY_ATTEMPTS
+    if (times > MAX_RETRY_ATTEMPTS) {
+      console.warn(`⚠️ Redis: Max retry attempts (${MAX_RETRY_ATTEMPTS}) reached. Stopping reconnection.`);
+      console.warn("⚠️ App will continue without Redis caching. Please start Redis server to enable caching.");
+      return null; // Return null to stop retrying
+    }
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
@@ -39,16 +47,28 @@ export const connectRedis = async () => {
     });
 
     redisClient.on("error", (err) => {
-      console.error("❌ Redis connection error:", err.message);
+      // Only log non-connection-refused errors to reduce noise
+      const errorMsg = err?.message || err?.toString() || "Unknown error";
+      if (!errorMsg.includes("ECONNREFUSED") && !errorMsg.includes("connect ETIMEDOUT")) {
+        console.error("❌ Redis connection error:", errorMsg);
+      }
       // Don't throw - allow app to continue without Redis
     });
 
     redisClient.on("close", () => {
-      console.warn("⚠️ Redis connection closed");
+      // Only log if not intentionally closed
+      if (redisClient && redisClient.status !== "end") {
+        console.warn("⚠️ Redis connection closed");
+      }
     });
 
-    redisClient.on("reconnecting", () => {
-      console.log("🔄 Redis reconnecting...");
+    let reconnectCount = 0;
+    redisClient.on("reconnecting", (delay) => {
+      reconnectCount++;
+      // Only log first 3 reconnection attempts to reduce spam
+      if (reconnectCount <= 3) {
+        console.log(`🔄 Redis reconnecting... (attempt ${reconnectCount}/${MAX_RETRY_ATTEMPTS})`);
+      }
     });
 
     // Connect to Redis

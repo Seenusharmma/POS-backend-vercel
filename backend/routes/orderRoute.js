@@ -1,3 +1,13 @@
+/**
+ * TABLE OPTIONS CONFIGURATION:
+ * - Total Tables: 40 tables (numbered 1-40)
+ * - Chairs per Table: 4 chairs per table
+ * - Table Numbering: Tables are numbered from 1 to 40
+ * - Chair Indices: Each table has 4 chairs indexed 0-3 (top row: 0,1 | bottom row: 2,3)
+ * - Delivery Orders: Use tableNumber = 0 for delivery/takeaway orders (not dine-in)
+ * - Table Selection: Users can select multiple chairs at the same table
+ * - Availability: Tables are considered booked if they have active orders (status !== "Completed" && status !== "Served")
+ */
 import express from "express";
 import {
   createOrder,
@@ -66,7 +76,7 @@ router.post("/add", async (req, res) => {
       userId,
       userEmail,
       userName,
-      tableNumber: 0, // Virtual/default table
+      tableNumber: 0, // TABLE OPTIONS: Virtual/default table (0 = delivery/takeaway, 1-40 = dine-in tables with 4 chairs each)
       status: "Pending",
       paymentStatus: "Unpaid",
     });

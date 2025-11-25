@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import API_BASE from "../config/api";
 import LogoLoader from "../components/ui/LogoLoader";
 import VegCard from "../features/home/VegCard";
@@ -16,6 +17,7 @@ const Home = () => {
   const { user } = useAppSelector((state) => state.auth);
   const cart = useAppSelector((state) => state.cart.items);
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [foods, setFoods] = useState([]);
   const [vegFoods, setVegFoods] = useState([]);
@@ -69,6 +71,7 @@ const Home = () => {
   const addToCart = async (food) => {
     if (!user || !user.email) {
       toast.error("Please login to add items to cart!");
+      navigate("/login");
       return;
     }
 

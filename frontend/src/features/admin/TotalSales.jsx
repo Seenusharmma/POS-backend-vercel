@@ -81,7 +81,7 @@ const TotalSales = () => {
 
   const getFilteredOrders = () => {
     let filtered = orders.filter(
-      (o) => o.paymentStatus === "Paid" || o.status === "Completed"
+      (o) => o.status === "Completed"
     );
 
     if (dateFilter === "today") {

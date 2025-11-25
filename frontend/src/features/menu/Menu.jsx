@@ -1,31 +1,43 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import axios from "axios";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart, FaArrowUp } from "react-icons/fa";
 import { IoSearch } from "react-icons/io5";
 import toast, { Toaster } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import Fuse from "fuse.js";
 import API_BASE from "../../config/api";
 import LogoLoader from "../../components/ui/LogoLoader";
+import MenuSkeleton from "../../components/ui/MenuSkeleton";
 import { useFoodFilter, useAppSelector, useAppDispatch } from "../../store/hooks";
 import { addToCartAsync } from "../../store/slices/cartSlice";
 import { getSocketConfig, createSocketConnection, isServerlessPlatform } from "../../utils/socketConfig";
 import SizeSelectionModal from "../../components/common/SizeSelectionModal";
+import EnhancedSearchBar from "../../components/search/EnhancedSearchBar";
+import { useDebounce } from "../../hooks/useDebounce";
 
 const Menu = () => {
   const { filterFoods: applyGlobalFilter } = useFoodFilter();
   const { user } = useAppSelector((state) => state.auth);
   const cart = useAppSelector((state) => state.cart.items);
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [foods, setFoods] = useState([]);
   const [filteredFoods, setFilteredFoods] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [showSizeModal, setShowSizeModal] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
   const socketRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [spellSuggestion, setSpellSuggestion] = useState(null);
+  
+  // Debounce search query for faster response (150ms delay)
+  const debouncedQuery = useDebounce(searchQuery, 150);
 
   // 🥗 Fetch foods
   useEffect(() => {
@@ -46,17 +58,136 @@ const Menu = () => {
   // 🏷️ Dynamic categories
   const categories = ["All", ...new Set(foods.map((f) => f.category))];
 
-  // 🧠 Filter Logic (includes global filter)
+  // 🔍 Initialize Fuse.js for fuzzy search - Optimized for speed
+  const fuse = useMemo(() => {
+    if (!foods || foods.length === 0) return null;
+    
+    return new Fuse(foods, {
+      keys: [
+        { name: "name", weight: 0.7 }, // Name is most important
+        { name: "category", weight: 0.2 }, // Category is secondary
+        { name: "type", weight: 0.1 }, // Type is least important
+      ],
+      threshold: 0.4, // 0.0 = perfect match, 1.0 = match anything (lower = stricter)
+      includeScore: true,
+      minMatchCharLength: 2,
+      ignoreLocation: true, // Search anywhere in the string
+      findAllMatches: false, // Set to false for better performance
+      useExtendedSearch: false, // Disable extended search for speed
+      shouldSort: true, // Sort results by relevance
+    });
+  }, [foods]);
+  
+  // Update debounced search query and set searching state
   useEffect(() => {
-    let updated = applyGlobalFilter([...foods]); // Apply global Veg/Non-Veg filter first
-    if (categoryFilter !== "All")
+    if (debouncedQuery.trim() && debouncedQuery !== debouncedSearchQuery) {
+      setIsSearching(true);
+      // Simulate search processing delay for better UX
+      const timer = setTimeout(() => {
+        setDebouncedSearchQuery(debouncedQuery);
+        // Keep searching state for a bit longer to show skeleton
+        setTimeout(() => setIsSearching(false), 100);
+      }, 150);
+      return () => clearTimeout(timer);
+    } else if (!debouncedQuery.trim()) {
+      setDebouncedSearchQuery("");
+      setIsSearching(false);
+    }
+  }, [debouncedQuery, debouncedSearchQuery]);
+  
+  // Set searching state when search query changes (before debounce)
+  useEffect(() => {
+    if (searchQuery.trim() && searchQuery !== debouncedSearchQuery) {
+      setIsSearching(true);
+    } else if (!searchQuery.trim()) {
+      setIsSearching(false);
+    }
+  }, [searchQuery, debouncedSearchQuery]);
+
+  // 🧠 Filter Logic with Fuse.js (includes global filter) - Optimized with debouncing
+  useEffect(() => {
+    // Clear searching state when filtering is complete
+    if (debouncedSearchQuery.trim() && fuse) {
+      setIsSearching(false);
+    }
+    
+    let updated = [];
+    
+    // Use debounced query for actual search to reduce computation
+    const queryToSearch = debouncedSearchQuery.trim();
+    
+    // If there's a search query, search first, then apply filters
+    if (queryToSearch && fuse) {
+      // Fast search with limit for better performance
+      const searchResults = fuse.search(queryToSearch, { limit: 100 });
+      
+      // 🔍 Spell correction detection (only for longer queries to avoid unnecessary computation)
+      if (queryToSearch.length >= 3) {
+        if (searchResults.length > 0) {
+          const bestMatch = searchResults[0];
+          const bestScore = bestMatch.score || 1;
+          
+          // If the best match has a score > 0.3 (meaning it's not a great match)
+          // and the query doesn't exactly match any food name, suggest correction
+          const exactMatch = foods.some(f => 
+            f.name.toLowerCase() === queryToSearch.toLowerCase()
+          );
+          
+          if (bestScore > 0.3 && !exactMatch) {
+            // Suggest the best matching food name
+            setSpellSuggestion(bestMatch.item.name);
+          } else {
+            setSpellSuggestion(null);
+          }
+        } else {
+          // No results found, try a more lenient search for suggestions
+          const lenientFuse = new Fuse(foods, {
+            keys: [{ name: "name", weight: 1 }],
+            threshold: 0.6, // More lenient threshold
+            includeScore: true,
+            minMatchCharLength: 2,
+            ignoreLocation: true,
+            findAllMatches: false, // Performance optimization
+          });
+          
+          const lenientResults = lenientFuse.search(queryToSearch, { limit: 1 });
+          if (lenientResults.length > 0) {
+            setSpellSuggestion(lenientResults[0].item.name);
+          } else {
+            setSpellSuggestion(null);
+          }
+        }
+      } else {
+        setSpellSuggestion(null);
+      }
+      
+      // Get search result items
+      const searchResultItems = searchResults.map((result) => result.item);
+      updated = [...searchResultItems];
+    } else {
+      // No search query, start with all foods
+      updated = [...foods];
+      setSpellSuggestion(null);
+    }
+    
+    // Apply global Veg/Non-Veg filter
+    updated = applyGlobalFilter(updated);
+    
+    // Apply category filter
+    if (categoryFilter !== "All") {
       updated = updated.filter((f) => f.category === categoryFilter);
-    if (searchQuery.trim())
-      updated = updated.filter((f) =>
-        f.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    }
+    
     setFilteredFoods(updated);
-  }, [categoryFilter, searchQuery, foods, applyGlobalFilter]);
+  }, [categoryFilter, debouncedSearchQuery, foods, applyGlobalFilter, fuse]);
+  
+  // Handle spell correction suggestion click
+  const handleSpellCorrection = () => {
+    if (spellSuggestion) {
+      setSearchQuery(spellSuggestion);
+      setSpellSuggestion(null);
+    }
+  };
 
   // Show/hide scroll button based on scroll position
   useEffect(() => {
@@ -158,30 +289,12 @@ const Menu = () => {
       }
     });
 
-    // Listen for payment success - Real-time notification
-    socket.on("paymentSuccess", (orderData) => {
-      if (orderData && (orderData.userEmail === user.email || orderData.userId === user.uid)) {
-        toast.success("💰 Payment Done! Your payment has been confirmed.", {
-          duration: 5000,
-          icon: "✅",
-          style: {
-            background: "#10b981",
-            color: "#fff",
-            fontSize: "16px",
-            fontWeight: "600",
-          },
-          position: "top-center",
-        });
-      }
-    });
-
     return () => {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("connect_error");
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
-      socket.off("paymentSuccess");
     };
   }, [user]);
 
@@ -226,6 +339,7 @@ const Menu = () => {
   const addToCart = async (food) => {
     if (!user || !user.email) {
       toast.error("Please login to add items to cart!");
+      navigate("/login");
       return;
     }
 
@@ -281,7 +395,7 @@ const Menu = () => {
   };
 
 
-  if (loading) return <LogoLoader />;
+  // Don't show full page loader, show skeleton instead
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8f3] to-white pb-24 md:pb-12 pt-16">
@@ -296,56 +410,55 @@ const Menu = () => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4">
           <div className="flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4">
-            {/* Search Bar - Advanced Focus Animation */}
+            {/* Enhanced Search Bar - Swiggy/Zomato Style */}
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full sm:flex-1 max-w-xl order-2 sm:order-1"
+              className="w-full sm:flex-1 max-w-2xl order-2 sm:order-1"
             >
-              <motion.div
-                whileFocus={{ scale: 1.01 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className="relative group"
-              >
+              <EnhancedSearchBar
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                foods={foods}
+                onSearch={(query) => {
+                  // Save to history is handled inside EnhancedSearchBar
+                  setSpellSuggestion(null);
+                }}
+                placeholder="Search for food, dishes or cuisines..."
+              />
+              
+              {/* Spell Correction Suggestion - Show below search bar */}
+              {spellSuggestion && searchQuery.trim() && (
                 <motion.div
-                  animate={{
-                    borderColor: searchQuery ? "#ea580c" : undefined,
-                    backgroundColor: searchQuery ? "#fff7ed" : undefined,
-                  }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="flex items-center bg-gray-50/90 backdrop-blur-sm border-2 rounded-2xl px-4 py-2.5 transition-all duration-300 focus-within:bg-white focus-within:border-orange-500/60 focus-within:shadow-lg focus-within:shadow-orange-500/10"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  className="mt-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 shadow-lg"
                 >
-                  <motion.div
-                    animate={{
-                      color: searchQuery ? "#ea580c" : undefined,
-                      scale: searchQuery ? 1.1 : 1,
-                    }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                  >
-                    <IoSearch className="text-gray-400 text-base mr-2.5 shrink-0" />
-                  </motion.div>
-                  <input
-                    type="text"
-                    placeholder="Search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1 outline-none text-gray-900 text-sm bg-transparent placeholder:text-gray-400 font-light tracking-wide"
-                  />
-                  {searchQuery && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                      onClick={() => setSearchQuery("")}
-                      className="cursor-pointer text-gray-400 hover:text-orange-500 ml-2"
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-blue-600 text-sm font-medium">
+                        Did you mean:
+                      </span>
+                      <button
+                        onClick={handleSpellCorrection}
+                        className="text-blue-700 font-semibold text-sm hover:text-blue-800 underline decoration-2 underline-offset-2"
+                      >
+                        {spellSuggestion}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setSpellSuggestion(null)}
+                      className="text-blue-400 hover:text-blue-600 text-xs"
+                      aria-label="Dismiss suggestion"
                     >
                       ✕
-                    </motion.div>
-                  )}
+                    </button>
+                  </div>
                 </motion.div>
-              </motion.div>
+              )}
             </motion.div>
 
             {/* Category Buttons - Staggered Entrance + Advanced Hover */}
@@ -417,7 +530,11 @@ const Menu = () => {
 
       {/* 🍕 Food Cards Grid */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-7 py-6 sm:py-8 md:py-10">
-        {filteredFoods.length === 0 ? (
+        {loading ? (
+          <MenuSkeleton count={10} />
+        ) : isSearching ? (
+          <MenuSkeleton count={8} />
+        ) : filteredFoods.length === 0 ? (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

@@ -3,6 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes } from "react-icons/fa";
 import TableSelect from "./TableSelect";
 
+/**
+ * TABLE OPTIONS CONFIGURATION:
+ * - Total Tables: 40 tables (numbered 1-40)
+ * - Chairs per Table: 4 chairs per table
+ * - Table Numbering: Tables are numbered from 1 to 40
+ * - Chair Indices: Each table has 4 chairs indexed 0-3 (top row: 0,1 | bottom row: 2,3)
+ * - Delivery Orders: Use tableNumber = 0 for delivery/takeaway orders (not dine-in)
+ * - Table Selection: Users can select multiple chairs at the same table
+ * - Availability: Tables are considered booked if they have active orders (status !== "Completed" && status !== "Served")
+ */
 const TableSelectionModal = ({
   isOpen,
   onClose,

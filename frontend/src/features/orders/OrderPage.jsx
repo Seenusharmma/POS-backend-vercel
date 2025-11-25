@@ -7,16 +7,12 @@ import toast, { Toaster } from "react-hot-toast";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { updateQuantityAsync, removeFromCartAsync, clearCartAsync } from "../../store/slices/cartSlice";
 import { useNavigate } from "react-router-dom";
-import { FaTrashAlt, FaShoppingBag, FaStore, FaHome } from "react-icons/fa";
+import { FaTrashAlt, FaShoppingBag } from "react-icons/fa";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
 import LogoLoader from "../../components/ui/LogoLoader";
-import TableSelectionModal from "./Tables/TableSelectionModal";
 import PaymentModal from "./PaymentModal";
-import LocationTracker from "../../components/location/LocationTracker";
-
-const TOTAL_TABLES = 40;
 
 const OrderPage = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -24,18 +20,9 @@ const OrderPage = () => {
   const cartTotal = useAppSelector((state) => state.cart.total);
   const dispatch = useAppDispatch();
   const [orders, setOrders] = useState([]);
-  const [bookedTables, setBookedTables] = useState([]);
-  const [tableNumber, setTableNumber] = useState("");
-  const [selectedChairsCount, setSelectedChairsCount] = useState(1);
   const [pageLoading, setPageLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showTableModal, setShowTableModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
-  const [isInRestaurant, setIsInRestaurant] = useState(true); // Toggle for Dine-in/Delivery
-  const [contactNumber, setContactNumber] = useState(""); // Contact number for delivery
-  const [deliveryLocation, setDeliveryLocation] = useState(null); // Location object with lat, lng, address or just address for manual
-  const [locationType, setLocationType] = useState("live"); // "live" or "manual"
-  const [manualLocation, setManualLocation] = useState(""); // Manual location address input
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const pollingStopRef = useRef(null);
@@ -66,10 +53,6 @@ const OrderPage = () => {
   const fetchAllOrders = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE}/api/orders`);
-      const booked = res.data
-        .filter((o) => o.status !== "Completed")
-        .map((o) => Number(o.tableNumber));
-      setBookedTables([...new Set(booked)]);
 
       // Filter user orders and exclude completed orders
       const userOrders = res.data.filter(
@@ -159,15 +142,6 @@ const OrderPage = () => {
           }
           return prev;
         });
-        
-        if (newOrder.tableNumber) {
-          setBookedTables((prev) => {
-            if (!prev.includes(Number(newOrder.tableNumber))) {
-              return [...prev, Number(newOrder.tableNumber)];
-            }
-            return prev;
-          });
-        }
       },
       // onStatusChange callback - CRITICAL for real-time status updates
       (updatedOrder, oldOrder) => {
@@ -188,11 +162,6 @@ const OrderPage = () => {
             // ✅ CRITICAL: Handle Completed status - remove from live orders
             if (updatedOrder.status === "Completed") {
               setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
-              if (updatedOrder.tableNumber) {
-                setBookedTables((prev) =>
-                  prev.filter((t) => t !== Number(updatedOrder.tableNumber))
-                );
-              }
               toast.success(
                 `🎉 Order Completed: ${updatedOrder.foodName}. View it in Order History!`,
                 {
@@ -358,15 +327,6 @@ const OrderPage = () => {
           }
           return prev;
         });
-        // Update booked tables
-        if (newOrder.tableNumber) {
-          setBookedTables((prev) => {
-            if (!prev.includes(Number(newOrder.tableNumber))) {
-              return [...prev, Number(newOrder.tableNumber)];
-            }
-            return prev;
-          });
-        }
         toast.success(`📦 Order Placed: ${newOrder.foodName}`, {
           duration: 4000,
           position: "top-center",
@@ -398,13 +358,6 @@ const OrderPage = () => {
       if (updatedOrder.status === "Completed") {
         // Remove from live orders list (will appear in history)
         setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
-        
-        // Update booked tables if order is completed
-        if (updatedOrder.tableNumber) {
-          setBookedTables((prev) =>
-            prev.filter((t) => t !== Number(updatedOrder.tableNumber))
-          );
-        }
         
         // ✅ Show completion notification with history suggestion
         toast.success(
@@ -518,16 +471,12 @@ const OrderPage = () => {
     fetchAllOrders();
   }, [fetchAllOrders]);
 
-  // Handle location selection from map
-  const handleLocationSelect = useCallback((location) => {
-    setDeliveryLocation(location);
-  }, []);
 
   /* ===========================
       🛒 CART LOGIC (Redux + Backend Sync)
   ============================ */
-  // Calculate total with GST (cartTotal is subtotal from Redux)
-  const total = cartTotal + (cartTotal * 0.05);
+  // Calculate total (no GST)
+  const total = cartTotal;
 
   const updateQuantity = async (id, newQty) => {
     if (!user || !user.email) {
@@ -574,38 +523,11 @@ const OrderPage = () => {
   ============================ */
   const handleSubmit = () => {
     if (!user) return toast.error("Please login first!");
-    if (isInRestaurant && !tableNumber) return toast.error("Select a table!");
-    if (!isInRestaurant && !contactNumber) return toast.error("Please enter your contact number!");
-    if (!isInRestaurant && locationType === "live" && !deliveryLocation) {
-      return toast.error("Please allow location access or enter address manually!");
-    }
-    if (!isInRestaurant && locationType === "manual" && !manualLocation.trim()) {
-      return toast.error("Please enter your delivery address!");
-    }
     if (cart.length === 0) return toast.error("Your cart is empty!");
-
-    // Prepare delivery location based on type
-    let finalDeliveryLocation = null;
-    if (!isInRestaurant) {
-      if (locationType === "live" && deliveryLocation) {
-        finalDeliveryLocation = deliveryLocation;
-      } else if (locationType === "manual" && manualLocation.trim()) {
-        finalDeliveryLocation = {
-          address: manualLocation.trim(),
-          latitude: null,
-          longitude: null,
-        };
-      }
-    }
 
     // Store cart data for payment modal
     setPendingCartData({
       cart,
-      tableNumber: isInRestaurant ? tableNumber : 0, // Use 0 for delivery orders
-      selectedChairsCount: isInRestaurant ? selectedChairsCount : 1,
-      isInRestaurant, // Include the toggle state
-      contactNumber: !isInRestaurant ? contactNumber : "", // Include contact number for delivery
-      deliveryLocation: finalDeliveryLocation, // Include location for delivery
       user,
     });
 
@@ -622,8 +544,6 @@ const OrderPage = () => {
         console.error("Error clearing cart:", error);
       }
     }
-    setTableNumber("");
-    setSelectedChairsCount(1);
     setShowPaymentModal(false);
     setPendingCartData(null);
     fetchAllOrders();
@@ -634,10 +554,6 @@ const OrderPage = () => {
       🧭 UI
   ============================ */
   if (pageLoading) return <LogoLoader />;
-
-  const availableTables = Array.from({ length: TOTAL_TABLES }, (_, i) => i + 1).filter(
-    (n) => !bookedTables.includes(n)
-  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8f3] to-white py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6 lg:px-10 mt-10 pb-20">
@@ -726,174 +642,6 @@ const OrderPage = () => {
           <div className="bg-white shadow-lg rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:sticky lg:top-10 h-fit">
             <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Bill Summary</h3>
 
-            {/* Toggle Button for Dine-in/Delivery */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {isInRestaurant ? (
-                    <FaStore className="text-green-600 text-lg" />
-                  ) : (
-                    <FaHome className="text-blue-600 text-lg" />
-                  )}
-                  <span className="text-sm font-medium text-gray-700">
-                    {isInRestaurant ? "Dine-in" : "Delivery"}
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsInRestaurant(!isInRestaurant);
-                    if (!isInRestaurant) {
-                      // When switching to "Dine-in", reset table selection
-                      setTableNumber("");
-                      setSelectedChairsCount(1);
-                      // Clear delivery fields
-                      setContactNumber("");
-                      setDeliveryLocation(null);
-                      setManualLocation("");
-                      setLocationType("live");
-                    } else {
-                      // When switching to "Delivery", clear table
-                      setTableNumber("");
-                    }
-                  }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    isInRestaurant ? "bg-green-600" : "bg-gray-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      isInRestaurant ? "translate-x-6" : "translate-x-1"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {/* Table Selection - Only show when Dine-in */}
-            {isInRestaurant && (
-              <div className="mb-4">
-                <button
-                  onClick={() => setShowTableModal(true)}
-                  className={`w-full py-3 px-4 rounded-full font-semibold text-base sm:text-lg transition-all ${
-                    tableNumber
-                      ? "bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-400 text-yellow-800"
-                      : "bg-yellow-500 hover:bg-yellow-600 text-white shadow-md hover:shadow-lg"
-                  }`}
-                >
-                  {tableNumber ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <span>✅ Table {tableNumber}</span>
-                      {selectedChairsCount > 0 && (
-                        <span className="text-sm">• {selectedChairsCount} seat{selectedChairsCount !== 1 ? "s" : ""}</span>
-                      )}
-                      <span className="text-sm opacity-75">(Click to change)</span>
-                    </span>
-                  ) : (
-                    <span>Select Table & Seats</span>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {/* Delivery Form - Only show when Delivery is selected */}
-            {!isInRestaurant && (
-              <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <FaHome className="text-blue-600" />
-                  Delivery Information
-                </h3>
-                
-                {/* Contact Number Input */}
-                <div className="mb-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
-                    placeholder="Enter your contact number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-
-                {/* Delivery Location - Live or Manual */}
-                <div className="mb-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Delivery Location <span className="text-red-500">*</span>
-                  </label>
-                  
-                  {/* Location Type Selector */}
-                  <div className="flex gap-2 mb-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLocationType("live");
-                        setManualLocation("");
-                      }}
-                      className={`flex-1 px-3 py-2 rounded-lg font-medium transition-colors ${
-                        locationType === "live"
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
-                    >
-                      📍 Live Location
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLocationType("manual");
-                        setDeliveryLocation(null);
-                      }}
-                      className={`flex-1 px-3 py-2 rounded-lg font-medium transition-colors ${
-                        locationType === "manual"
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                      }`}
-                    >
-                      Manual Entry
-                    </button>
-                  </div>
-
-                  {/* Live Location Tracker */}
-                  {locationType === "live" && (
-                    <div>
-                      <LocationTracker
-                        onLocationSelect={handleLocationSelect}
-                        initialLocation={deliveryLocation}
-                      />
-                    </div>
-                  )}
-
-                  {/* Manual Location Entry */}
-                  {locationType === "manual" && (
-                    <div>
-                      <textarea
-                        value={manualLocation}
-                        onChange={(e) => setManualLocation(e.target.value)}
-                        placeholder="Enter your complete delivery address (e.g., House/Building number, Street, Area, City, PIN code)"
-                        rows={4}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        required
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        Please provide a complete address including house number, street, area, and city for accurate delivery.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-between text-gray-700 mb-2 text-sm sm:text-base">
-              <span>Subtotal</span>
-              <span>₹{cartTotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-gray-700 mb-2 text-sm sm:text-base">
-              <span>GST (5%)</span>
-              <span>₹{(cartTotal * 0.05).toFixed(2)}</span>
-            </div>
             <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between font-bold text-gray-800 text-base sm:text-lg">
               <span>Total</span>
               <span>₹{total.toFixed(2)}</span>
@@ -933,15 +681,6 @@ const OrderPage = () => {
                   <p className="text-xs sm:text-sm text-gray-500 capitalize">
                     {order.category} • {order.type}
                   </p>
-                  {order.isInRestaurant === false ? (
-                    <p className="text-xs sm:text-sm text-blue-600 font-medium">
-                      🚚 Delivery
-                    </p>
-                  ) : (
-                    <p className="text-xs sm:text-sm text-gray-500">
-                      🍽️ Dine-in - Table {order.tableNumber}
-                    </p>
-                  )}
                   <div className="mt-2 flex items-center justify-between">
                     <p className="font-medium text-red-600 text-sm sm:text-base">
                       ₹{Number(order.price).toFixed(2)}
@@ -969,21 +708,6 @@ const OrderPage = () => {
                     </span>
                   </p>
 
-                  {order.status === "Completed" && (
-                    <div className="mt-3 sm:mt-4 border-t pt-3 text-center">
-                      {order.paymentStatus === "Paid" ? (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3">
-                          <p className="text-green-600 font-semibold text-sm sm:text-base">
-                            ✅ Payment Success
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="text-yellow-600 font-semibold text-sm sm:text-base">
-                          💳 Payment Pending
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -1001,26 +725,11 @@ const OrderPage = () => {
           }}
           cartData={pendingCartData.cart}
           totalAmount={total}
-          tableNumber={pendingCartData.tableNumber}
-          selectedChairsCount={pendingCartData.selectedChairsCount}
-          isInRestaurant={pendingCartData.isInRestaurant}
-          contactNumber={pendingCartData.contactNumber || ""}
-          deliveryLocation={pendingCartData.deliveryLocation || null}
           user={pendingCartData.user}
           socketRef={socketRef}
           onPaymentComplete={handlePaymentComplete}
         />
       )}
-
-      {/* Table Selection Modal */}
-      <TableSelectionModal
-        isOpen={showTableModal}
-        onClose={() => setShowTableModal(false)}
-        tableNumber={tableNumber}
-        setTableNumber={setTableNumber}
-        availableTables={availableTables}
-        onChairsSelected={setSelectedChairsCount}
-      />
     </div>
   );
 };

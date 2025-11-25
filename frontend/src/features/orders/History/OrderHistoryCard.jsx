@@ -18,13 +18,12 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
 
   const firstOrder = orderGroup[0];
   const totalAmount = orderGroup.reduce((sum, o) => sum + (o.price || 0), 0);
-  const totalWithGST = totalAmount * 1.05;
   const orderDate = new Date(firstOrder.createdAt);
   const orderId = firstOrder._id?.slice(-8).toUpperCase() || "ORDER";
 
   // Handle share
   const handleShare = async () => {
-    const shareText = `Order #${orderId} from FoodFantasy\nTotal: ₹${totalWithGST.toFixed(2)}\nDate: ${orderDate.toLocaleDateString()}`;
+    const shareText = `Order #${orderId} from FoodFantasy\nTotal: ₹${totalAmount.toFixed(2)}\nDate: ${orderDate.toLocaleDateString()}`;
 
     if (navigator.share) {
       try {
@@ -59,12 +58,6 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
     }
   };
 
-  // Get payment status color
-  const getPaymentColor = (status) => {
-    return status === "Paid"
-      ? "bg-green-100 text-green-700"
-      : "bg-yellow-100 text-yellow-700";
-  };
 
   return (
     <motion.div
@@ -100,52 +93,17 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-base sm:text-lg font-bold text-red-600">
-              ₹{totalWithGST.toFixed(2)}
+              ₹{totalAmount.toFixed(2)}
             </span>
           </div>
         </div>
 
         {/* Order Summary */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 mb-3 pb-3 border-b border-gray-200">
-          {firstOrder.isInRestaurant === false ? (
-            <span className="flex items-center gap-1 text-blue-600 font-medium">
-              <FaHome className="text-xs" />
-              Delivery
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-green-600 font-medium">
-              <FaStore className="text-xs" />
-              Dine-in - Table {firstOrder.tableNumber}
-            </span>
-          )}
           <span className="hidden sm:inline text-gray-300">|</span>
           <span>
             {orderGroup.length} item{orderGroup.length > 1 ? "s" : ""}
           </span>
-          <span className="hidden sm:inline text-gray-300">|</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getPaymentColor(
-              firstOrder.paymentStatus
-            )}`}
-          >
-            {firstOrder.paymentStatus === "Paid" ? (
-              <span className="flex items-center gap-1">
-                <FaCheckCircle className="text-xs" /> Paid
-              </span>
-            ) : (
-              <span className="flex items-center gap-1">
-                <FaClock className="text-xs" /> Pending
-              </span>
-            )}
-          </span>
-          {firstOrder.paymentMethod && (
-            <>
-              <span className="hidden sm:inline text-gray-300">|</span>
-              <span className="text-xs">
-                {firstOrder.paymentMethod === "Cash" ? "💵 Cash" : "📱 UPI"}
-              </span>
-            </>
-          )}
         </div>
 
         {/* Quick Actions */}
@@ -263,17 +221,9 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
               <div className="bg-white p-3 rounded-lg">
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">Order Summary</h4>
                 <div className="space-y-1 text-xs">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Subtotal:</span>
-                    <span>₹{totalAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>GST (5%):</span>
-                    <span>₹{(totalAmount * 0.05).toFixed(2)}</span>
-                  </div>
                   <div className="flex justify-between font-bold text-gray-800 pt-2 border-t border-gray-200">
                     <span>Total:</span>
-                    <span className="text-red-600">₹{totalWithGST.toFixed(2)}</span>
+                    <span className="text-red-600">₹{totalAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </div>

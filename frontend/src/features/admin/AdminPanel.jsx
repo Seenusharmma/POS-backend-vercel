@@ -109,7 +109,7 @@ const AdminPanel = () => {
     socket.on("newOrderPlaced", (newOrder) => {
       setOrders((prev) => [newOrder, ...prev]);
       toast.success(
-        `🆕 New order from Table ${newOrder.tableNumber}: ${newOrder.foodName}`,
+        `🆕 New order: ${newOrder.foodName}`,
         { position: "top-right" }
       );
     });
@@ -295,7 +295,7 @@ const AdminPanel = () => {
                     )}
                   </div>
                   <p className="font-semibold text-gray-800">
-                    Table {order.tableNumber}: {order.foodName}
+                    {order.foodName}
                     {order.selectedSize && (
                       <span className="ml-2 text-sm text-orange-600 font-semibold">
                         ({order.selectedSize})

@@ -10,7 +10,6 @@ const OrdersSection = ({
   groupedOrders,
   highlightedOrder,
   onStatusChange,
-  onMarkPayment,
   onDeleteOrder,
 }) => {
   if (Object.keys(groupedOrders).length === 0) {
@@ -59,7 +58,6 @@ const OrdersSection = ({
               order={order}
               isHighlighted={highlightedOrder === order._id}
               onStatusChange={onStatusChange}
-              onMarkPayment={onMarkPayment}
               onDeleteOrder={onDeleteOrder}
               userName={userGroup.userName}
               userEmail={userGroup.userEmail}

@@ -238,22 +238,7 @@ const AdminPage = () => {
               newOrders.forEach(newOrder => {
                 if (newOrder && newOrder._id) {
           playNotificationSound();
-                  // Show "Delivery" if isInRestaurant is false, otherwise show "Dine-in" with table number
-                  let orderType = newOrder.isInRestaurant === false 
-                    ? "🚚 Delivery" 
-                    : `🍽️ Dine-in - Table ${newOrder.tableNumber}`;
-                  
-                  // Add delivery info if available
-                  if (newOrder.isInRestaurant === false) {
-                    if (newOrder.contactNumber) {
-                      orderType += ` | 📞 ${newOrder.contactNumber}`;
-                    }
-                    if (newOrder.deliveryLocation?.address) {
-                      orderType += ` | 📍 ${newOrder.deliveryLocation.address.substring(0, 30)}...`;
-                    }
-                  }
-                  
-                  toast.success(`📦 New Order: ${newOrder.foodName} - ${orderType}`, {
+                  toast.success(`📦 New Order: ${newOrder.foodName}`, {
             duration: 5000,
             position: "top-right",
             icon: "🆕",
@@ -301,23 +286,6 @@ const AdminPage = () => {
               }, 0);
         }
 
-            // Check payment status changes
-            if (oldOrder && oldOrder.paymentStatus !== newOrder.paymentStatus && newOrder.paymentStatus === "Paid") {
-              setTimeout(() => {
-            playNotificationSound();
-                toast.success(`💰 Payment Confirmed: ${newOrder.foodName}`, {
-              duration: 4000,
-              position: "top-right",
-              icon: "✅",
-              style: {
-                background: "#10b981",
-                color: "#fff",
-                fontSize: "16px",
-                fontWeight: "600",
-              },
-            });
-              }, 0);
-            }
           });
           
           // ⚡ Always return fresh orders list (ensures UI is always in sync)
@@ -381,13 +349,6 @@ const AdminPage = () => {
           }
         }
 
-        if (updatedOrder.paymentStatus !== oldOrder?.paymentStatus && updatedOrder.paymentStatus === "Paid") {
-          setOrders((prev) =>
-            prev.map((o) =>
-              o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
-            )
-          );
-        }
       },
       pollingInterval
     );
@@ -475,22 +436,7 @@ const AdminPage = () => {
       playNotificationSound();
       
       // Show notification toast
-      // Show "Delivery" if isInRestaurant is false, otherwise show "Dine-in" with table number
-      let orderType = newOrder.isInRestaurant === false 
-        ? "🚚 Delivery" 
-        : `🍽️ Dine-in - Table ${newOrder.tableNumber}`;
-      
-      // Add delivery info if available
-      if (newOrder.isInRestaurant === false) {
-        if (newOrder.contactNumber) {
-          orderType += ` | 📞 ${newOrder.contactNumber}`;
-        }
-        if (newOrder.deliveryLocation?.address) {
-          orderType += ` | 📍 ${newOrder.deliveryLocation.address.substring(0, 30)}...`;
-        }
-      }
-      
-      toast.success(`📦 New Order: ${newOrder.foodName} - ${orderType}`, {
+      toast.success(`📦 New Order: ${newOrder.foodName}`, {
         duration: 5000,
         position: "top-right",
         icon: "🆕",
@@ -581,34 +527,6 @@ const AdminPage = () => {
       // This prevents duplicate notifications
     });
 
-    socket.on("paymentSuccess", (orderData) => {
-      
-      // 🔊 Play notification sound for payment
-      playNotificationSound();
-      
-      // Show notification toast
-      toast.success(`💰 Payment Confirmed: ${orderData.foodName}`, {
-        duration: 4000,
-        position: "top-right",
-        icon: "✅",
-        style: {
-          background: "#10b981",
-          color: "#fff",
-          fontSize: "16px",
-          fontWeight: "600",
-        },
-      });
-      
-      // Update order payment status
-      setOrders((prev) =>
-        prev.map((o) =>
-          o._id === orderData._id ? { ...o, paymentStatus: "Paid", paymentMethod: orderData.paymentMethod || "UPI" } : o
-        )
-      );
-      
-      // Don't call getAllData() here - state is already updated above
-      // This prevents duplicate notifications
-    });
 
     socket.on("foodUpdated", (updatedFood) => {
       // ✅ Only show notification if status actually changed (prevents duplicate from own actions)
@@ -695,7 +613,6 @@ const AdminPage = () => {
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
       socket.off("orderDeleted");
-      socket.off("paymentSuccess");
       socket.off("foodUpdated");
       socket.off("newFoodAdded");
       socket.off("foodDeleted");
@@ -1006,23 +923,6 @@ const AdminPage = () => {
     }
   };
 
-  const markPaymentSuccess = async (id) => {
-    try {
-      const res = await axios.put(`${API_BASE}/api/orders/${id}`, {
-        paymentStatus: "Paid",
-      });
-      
-      // Socket event is already emitted by backend in updateOrderStatus
-      // No need to emit again from frontend
-      
-      toast.success("💰 Payment Successful!");
-      getAllData();
-    } catch (error) {
-      console.error("Error marking payment:", error);
-      const errorMessage = error.response?.data?.message || error.message || "Failed to mark payment successful";
-      toast.error(errorMessage);
-    }
-  };
 
   const deleteOrder = async (id) => {
     // Find the order to show details in confirmation
@@ -1105,7 +1005,6 @@ const AdminPage = () => {
             groupedOrders={groupedOrders}
             highlightedOrder={highlightedOrder}
             onStatusChange={updateStatus}
-            onMarkPayment={markPaymentSuccess}
             onDeleteOrder={deleteOrder}
           />
         )}

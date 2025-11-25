@@ -5,25 +5,37 @@ import { FaChair, FaCheckCircle } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import API_BASE from "../../../config/api";
 
+/**
+ * TABLE OPTIONS CONFIGURATION:
+ * - Total Tables: 40 tables (numbered 1-40)
+ * - Chairs per Table: 4 chairs per table
+ * - Table Numbering: Tables are numbered from 1 to 40
+ * - Chair Indices: Each table has 4 chairs indexed 0-3 (top row: 0,1 | bottom row: 2,3)
+ * - Delivery Orders: Use tableNumber = 0 for delivery/takeaway orders (not dine-in)
+ * - Table Selection: Users can select multiple chairs at the same table
+ * - Availability: Tables are considered booked if they have active orders (status !== "Completed" && status !== "Served")
+ */
 const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSelected, compact = false }) => {
   const [tables, setTables] = useState([]);
   const [selectedChairs, setSelectedChairs] = useState({}); // { tableNumber: [chairNumbers] }
   const [loading, setLoading] = useState(true);
   const [showLegend, setShowLegend] = useState(true);
 
-  // Fetch table availability from orders
+  // TABLE OPTIONS: Fetch table availability from orders (40 tables, 4 chairs each)
   useEffect(() => {
     const fetchTableAvailability = async () => {
       try {
         const res = await axios.get(`${API_BASE}/api/orders`);
+        // TABLE OPTIONS: Filter active orders (tables 1-40, delivery uses 0)
         const activeOrders = res.data.filter(
           (o) => o.status !== "Completed" && o.status !== "Served"
         );
 
-        // Group by table and calculate booked chairs
+        // TABLE OPTIONS: Group by table and calculate booked chairs (tables 1-40, chairs 0-3)
         // Count chairs booked per table from active orders
         const tableBookings = {};
         activeOrders.forEach((order) => {
+          // TABLE OPTIONS: Process table number (1-40 for dine-in, 0 for delivery)
           const tableNum = order.tableNumber;
           if (!tableBookings[tableNum]) {
             tableBookings[tableNum] = {
@@ -31,30 +43,33 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
               users: new Set(),
             };
           }
-          // Track unique users and total chairs
+          // TABLE OPTIONS: Track unique users and total chairs (max 4 chairs per table)
           const userKey = order.userEmail || order.userId || "unknown";
           tableBookings[tableNum].users.add(userKey);
-          // Each order represents at least 1 chair (default)
+          // TABLE OPTIONS: Each order represents at least 1 chair (default, max 4 per table)
           tableBookings[tableNum].totalChairsBooked += order.chairsBooked || 1;
         });
 
-        // Convert to chair indices (simple approach: first N chairs are booked)
+        // TABLE OPTIONS: Convert to chair indices (simple approach: first N chairs are booked)
+        // Tables 1-40, chairs indexed 0-3 (max 4 chairs per table)
         Object.keys(tableBookings).forEach((tableNum) => {
           const booking = tableBookings[tableNum];
+          // TABLE OPTIONS: Maximum 4 chairs per table (chairs are indexed 0-3)
           const bookedCount = Math.min(booking.totalChairsBooked || booking.users.size || 0, 4);
           booking.chairIndices = Array.from({ length: bookedCount }, (_, i) => i);
         });
 
-        // Create table data with 4 chairs each
+        // TABLE OPTIONS: Create table data with 4 chairs each
+        // Total of 40 tables (numbered 1-40), each with 4 chairs (indices 0-3)
         const tablesData = Array.from({ length: 40 }, (_, i) => {
           const tableNum = i + 1;
           const booking = tableBookings[tableNum];
           const bookedIndices = booking?.chairIndices || [];
-          return {
+            return {
             tableNumber: tableNum,
-            totalChairs: 4,
+            totalChairs: 4, // TABLE OPTIONS: Each table has exactly 4 chairs
             bookedChairs: bookedIndices.length,
-            availableChairs: 4 - bookedIndices.length,
+            availableChairs: 4 - bookedIndices.length, // TABLE OPTIONS: Available chairs = 4 - booked chairs
             bookedChairIndices: bookedIndices,
           };
         });
@@ -72,16 +87,17 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
     return () => clearInterval(interval);
   }, []);
 
+  // TABLE OPTIONS: Handle chair selection (chairs 0-3 per table, tables 1-40)
   const handleChairClick = (tableNum, chairIndex) => {
     const table = tables.find((t) => t.tableNumber === tableNum);
     if (!table) return;
 
-    // Check if chair is already booked
+    // TABLE OPTIONS: Check if chair is already booked (chair indices 0-3)
     if (table.bookedChairIndices.includes(chairIndex)) {
       return; // Can't select booked chair
     }
 
-    // Toggle chair selection - allow multiple chairs at same table
+    // TABLE OPTIONS: Toggle chair selection - allow multiple chairs at same table (max 4 chairs per table)
     setSelectedChairs((prev) => {
       const tableChairs = prev[tableNum] || [];
       const isSelected = tableChairs.includes(chairIndex);
@@ -120,16 +136,17 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
     setTableNumber("");
   };
 
+  // TABLE OPTIONS: Get chair state (available/selected/booked) for chairs 0-3 at tables 1-40
   const getChairState = (tableNum, chairIndex) => {
     const table = tables.find((t) => t.tableNumber === tableNum);
     if (!table) return "available";
 
-    // Check if booked
+    // TABLE OPTIONS: Check if chair is booked (chair indices 0-3)
     if (table.bookedChairIndices.includes(chairIndex)) {
       return "booked";
     }
 
-    // Check if selected
+    // TABLE OPTIONS: Check if chair is selected by user
     const selected = selectedChairs[tableNum] || [];
     if (selected.includes(chairIndex)) {
       return "selected";
@@ -138,6 +155,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
     return "available";
   };
 
+  // TABLE OPTIONS: Get count of selected chairs (1-4) for the current table (1-40)
   const getSelectedChairsCount = () => {
     if (!tableNumber) return 0;
     return selectedChairs[Number(tableNumber)]?.length || 0;
@@ -280,7 +298,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
 
                 {/* Chairs arranged around table (like cinema seats) */}
                 <div className={`${compact ? 'space-y-0.5 sm:space-y-1' : 'space-y-1 sm:space-y-1.5 md:space-y-2 lg:space-y-2.5 xl:space-y-3'}`}>
-                  {/* Top row - 2 chairs */}
+                  {/* TABLE OPTIONS: Top row - 2 chairs (indices 0 and 1) */}
                   <div className={`flex justify-center ${compact ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5 xl:gap-3'}`}>
                     {[0, 1].map((chairIndex) => {
                       const state = getChairState(table.tableNumber, chairIndex);
@@ -334,7 +352,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
                     )}
                   </div>
 
-                  {/* Bottom row - 2 chairs */}
+                  {/* TABLE OPTIONS: Bottom row - 2 chairs (indices 2 and 3) */}
                   <div className={`flex justify-center ${compact ? 'gap-0.5 sm:gap-1' : 'gap-1 sm:gap-1.5 md:gap-2 lg:gap-2.5 xl:gap-3'}`}>
                     {[2, 3].map((chairIndex) => {
                       const state = getChairState(table.tableNumber, chairIndex);
@@ -388,6 +406,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
                     </span>
                     <span className={`${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px] md:text-xs'} text-gray-400`}>/</span>
                     <span className={`${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base'} text-gray-600 font-medium`}>4</span>
+                    {/* TABLE OPTIONS: Total chairs per table = 4 */}
                     {!compact && (
                       <span className="text-[8px] sm:text-[9px] md:text-[10px] lg:text-xs text-gray-500 ml-0.5 sm:ml-1">available</span>
                     )}
