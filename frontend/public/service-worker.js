@@ -1,7 +1,8 @@
 // Service Worker for Push Notifications
 // This file must be in the public folder to be accessible at the root
+// Works on both HTTP (localhost) and HTTPS (production/Vercel)
 
-const CACHE_NAME = 'food-app-v1';
+const CACHE_NAME = 'food-app-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -9,40 +10,46 @@ const urlsToCache = [
 
 // Install event - cache resources and skip waiting for immediate activation
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
+  console.log('[SW] Service Worker: Installing...', self.location.origin);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Caching files');
-        return cache.addAll(urlsToCache);
+        console.log('[SW] Service Worker: Caching files');
+        return cache.addAll(urlsToCache).catch((error) => {
+          // Don't fail if some files can't be cached
+          console.warn('[SW] Some files could not be cached:', error);
+        });
       })
       .catch((error) => {
-        console.error('Service Worker: Cache failed', error);
+        console.error('[SW] Service Worker: Cache failed', error);
       })
   );
   // Skip waiting to activate immediately
   self.skipWaiting();
+  console.log('[SW] Service Worker: Installation complete');
 });
 
 // Activate event - clean up old caches and claim clients
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
+  console.log('[SW] Service Worker: Activating...');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Deleting old cache', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
+    Promise.all([
+      // Clean up old caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log('[SW] Service Worker: Deleting old cache', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
       // Claim all clients immediately
-      return self.clients.claim();
-    })
+      self.clients.claim()
+    ])
   );
-  console.log('Service Worker: Activated');
+  console.log('[SW] Service Worker: Activated and ready');
 });
 
 // Push event - handle incoming push notifications

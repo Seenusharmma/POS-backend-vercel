@@ -119,6 +119,7 @@ const TestPushNotification = () => {
 
     setLoading(true);
     try {
+      console.log('Testing push notification with API_BASE:', API_BASE);
       const response = await fetch(`${API_BASE}/api/push/send`, {
         method: 'POST',
         headers: {
@@ -127,7 +128,7 @@ const TestPushNotification = () => {
         body: JSON.stringify({
           userEmail: user.email,
           title: '🧪 Test Push Notification',
-          body: 'This is a test push notification from localhost!',
+          body: 'This is a test push notification!',
           icon: '/favicon.ico',
           tag: 'test-push',
           data: { test: true, timestamp: Date.now() }
@@ -135,12 +136,16 @@ const TestPushNotification = () => {
       });
 
       if (response.ok) {
+        const result = await response.json();
         toast.success('✅ Push notification sent!');
+        console.log('Push notification result:', result);
       } else {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Push notification failed:', error);
         toast.error(`Failed: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
+      console.error('Error sending push notification:', error);
       toast.error(`Error: ${error.message}`);
     } finally {
       setLoading(false);

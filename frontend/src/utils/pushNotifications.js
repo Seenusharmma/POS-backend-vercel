@@ -42,25 +42,47 @@ export const registerServiceWorker = async () => {
   }
 
   try {
+    // Check if we're on HTTPS or localhost (required for service workers)
+    const isSecure = window.location.protocol === 'https:' || 
+                     window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1';
+    
+    if (!isSecure) {
+      console.warn('Service workers require HTTPS (or localhost)');
+      return null;
+    }
+
     // Check if service worker is already registered
     const existingRegistration = await navigator.serviceWorker.getRegistration();
     if (existingRegistration) {
-      console.log('Service worker already registered:', existingRegistration);
+      console.log('Service worker already registered, updating...');
+      // Update existing service worker
+      try {
+        await existingRegistration.update();
+      } catch (updateError) {
+        console.log('Service worker update check:', updateError.message);
+      }
       // Wait for service worker to be ready
-      await existingRegistration.update();
+      await navigator.serviceWorker.ready;
       return existingRegistration;
     }
 
     // Register new service worker
+    console.log('Registering new service worker...');
     const registration = await navigator.serviceWorker.register('/service-worker.js', {
       scope: '/',
       updateViaCache: 'none' // Always check for updates
     });
     
-    console.log('Service worker registered:', registration);
+    console.log('Service worker registered:', registration.scope);
     
-    // Wait for service worker to be ready
-    await navigator.serviceWorker.ready;
+    // Wait for service worker to be ready (with timeout)
+    const readyPromise = navigator.serviceWorker.ready;
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Service worker ready timeout')), 10000)
+    );
+    
+    await Promise.race([readyPromise, timeoutPromise]);
     console.log('Service worker is ready');
     
     return registration;
@@ -243,8 +265,9 @@ export const initializePushNotifications = async (vapidPublicKey, userEmail) => 
       return { success: false, reason: 'invalid_subscription_data' };
     }
 
-    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
-    console.log('Saving subscription to backend...');
+    // Import API_BASE from centralized config
+    const API_BASE = (await import('../services/api.js')).default;
+    console.log('Saving subscription to backend:', API_BASE);
     
     const response = await fetch(`${API_BASE}/api/push/subscribe`, {
       method: 'POST',

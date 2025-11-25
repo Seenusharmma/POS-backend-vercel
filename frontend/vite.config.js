@@ -20,5 +20,13 @@ export default defineConfig({
         warn(warning);
       }
     }
+  },
+  // Ensure service worker is served correctly
+  publicDir: 'public',
+  server: {
+    // Allow service worker to work in development
+    headers: {
+      'Service-Worker-Allowed': '/'
+    }
   }
 })

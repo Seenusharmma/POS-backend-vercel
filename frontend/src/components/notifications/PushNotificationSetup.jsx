@@ -21,10 +21,19 @@ const PushNotificationSetup = () => {
   useEffect(() => {
     const fetchVapidKey = async () => {
       try {
+        console.log('Fetching VAPID key from:', API_BASE);
         const response = await fetch(`${API_BASE}/api/push/vapid-key`);
         if (response.ok) {
           const data = await response.json();
-          setVapidKey(data.publicKey);
+          if (data.publicKey) {
+            setVapidKey(data.publicKey);
+            console.log('✅ VAPID key fetched successfully');
+          } else {
+            console.error('VAPID key not found in response');
+          }
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Failed to fetch VAPID key:', response.status, errorData);
         }
       } catch (error) {
         console.error('Error fetching VAPID key:', error);
