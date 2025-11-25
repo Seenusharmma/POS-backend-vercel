@@ -7,32 +7,47 @@ const urlsToCache = [
   '/index.html',
 ];
 
-// Install event - cache resources
+// Install event - cache resources and skip waiting for immediate activation
 self.addEventListener('install', (event) => {
+  console.log('Service Worker: Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+      .then((cache) => {
+        console.log('Service Worker: Caching files');
+        return cache.addAll(urlsToCache);
+      })
+      .catch((error) => {
+        console.error('Service Worker: Cache failed', error);
+      })
   );
+  // Skip waiting to activate immediately
+  self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and claim clients
 self.addEventListener('activate', (event) => {
+  console.log('Service Worker: Activating...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Deleting old cache', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
+    }).then(() => {
+      // Claim all clients immediately
+      return self.clients.claim();
     })
   );
+  console.log('Service Worker: Activated');
 });
 
 // Push event - handle incoming push notifications
 self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
+  console.log('Service Worker: Push notification received', event);
   
   let notificationData = {
     title: 'Food App',
@@ -48,6 +63,7 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       const data = event.data.json();
+      console.log('Service Worker: Parsed push data', data);
       notificationData = {
         title: data.title || notificationData.title,
         body: data.body || notificationData.body,
@@ -60,8 +76,12 @@ self.addEventListener('push', (event) => {
       };
     } catch (e) {
       // If not JSON, try text
-      notificationData.body = event.data.text() || notificationData.body;
+      console.log('Service Worker: Push data is not JSON, using text');
+      const textData = event.data.text();
+      notificationData.body = textData || notificationData.body;
     }
+  } else {
+    console.log('Service Worker: No push data received');
   }
 
   // Show notification
@@ -76,6 +96,10 @@ self.addEventListener('push', (event) => {
       actions: notificationData.actions,
       vibrate: [200, 100, 200],
       timestamp: Date.now()
+    }).then(() => {
+      console.log('Service Worker: Notification shown successfully');
+    }).catch((error) => {
+      console.error('Service Worker: Error showing notification', error);
     })
   );
 });

@@ -65,7 +65,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
           const tableNum = i + 1;
           const booking = tableBookings[tableNum];
           const bookedIndices = booking?.chairIndices || [];
-            return {
+          return {
             tableNumber: tableNum,
             totalChairs: 4, // TABLE OPTIONS: Each table has exactly 4 chairs
             bookedChairs: bookedIndices.length,

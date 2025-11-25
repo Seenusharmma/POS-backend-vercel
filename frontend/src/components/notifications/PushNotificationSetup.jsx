@@ -46,9 +46,31 @@ const PushNotificationSetup = () => {
       return;
     }
 
+    // Check if permission is already granted (avoid re-initialization)
+    const currentPermission = getNotificationPermission();
+    if (currentPermission === 'granted') {
+      // Check if service worker is already registered
+      navigator.serviceWorker.getRegistration().then(registration => {
+        if (registration) {
+          // Check if already subscribed
+          registration.pushManager.getSubscription().then(subscription => {
+            if (subscription) {
+              console.log('Push notifications already initialized');
+              setIsInitialized(true);
+            }
+          }).catch(() => {
+            // Not subscribed, continue with initialization
+          });
+        }
+      }).catch(() => {
+        // No registration, continue with initialization
+      });
+    }
+
     // Auto-initialize push notifications
     const initPush = async () => {
       try {
+        console.log('Initializing push notifications for:', user.email);
         const result = await initializePushNotifications(vapidKey, user.email);
         if (result.success) {
           setIsInitialized(true);
@@ -56,7 +78,7 @@ const PushNotificationSetup = () => {
         } else {
           // Don't show error for permission_denied (user might deny it)
           if (result.reason !== 'permission_denied') {
-            console.warn('Push notification initialization failed:', result.reason);
+            console.warn('Push notification initialization failed:', result.reason, result.error || '');
           } else {
             console.log('Notification permission not granted by user');
           }
@@ -66,8 +88,8 @@ const PushNotificationSetup = () => {
       }
     };
 
-    // Small delay to ensure everything is ready
-    const timer = setTimeout(initPush, 1000);
+    // Small delay to ensure everything is ready (page load, DOM, etc.)
+    const timer = setTimeout(initPush, 1500);
     return () => clearTimeout(timer);
   }, [user, vapidKey, isInitialized]);
 

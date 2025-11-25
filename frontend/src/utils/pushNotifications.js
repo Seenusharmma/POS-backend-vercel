@@ -42,10 +42,27 @@ export const registerServiceWorker = async () => {
   }
 
   try {
+    // Check if service worker is already registered
+    const existingRegistration = await navigator.serviceWorker.getRegistration();
+    if (existingRegistration) {
+      console.log('Service worker already registered:', existingRegistration);
+      // Wait for service worker to be ready
+      await existingRegistration.update();
+      return existingRegistration;
+    }
+
+    // Register new service worker
     const registration = await navigator.serviceWorker.register('/service-worker.js', {
-      scope: '/'
+      scope: '/',
+      updateViaCache: 'none' // Always check for updates
     });
+    
     console.log('Service worker registered:', registration);
+    
+    // Wait for service worker to be ready
+    await navigator.serviceWorker.ready;
+    console.log('Service worker is ready');
+    
     return registration;
   } catch (error) {
     console.error('Service worker registration failed:', error);
@@ -54,26 +71,47 @@ export const registerServiceWorker = async () => {
 };
 
 // Subscribe to push notifications
-export const subscribeToPush = async (vapidPublicKey) => {
+export const subscribeToPush = async (vapidPublicKey, registration = null) => {
   try {
-    // Register service worker if not already registered
-    const registration = await navigator.serviceWorker.ready;
+    // Get service worker registration - use provided or wait for ready
+    let serviceWorkerRegistration = registration;
+    
+    if (!serviceWorkerRegistration) {
+      // Wait for service worker to be ready
+      serviceWorkerRegistration = await navigator.serviceWorker.ready;
+    }
+    
+    if (!serviceWorkerRegistration || !serviceWorkerRegistration.pushManager) {
+      throw new Error('Service worker registration or push manager not available');
+    }
     
     // Check if already subscribed
-    let subscription = await registration.pushManager.getSubscription();
+    let subscription = await serviceWorkerRegistration.pushManager.getSubscription();
     
     if (subscription) {
-      console.log('Already subscribed to push notifications');
-      return subscription;
+      // Check if subscription is still valid (has keys)
+      const subscriptionKeys = subscription.toJSON().keys;
+      if (subscriptionKeys && subscriptionKeys.p256dh && subscriptionKeys.auth) {
+        console.log('Already subscribed to push notifications');
+        return subscription;
+      } else {
+        // Subscription exists but is invalid, unsubscribe first
+        console.log('Invalid subscription found, unsubscribing...');
+        await subscription.unsubscribe();
+        subscription = null;
+      }
     }
 
     // Subscribe to push notifications
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
-    });
+    if (!subscription) {
+      subscription = await serviceWorkerRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+      });
 
-    console.log('Subscribed to push notifications:', subscription);
+      console.log('Subscribed to push notifications:', subscription);
+    }
+    
     return subscription;
   } catch (error) {
     console.error('Error subscribing to push notifications:', error);
@@ -165,27 +203,49 @@ export const initializePushNotifications = async (vapidPublicKey, userEmail) => 
       return { success: false, reason: 'unsupported' };
     }
 
+    // Validate VAPID key
+    if (!vapidPublicKey || typeof vapidPublicKey !== 'string') {
+      console.error('Invalid VAPID public key provided');
+      return { success: false, reason: 'invalid_vapid_key' };
+    }
+
     // Request permission
     const permission = await requestNotificationPermission();
     if (permission !== 'granted') {
+      console.log('Notification permission not granted:', permission);
       return { success: false, reason: 'permission_denied', permission };
     }
 
-    // Register service worker
+    // Register service worker and wait for it to be ready
+    console.log('Registering service worker...');
     const registration = await registerServiceWorker();
     if (!registration) {
+      console.error('Service worker registration failed');
       return { success: false, reason: 'service_worker_failed' };
     }
 
-    // Subscribe to push
-    const subscription = await subscribeToPush(vapidPublicKey);
+    // Ensure service worker is ready before subscribing
+    console.log('Waiting for service worker to be ready...');
+    await navigator.serviceWorker.ready;
+    console.log('Service worker is ready, subscribing to push...');
+
+    // Subscribe to push with the registration
+    const subscription = await subscribeToPush(vapidPublicKey, registration);
     if (!subscription) {
+      console.error('Push subscription failed');
       return { success: false, reason: 'subscription_failed' };
     }
 
     // Send subscription to backend
     const subscriptionData = subscription.toJSON();
+    if (!subscriptionData || !subscriptionData.keys) {
+      console.error('Invalid subscription data');
+      return { success: false, reason: 'invalid_subscription_data' };
+    }
+
     const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+    console.log('Saving subscription to backend...');
+    
     const response = await fetch(`${API_BASE}/api/push/subscribe`, {
       method: 'POST',
       headers: {
@@ -198,14 +258,22 @@ export const initializePushNotifications = async (vapidPublicKey, userEmail) => 
     });
 
     if (!response.ok) {
-      throw new Error('Failed to save subscription');
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Failed to save subscription:', errorData);
+      throw new Error(errorData.error || 'Failed to save subscription');
     }
 
-    console.log('Push notifications initialized successfully');
-    return { success: true, subscription };
+    const result = await response.json();
+    console.log('✅ Push notifications initialized successfully:', result);
+    return { success: true, subscription, result };
   } catch (error) {
     console.error('Error initializing push notifications:', error);
-    return { success: false, reason: 'initialization_failed', error: error.message };
+    return { 
+      success: false, 
+      reason: 'initialization_failed', 
+      error: error.message,
+      details: error 
+    };
   }
 };
 
