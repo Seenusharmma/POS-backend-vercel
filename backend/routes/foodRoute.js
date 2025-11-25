@@ -93,6 +93,15 @@ router.get("/", async (req, res) => {
 ================================ */
 router.get("/:id", async (req, res) => {
   try {
+    // ✅ Validate MongoDB ObjectId format
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid food ID format" 
+      });
+    }
+
     // Ensure database connection (for serverless)
     const { connectDB } = await import("../config/db.js");
     if (mongoose.connection.readyState !== 1) {
@@ -107,12 +116,21 @@ router.get("/:id", async (req, res) => {
       }
     }
 
-    const food = await Food.findById(req.params.id);
+    const food = await Food.findById(id);
     if (!food)
       return res.status(404).json({ success: false, message: "Food not found" });
     res.status(200).json(food);
   } catch (err) {
     console.error("❌ Error fetching single food:", err);
+    
+    // Check if it's an invalid ObjectId CastError
+    if (err.name === "CastError" || err.message.includes("Cast to ObjectId")) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid food ID format",
+        error: process.env.NODE_ENV === "development" ? err.message : undefined
+      });
+    }
     
     // Check if it's a database connection error
     if (err.name === "MongoServerSelectionError" || err.message.includes("connection")) {

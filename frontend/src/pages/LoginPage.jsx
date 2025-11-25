@@ -14,6 +14,10 @@ import { motion } from "framer-motion";
 import LogoLoader from "../components/ui/LogoLoader"; // ✅ Import loader
 import { checkAdminStatus } from "../services/adminApi";
 
+// 🔊 Import sounds
+import errorSound from "../assets/sounds/error.mp3";
+import successSound from "../assets/sounds/success.mp3";
+
 const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [form, setForm] = useState({ email: "", password: "" });
@@ -21,6 +25,17 @@ const LoginPage = () => {
   const [pageLoading, setPageLoading] = useState(true); // ✅ Page loader state
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
+
+  // 🔊 Sound Functions
+  const playErrorSound = () => {
+    const audio = new Audio(errorSound);
+    audio.play();
+  };
+
+  const playSuccessSound = () => {
+    const audio = new Audio(successSound);
+    audio.play();
+  };
 
   // ✅ Show logo loader when page first loads
   useEffect(() => {
@@ -42,8 +57,7 @@ const LoginPage = () => {
           }
         } catch (error) {
           console.error("Error checking admin status:", error);
-          // On error, redirect to home (safer default)
-          navigate("/");
+          navigate("/"); // safer default
         }
       }
     };
@@ -65,10 +79,12 @@ const LoginPage = () => {
     const password = form.password.trim();
 
     if (!email || !password) {
+      playErrorSound(); // 🔊 added
       toast.error("Please enter both email and password");
       return;
     }
     if (!isValidEmail(email)) {
+      playErrorSound(); // 🔊 added
       toast.error("Please enter a valid email address");
       return;
     }
@@ -77,9 +93,11 @@ const LoginPage = () => {
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
+        playSuccessSound(); // 🔊 added
         toast.success("✅ Logged in successfully!");
       } else {
         await createUserWithEmailAndPassword(auth, email, password);
+        playSuccessSound(); // 🔊 added
         toast.success("🎉 Account created successfully!");
       }
 
@@ -93,15 +111,14 @@ const LoginPage = () => {
         }
       } catch (adminError) {
         console.error("Error checking admin status:", adminError);
-        // On error, redirect to home
-        navigate("/");
+        navigate("/"); // On error redirect to home
       }
     } catch (err) {
+      playErrorSound(); // 🔊 added
       const code = err.code || "";
       if (code === "auth/user-not-found") toast.error("User not found.");
       else if (code === "auth/wrong-password") toast.error("Incorrect password.");
-      else if (code === "auth/email-already-in-use")
-        toast.error("Email already registered.");
+      else if (code === "auth/email-already-in-use") toast.error("Email already registered.");
       else toast.error(err.message);
     } finally {
       setLoading(false);
@@ -113,22 +130,17 @@ const LoginPage = () => {
     try {
       const result = await signInWithPopup(auth, provider);
       const email = result.user.email;
+      playSuccessSound(); // 🔊 added
       toast.success("✅ Google Sign-In successful!");
-      
-      // Check admin status and redirect accordingly
-      try {
-        const adminResult = await checkAdminStatus(email);
-        if (adminResult.isAdmin) {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
-      } catch (adminError) {
-        console.error("Error checking admin status:", adminError);
-        // On error, redirect to home
+
+      const adminResult = await checkAdminStatus(email);
+      if (adminResult.isAdmin) {
+        navigate("/admin");
+      } else {
         navigate("/");
       }
     } catch {
+      playErrorSound(); // 🔊 added
       toast.error("Google Sign-In failed. Please try again.");
     }
   };

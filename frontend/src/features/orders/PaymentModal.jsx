@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes } from "react-icons/fa";
 import axios from "axios";
@@ -20,6 +20,26 @@ const PaymentModal = ({
   const [showOrderSlip, setShowOrderSlip] = useState(false);
   const [createdOrders, setCreatedOrders] = useState([]);
   const navigate = useNavigate();
+  const audioRef = useRef(null);
+
+  // 🔊 Play order sound
+  const playOrderSound = () => {
+    try {
+      // Create audio element if it doesn't exist
+      if (!audioRef.current) {
+        audioRef.current = new Audio("/order.mp3");
+        audioRef.current.volume = 0.7; // Set volume to 70%
+      }
+      // Reset and play
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch((error) => {
+        // Suppress autoplay errors (browser may block autoplay)
+        console.warn("Could not play order sound:", error);
+      });
+    } catch (error) {
+      console.warn("Error playing order sound:", error);
+    }
+  };
 
   const handlePlaceOrder = async () => {
     setIsCreatingOrder(true);
@@ -56,6 +76,9 @@ const PaymentModal = ({
       // Socket events are already emitted by backend when orders are created
       // Backend automatically emits "newOrderPlaced" for each order
       // No need to emit from frontend - backend is the single source of truth
+
+      // 🔊 Play order sound
+      playOrderSound();
 
       // Show success toast
       toast.success(`✅ Order successful!`, {
