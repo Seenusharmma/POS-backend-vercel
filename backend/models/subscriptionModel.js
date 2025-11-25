@@ -5,12 +5,24 @@ const subscriptionSchema = new mongoose.Schema(
     userEmail: {
       type: String,
       required: true,
-      unique: true,
       index: true,
     },
+    // Web Push subscription (for web-push library)
     subscription: {
       type: Object,
-      required: true,
+      required: false,
+    },
+    // Firebase Cloud Messaging token
+    fcmToken: {
+      type: String,
+      required: false,
+      index: true,
+    },
+    // Platform type: 'web-push' or 'fcm'
+    platform: {
+      type: String,
+      enum: ['web-push', 'fcm'],
+      default: 'fcm',
     },
   },
   {
@@ -20,6 +32,10 @@ const subscriptionSchema = new mongoose.Schema(
 
 // Index for faster lookups
 subscriptionSchema.index({ userEmail: 1 });
+subscriptionSchema.index({ fcmToken: 1 });
+
+// Compound index for userEmail and platform
+subscriptionSchema.index({ userEmail: 1, platform: 1 });
 
 const Subscription = mongoose.models.Subscription || mongoose.model("Subscription", subscriptionSchema);
 

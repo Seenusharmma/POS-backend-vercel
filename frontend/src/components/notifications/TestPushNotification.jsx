@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useAppSelector } from '../../store/hooks';
 import { 
-  initializePushNotifications, 
+  initializeFirebasePushNotifications, 
   showLocalNotification,
   getNotificationPermission,
   requestNotificationPermission,
   isNotificationSupported
-} from '../../utils/pushNotifications';
+} from '../../utils/firebasePushNotifications';
 import API_BASE from '../../config/api';
 import toast from 'react-hot-toast';
 
@@ -16,24 +16,7 @@ import toast from 'react-hot-toast';
  */
 const TestPushNotification = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const [vapidKey, setVapidKey] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // Fetch VAPID key
-  React.useEffect(() => {
-    const fetchKey = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/api/push/vapid-key`);
-        if (response.ok) {
-          const data = await response.json();
-          setVapidKey(data.publicKey);
-        }
-      } catch (error) {
-        console.error('Error fetching VAPID key:', error);
-      }
-    };
-    fetchKey();
-  }, []);
 
   // Check browser support
   const checkSupport = () => {
@@ -54,23 +37,18 @@ const TestPushNotification = () => {
     });
   };
 
-  // Request permission and initialize
+  // Request permission and initialize Firebase
   const handleInitialize = async () => {
     if (!user || !user.email) {
       toast.error('Please login first');
       return;
     }
 
-    if (!vapidKey) {
-      toast.error('VAPID key not loaded');
-      return;
-    }
-
     setLoading(true);
     try {
-      const result = await initializePushNotifications(vapidKey, user.email);
+      const result = await initializeFirebasePushNotifications(user.email);
       if (result.success) {
-        toast.success('✅ Push notifications initialized!');
+        toast.success('✅ Firebase push notifications initialized!');
       } else {
         toast.error(`Failed: ${result.reason}`);
       }
@@ -120,7 +98,7 @@ const TestPushNotification = () => {
     setLoading(true);
     try {
       console.log('Testing push notification with API_BASE:', API_BASE);
-      const response = await fetch(`${API_BASE}/api/push/send`, {
+      const response = await fetch(`${API_BASE}/api/push/fcm-send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,7 +156,7 @@ const TestPushNotification = () => {
             <strong>User:</strong> {user?.email || 'Not logged in'}
           </p>
           <p className="text-sm text-gray-600">
-            <strong>VAPID Key:</strong> {vapidKey ? '✅ Loaded' : '❌ Not loaded'}
+            <strong>Platform:</strong> Firebase Cloud Messaging
           </p>
         </div>
 
@@ -193,10 +171,10 @@ const TestPushNotification = () => {
 
           <button
             onClick={handleInitialize}
-            disabled={loading || !user || !vapidKey}
+            disabled={loading || !user}
             className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            {loading ? '⏳ Initializing...' : '🚀 Initialize Push'}
+            {loading ? '⏳ Initializing...' : '🚀 Initialize Firebase Push'}
           </button>
 
           <button
@@ -209,10 +187,10 @@ const TestPushNotification = () => {
 
           <button
             onClick={handleTestPush}
-            disabled={loading || !user || !vapidKey}
+            disabled={loading || !user}
             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            {loading ? '⏳ Sending...' : '📤 Test Push Notification'}
+            {loading ? '⏳ Sending...' : '📤 Test FCM Notification'}
           </button>
         </div>
 

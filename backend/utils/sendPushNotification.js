@@ -1,6 +1,7 @@
 import Subscription from "../models/subscriptionModel.js";
 import webpush from "web-push";
 import dotenv from "dotenv";
+import { sendFCMNotification } from "./firebaseMessaging.js";
 
 dotenv.config();
 
@@ -22,13 +23,35 @@ if (vapidPublicKey && vapidPrivateKey) {
  */
 export const sendPushToUser = async (userEmail, title, body, options = {}) => {
   try {
+    // Try Firebase first (preferred)
+    const fcmSubscription = await Subscription.findOne({ userEmail, platform: 'fcm' });
+    if (fcmSubscription && fcmSubscription.fcmToken) {
+      const result = await sendFCMNotification(
+        fcmSubscription.fcmToken,
+        title,
+        body,
+        options
+      );
+      
+      if (result.success) {
+        return { success: true, method: 'fcm' };
+      }
+      
+      // If FCM fails and token is invalid, remove it
+      if (result.shouldRemove) {
+        await Subscription.deleteOne({ userEmail, platform: 'fcm' });
+        console.log(`🗑️ Removed invalid FCM token for: ${userEmail}`);
+      }
+    }
+
+    // Fallback to web-push if FCM is not available
     if (!vapidPublicKey || !vapidPrivateKey) {
       console.warn("⚠️ VAPID keys not configured. Push notifications disabled.");
       return { success: false, error: "VAPID keys not configured" };
     }
 
-    // Get user's subscription
-    const subscriptionDoc = await Subscription.findOne({ userEmail });
+    // Get user's web-push subscription
+    const subscriptionDoc = await Subscription.findOne({ userEmail, platform: 'web-push' });
     if (!subscriptionDoc) {
       return { success: false, error: "User subscription not found" };
     }
