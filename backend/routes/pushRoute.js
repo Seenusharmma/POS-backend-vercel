@@ -39,18 +39,19 @@ router.post("/subscribe", async (req, res) => {
       return res.status(400).json({ error: "Subscription and userEmail are required" });
     }
 
-    // Save or update subscription
+    // Save or update subscription with platform set to 'web-push'
     await Subscription.findOneAndUpdate(
-      { userEmail },
+      { userEmail, platform: 'web-push' },
       {
         userEmail,
         subscription,
+        platform: 'web-push', // Explicitly set platform
         updatedAt: new Date()
       },
       { upsert: true, new: true }
     );
 
-    console.log(`✅ Push subscription saved for: ${userEmail}`);
+    console.log(`✅ Web Push subscription saved for: ${userEmail}`);
     res.json({ success: true, message: "Subscription saved" });
   } catch (error) {
     console.error("Error saving subscription:", error);

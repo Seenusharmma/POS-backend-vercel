@@ -1,71 +1,90 @@
 import React, { useEffect, useState } from 'react';
 import { useAppSelector } from '../../store/hooks';
-import {
-  initializeFirebasePushNotifications,
-  getNotificationPermission,
-  isNotificationSupported
-} from '../../utils/firebasePushNotifications';
+import { initializePushNotifications } from '../../utils/pushNotifications';
 import toast from 'react-hot-toast';
+import API_BASE from '../../config/api';
 
 /**
  * Push Notification Setup Component
- * Automatically initializes Firebase Cloud Messaging push notifications when user is logged in
+ * Automatically initializes FREE Web Push notifications when user is logged in
+ * Uses browser's native Web Push API - NO Firebase or third-party services required!
  */
 const PushNotificationSetup = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [vapidKey, setVapidKey] = useState(null);
 
-  // Initialize Firebase push notifications when user is logged in
+  // Fetch VAPID public key from backend
   useEffect(() => {
-    if (!user || !user.email || isInitialized) {
+    const fetchVapidKey = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/push/vapid-key`);
+        if (response.ok) {
+          const data = await response.json();
+          setVapidKey(data.publicKey);
+          console.log('✅ VAPID public key fetched');
+        } else {
+          console.warn('⚠️ Failed to fetch VAPID key:', response.statusText);
+        }
+      } catch (error) {
+        console.warn('⚠️ Error fetching VAPID key:', error);
+      }
+    };
+
+    fetchVapidKey();
+  }, []);
+
+  // Initialize Web Push notifications when user is logged in and VAPID key is available
+  useEffect(() => {
+    if (!user || !user.email || !vapidKey || isInitialized) {
       return;
     }
 
     // Check if browser supports notifications
-    if (!isNotificationSupported()) {
-      console.log('Firebase push notifications not supported');
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.log('⚠️ Push notifications not supported in this browser');
       return;
     }
 
-    // Check if permission is already granted (avoid re-initialization)
-    const currentPermission = getNotificationPermission();
-    if (currentPermission === 'granted') {
-      // Check if service worker is already registered
-      navigator.serviceWorker.getRegistration().then(registration => {
-        if (registration) {
-          console.log('Firebase service worker already registered');
-          setIsInitialized(true);
-        }
-      }).catch(() => {
-        // No registration, continue with initialization
-      });
-    }
-
-    // Auto-initialize Firebase push notifications
+    // Auto-initialize Web Push notifications
     const initPush = async () => {
       try {
-        console.log('Initializing Firebase push notifications for:', user.email);
-        const result = await initializeFirebasePushNotifications(user.email);
+        console.log('🔔 Initializing FREE Web Push notifications for:', user.email);
+        const result = await initializePushNotifications(vapidKey, user.email);
+        
         if (result.success) {
           setIsInitialized(true);
-          console.log('✅ Firebase push notifications initialized successfully');
+          console.log('✅ Push notifications enabled successfully!');
+          
+          // Show subtle success toast (only once)
+          toast.success('🔔 Push notifications enabled!', {
+            duration: 3000,
+            position: 'bottom-center',
+            style: {
+              background: '#10b981',
+              color: '#fff',
+              fontSize: '14px',
+            },
+          });
         } else {
-          // Don't show error for permission_denied (user might deny it)
-          if (result.reason !== 'permission_denied') {
-            console.warn('Firebase push notification initialization failed:', result.reason, result.error || '');
+          // Handle different failure reasons
+          if (result.reason === 'permission_denied') {
+            console.log('ℹ️ User denied notification permission');
+          } else if (result.reason === 'unsupported') {
+            console.log('ℹ️ Push notifications not supported');
           } else {
-            console.log('Notification permission not granted by user');
+            console.warn('⚠️ Push notification setup failed:', result.reason, result.error || '');
           }
         }
       } catch (error) {
-        console.error('Error initializing Firebase push notifications:', error);
+        console.error('❌ Error initializing push notifications:', error);
       }
     };
 
     // Small delay to ensure everything is ready (page load, DOM, etc.)
-    const timer = setTimeout(initPush, 1500);
+    const timer = setTimeout(initPush, 2000);
     return () => clearTimeout(timer);
-  }, [user, isInitialized]);
+  }, [user, vapidKey, isInitialized]);
 
   return null; // This component doesn't render anything
 };
