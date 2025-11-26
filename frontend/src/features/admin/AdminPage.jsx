@@ -18,6 +18,7 @@ import {
   OrdersSection,
   FoodListSection,
   AddFoodForm,
+  OffersSection,
 } from "./AdminComponents";
 import AdminManagement from "./AdminComponents/AdminManagement";
 
@@ -1008,45 +1009,35 @@ const AdminPage = () => {
             onDeleteOrder={deleteOrder}
           />
         )}
-
-        {/* 🍽️ Food List Tab */}
-        {/* 📜 Order History Tab */}
-        {activeTab === "history" && <AdminOrderHistory />}
-
         {activeTab === "foods" && (
           <FoodListSection
-            foods={foods}
-            filteredFoods={applyGlobalFilter(foods)}
+            foods={applyGlobalFilter(foods)}
             onEdit={editFood}
             onDelete={deleteFood}
             onToggleAvailability={toggleAvailability}
           />
         )}
-
-        {/* ➕ Add Food Tab */}
         {activeTab === "addFood" && (
           <AddFoodForm
             foodForm={foodForm}
+            handleChange={handleChange}
+            handleImageChange={handleImageChange}
+            handleDragOver={handleDragOver}
+            handleDragLeave={handleDragLeave}
+            handleDrop={handleDrop}
+            handleRemoveImage={handleRemoveImage}
+            onSave={saveFood}
+            onReset={resetForm}
             editMode={editMode}
             preview={preview}
             compressing={compressing}
             compressionInfo={compressionInfo}
             isDragging={isDragging}
-            onFormChange={handleChange}
-            onImageChange={handleImageChange}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onRemoveImage={handleRemoveImage}
-            onSave={saveFood}
-            onReset={resetForm}
           />
         )}
-
-        {/* 💰 Total Sales */}
+        {activeTab === "history" && <AdminOrderHistory />}
         {activeTab === "sales" && <TotalSales />}
-
-        {/* 👥 Admin Management Tab (Super Admin Only) */}
+        {activeTab === "offers" && <OffersSection />}
         {activeTab === "admins" && isSuperAdmin && <AdminManagement />}
       </AnimatePresence>
     </div>

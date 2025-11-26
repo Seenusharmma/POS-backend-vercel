@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaPhone, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import axios from "axios";
+import API_BASE from "../../config/api";
 import Slider1 from "../../assets/Slider!.webp";
 import Slider2 from "../../assets/Slider2.webp";
 import Hero from "../../assets/hero.png";
@@ -9,19 +11,53 @@ import Apple from "../../assets/apple.png";
 const OfferZone = ({ isMobile = false }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [offers, setOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const intervalRef = useRef(null);
 
-  // Slider images
-  const slides = [
+  // Default slider images (fallback if no offers)
+  const defaultSlides = [
     { image: Slider1, title: "Special Combo", discount: "30% OFF" },
     { image: Slider2, title: "Weekend Special", discount: "25% OFF" },
     { image: Hero, title: "Family Pack", discount: "40% OFF" },
     { image: Apple, title: "Fresh Delights", discount: "20% OFF" },
   ];
 
+  // Fetch active offers from API
+  useEffect(() => {
+    const fetchOffers = async () => {
+      try {
+        const res = await axios.get(`${API_BASE}/api/offers/active`);
+        if (res.data && res.data.length > 0) {
+          // Transform offers to match slide format
+          const offerSlides = res.data.map((offer) => ({
+            image: offer.image || Slider1, // Use offer image or fallback
+            title: offer.title,
+            discount: offer.description, // Use description as discount text
+          }));
+          setOffers(offerSlides);
+        } else {
+          // No offers, use default slides
+          setOffers(defaultSlides);
+        }
+      } catch (error) {
+        console.error("Error fetching offers:", error);
+        // On error, use default slides
+        setOffers(defaultSlides);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOffers();
+  }, []);
+
+  // Use offers or default slides
+  const slides = offers.length > 0 ? offers : defaultSlides;
+
   // Auto-play slider
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || loading) return;
 
     intervalRef.current = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -32,7 +68,7 @@ const OfferZone = ({ isMobile = false }) => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPaused, slides.length]);
+  }, [isPaused, slides.length, loading]);
 
   const goToSlide = (index) => {
     setCurrentSlide(index);
@@ -83,6 +119,14 @@ const OfferZone = ({ isMobile = false }) => {
       goToPrevious();
     }
   };
+
+  if (loading) {
+    return (
+      <div className="bg-gradient-to-br from-orange-500 to-orange-600 border border-orange-400/50 rounded-xl sm:rounded-2xl overflow-hidden shadow-md h-[120px] sm:h-[140px] md:h-[160px] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -15,6 +15,7 @@ const AdminTabs = ({ activeTab, onTabChange, isSuperAdmin = false }) => {
     { id: "foods", label: "🍽️ Food List", shortLabel: "🍽️" },
     { id: "addFood", label: "➕ Add Food", shortLabel: "➕" },
     { id: "sales", label: "💰 Total Sales", shortLabel: "💰" },
+    { id: "offers", label: "🎁 Offers", shortLabel: "🎁" },
   ];
 
   // Only show Admins tab for super admin
@@ -51,4 +52,3 @@ const AdminTabs = ({ activeTab, onTabChange, isSuperAdmin = false }) => {
 };
 
 export default AdminTabs;
-
