@@ -174,6 +174,11 @@ const CarouselContainer = ({
       <div
         ref={containerRef}
         className="relative h-full w-full overflow-hidden cursor-grab"
+        style={{ 
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+          perspective: '1000px'
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -184,14 +189,17 @@ const CarouselContainer = ({
       >
         <motion.div
           key={currentIndex}
-          initial={{ opacity: 0, scale: 0.9, x: 50 }}
+          initial={{ opacity: 0, scale: 0.95, x: 30 }}
           animate={{ opacity: 1, scale: 1, x: 0 }}
-          exit={{ opacity: 0, scale: 0.9, x: -50 }}
+          exit={{ opacity: 0, scale: 0.95, x: -30 }}
           transition={{ 
-            duration: 0.5, 
-            ease: [0.25, 0.46, 0.45, 0.94],
-            scale: { duration: 0.4 }
+            duration: 0.35, 
+            ease: [0.16, 1, 0.3, 1],
+            opacity: { duration: 0.25 },
+            scale: { duration: 0.3, ease: [0.16, 1, 0.3, 1] },
+            x: { duration: 0.35, ease: [0.16, 1, 0.3, 1] }
           }}
+          style={{ willChange: 'transform, opacity' }}
           className="w-full h-full"
         >
           {foods[currentIndex] ? (

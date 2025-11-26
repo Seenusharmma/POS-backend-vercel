@@ -161,11 +161,26 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
     return selectedChairs[Number(tableNumber)]?.length || 0;
   };
 
-  // Notify parent component of selected chairs count
+  // Convert chair indices to letters: 0=a, 1=b, 2=c, 3=d
+  const getChairLetters = (indices) => {
+    return indices.map(idx => String.fromCharCode(97 + idx)).join(' '); // 97 is 'a' in ASCII
+  };
+
+  // Notify parent component of selected chairs (both count and indices)
   useEffect(() => {
-    const count = getSelectedChairsCount();
+    if (!tableNumber) {
+      if (onChairsSelected) {
+        onChairsSelected({ count: 1, indices: [] }); // Default to 1 if no table selected
+      }
+      return;
+    }
+    
+    const tableNum = Number(tableNumber);
+    const indices = selectedChairs[tableNum] || [];
+    const count = indices.length || 1;
+    
     if (onChairsSelected) {
-      onChairsSelected(count || 1); // Default to 1 if no chairs selected
+      onChairsSelected({ count, indices, letters: getChairLetters(indices) });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChairs, tableNumber]);
@@ -202,7 +217,10 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
           >
             <FaCheckCircle className="text-red-600 flex-shrink-0 text-lg" />
             <div className="text-sm sm:text-base font-bold text-red-700 flex-1">
-              Table {tableNumber} • {getSelectedChairsCount()} seat{getSelectedChairsCount() !== 1 ? "s" : ""}
+              Table {tableNumber}
+              {selectedChairs[Number(tableNumber)] && selectedChairs[Number(tableNumber)].length > 0
+                ? ` (${getChairLetters(selectedChairs[Number(tableNumber)])})`
+                : ` • ${getSelectedChairsCount()} seat${getSelectedChairsCount() !== 1 ? "s" : ""}`}
             </div>
             <button
               onClick={clearSelection}

@@ -6,13 +6,7 @@ import { useFoodFilter } from "../../store/hooks";
 
 const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick, foods = [], onAddToCart }) => {
   const menuRef = useRef(null);
-  const autoScrollRef = useRef(null);
-  const [isPaused, setIsPaused] = useState(false);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const manualScrollTimeoutRef = useRef(null);
-  const lastScrollTopRef = useRef(0);
-  const isUserScrollingRef = useRef(false);
-  const isAutoScrollingRef = useRef(false);
   const loadingTimeoutRef = useRef(null);
   const [showSizeModal, setShowSizeModal] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
@@ -92,155 +86,14 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
     return '🍽️';
   };
 
-  // ADVANCED INTUITIVE SCROLLING - Auto-scroll with manual scroll support
+  // Reset scroll position when content changes
   useEffect(() => {
     const el = menuRef.current;
     if (!el) return;
-
+    
     // Reset scroll position when content changes
     el.scrollTop = 0;
-    lastScrollTopRef.current = 0;
-    isUserScrollingRef.current = false;
-
-    // Handle manual scroll detection
-    const handleScroll = () => {
-      if (!el) return;
-      
-      // If auto-scrolling, update lastScrollTop but don't mark as user scroll
-      if (isAutoScrollingRef.current) {
-        lastScrollTopRef.current = el.scrollTop;
-        return;
-      }
-      
-      const currentScrollTop = el.scrollTop;
-      const scrollDifference = Math.abs(currentScrollTop - lastScrollTopRef.current);
-      
-      // If scroll difference is significant, user is manually scrolling
-      if (scrollDifference > 1) {
-        isUserScrollingRef.current = true;
-        
-        // Clear existing timeout
-        if (manualScrollTimeoutRef.current) {
-          clearTimeout(manualScrollTimeoutRef.current);
-        }
-        
-        // Resume auto-scroll after user stops scrolling for 2.5 seconds
-        manualScrollTimeoutRef.current = setTimeout(() => {
-          isUserScrollingRef.current = false;
-          lastScrollTopRef.current = currentScrollTop;
-        }, 2500);
-      }
-      
-      lastScrollTopRef.current = currentScrollTop;
-    };
-
-    el.addEventListener('scroll', handleScroll, { passive: true });
-
-    // Small delay to allow DOM to update
-    const timeoutId = setTimeout(() => {
-      if (!el || isPaused) return;
-
-      // Check if content overflows
-      const checkOverflow = () => {
-        if (!el) return false;
-        return el.scrollHeight > el.clientHeight;
-      };
-
-      if (!checkOverflow()) return; // No overflow, no need to scroll
-
-      let scrollDirection = 1; // 1 for down, -1 for up
-      let scrollSpeed = 0.5; // pixels per frame for smooth scrolling
-      let animationFrameId = null;
-      let pauseTimeout = null;
-
-      const smoothScroll = () => {
-        if (!el || isPaused || isUserScrollingRef.current) {
-          // If user is scrolling or paused, wait and check again
-          if (isUserScrollingRef.current) {
-            animationFrameId = requestAnimationFrame(() => {
-              setTimeout(smoothScroll, 100); // Check again after 100ms
-            });
-          }
-          return;
-        }
-
-        const { scrollTop, scrollHeight, clientHeight } = el;
-        const maxScroll = scrollHeight - clientHeight;
-
-        if (maxScroll <= 0) {
-          animationFrameId = null;
-          return; // No scrollable content
-        }
-
-        if (scrollDirection === 1) {
-          // Scrolling down
-          if (scrollTop < maxScroll - 1) {
-            isAutoScrollingRef.current = true;
-            el.scrollTop = Math.min(scrollTop + scrollSpeed, maxScroll);
-            lastScrollTopRef.current = el.scrollTop;
-            animationFrameId = requestAnimationFrame(smoothScroll);
-            // Reset flag after a small delay
-            setTimeout(() => {
-              isAutoScrollingRef.current = false;
-            }, 50);
-          } else {
-            // Reached bottom, pause then scroll up
-            isAutoScrollingRef.current = false;
-            pauseTimeout = setTimeout(() => {
-              scrollDirection = -1;
-              animationFrameId = requestAnimationFrame(smoothScroll);
-            }, 1500);
-          }
-        } else {
-          // Scrolling up
-          if (scrollTop > 1) {
-            isAutoScrollingRef.current = true;
-            el.scrollTop = Math.max(scrollTop - scrollSpeed, 0);
-            lastScrollTopRef.current = el.scrollTop;
-            animationFrameId = requestAnimationFrame(smoothScroll);
-            // Reset flag after a small delay
-            setTimeout(() => {
-              isAutoScrollingRef.current = false;
-            }, 50);
-          } else {
-            // Reached top, pause then scroll down
-            isAutoScrollingRef.current = false;
-            pauseTimeout = setTimeout(() => {
-              scrollDirection = 1;
-              animationFrameId = requestAnimationFrame(smoothScroll);
-            }, 1500);
-          }
-        }
-      };
-
-      // Start smooth scrolling
-      animationFrameId = requestAnimationFrame(smoothScroll);
-
-      // Store cleanup function
-      autoScrollRef.current = () => {
-        if (animationFrameId) {
-          cancelAnimationFrame(animationFrameId);
-          animationFrameId = null;
-        }
-        if (pauseTimeout) {
-          clearTimeout(pauseTimeout);
-          pauseTimeout = null;
-        }
-      };
-    }, 300);
-
-    return () => {
-      el.removeEventListener('scroll', handleScroll);
-      clearTimeout(timeoutId);
-      if (manualScrollTimeoutRef.current) {
-        clearTimeout(manualScrollTimeoutRef.current);
-      }
-      if (autoScrollRef.current) {
-        autoScrollRef.current();
-        autoScrollRef.current = null;
-      }
-    };
-  }, [filteredCategories?.length, selectedCategoryFoods?.length, isPaused, selectedCategory]);
+  }, [filteredCategories?.length, selectedCategoryFoods?.length, selectedCategory]);
 
   // Cleanup loading timeout on unmount
   useEffect(() => {
@@ -401,15 +254,9 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
           </motion.div>
         )}
 
-        {/* CONTENT AREA - Auto-scroll with manual scroll support */}
+        {/* CONTENT AREA - Manual scrolling with smooth behavior */}
         <div
           ref={menuRef}
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-          onTouchStart={() => setIsPaused(true)}
-          onTouchEnd={() => {
-            setTimeout(() => setIsPaused(false), 2000);
-          }}
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden 
                      [&::-webkit-scrollbar]:w-1.5 sm:[&::-webkit-scrollbar]:w-2
                      [&::-webkit-scrollbar-track]:bg-gray-100/50
@@ -419,6 +266,7 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
                      [&::-webkit-scrollbar-thumb]:hover:bg-orange-400/70
                      [&::-webkit-scrollbar-thumb]:active:bg-orange-500/80
                      scroll-smooth relative touch-pan-y"
+                     style={{ scrollBehavior: 'smooth' }}
         >
           <AnimatePresence mode="wait">
             {/* Loading State */}

@@ -93,11 +93,12 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
 
   return (
     <motion.div 
-      className="relative rounded-2xl overflow-hidden h-full shadow-lg hover:shadow-2xl transition-all duration-500 group cursor-pointer"
-      initial={{ opacity: 0, y: 12 }}
+      className="relative rounded-2xl overflow-hidden h-full shadow-lg hover:shadow-2xl transition-all duration-300 group cursor-pointer"
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -6, scale: 1.02 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={{ y: -4, scale: 1.01 }}
+      style={{ willChange: 'transform, opacity' }}
     >
       {/* Full-screen image container */}
       <div className="absolute inset-0 w-full h-full">
@@ -108,13 +109,14 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
         <motion.img
           src={food?.image || "https://via.placeholder.com/400x300"}
           alt={food?.name || "Food item"}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
             imageLoaded ? 'opacity-100' : 'opacity-0'
           }`}
           onLoad={() => setImageLoaded(true)}
           onError={() => setImageLoaded(true)}
-          whileHover={{ scale: 1.08 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          whileHover={{ scale: 1.05 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          style={{ willChange: 'transform' }}
         />
         
         {/* Strong gradient overlay - bottom to top for better text contrast and separation from image */}
@@ -142,9 +144,9 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
         {/* Food name - enhanced typography */}
         <motion.h3 
           className="font-bold text-base sm:text-xl md:text-2xl lg:text-3xl text-white mb-1 sm:mb-2 line-clamp-2 leading-tight drop-shadow-2xl tracking-tight"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ delay: 0.15, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         >
           {food?.name || "Unknown"}
         </motion.h3>
@@ -152,9 +154,9 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
         {/* Category - with icon-like styling */}
         <motion.div 
           className="flex items-center gap-1 sm:gap-1.5 mb-1.5 sm:mb-3"
-          initial={{ opacity: 0, x: -10 }}
+          initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ delay: 0.2, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         >
           <div className="h-px w-5 sm:w-6 bg-white/60" />
           <span className="text-[10px] sm:text-xs md:text-sm text-white/95 capitalize font-medium tracking-wide">
@@ -165,9 +167,9 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
         {/* Advanced bottom section - price and CTA with better layout */}
         <motion.div 
           className="flex items-end justify-between gap-2 sm:gap-3 pt-1"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ delay: 0.25, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         >
           {/* Enhanced price display */}
           <div className="flex flex-col">
@@ -190,10 +192,11 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
           {/* Advanced add to cart button - more intuitive design */}
           <motion.button
             onClick={handleAddToCart}
-            className={`${isAdded ? successColor : buttonColor} text-white px-2.5 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 rounded-lg sm:rounded-xl md:rounded-2xl flex items-center gap-1 sm:gap-1.5 md:gap-2 font-semibold sm:font-bold shadow-xl hover:shadow-2xl transition-all duration-300 relative overflow-hidden min-w-[75px] sm:min-w-[100px] md:min-w-[115px] justify-center group/btn`}
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.94 }}
-            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+            className={`${isAdded ? successColor : buttonColor} text-white px-2.5 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 rounded-lg sm:rounded-xl md:rounded-2xl flex items-center gap-1 sm:gap-1.5 md:gap-2 font-semibold sm:font-bold shadow-xl hover:shadow-2xl transition-all duration-200 relative overflow-hidden min-w-[75px] sm:min-w-[100px] md:min-w-[115px] justify-center group/btn`}
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 600, damping: 35, duration: 0.2 }}
+            style={{ willChange: 'transform' }}
             aria-label={`Add ${food?.name} to cart`}
           >
             {/* Ripple effect on click */}

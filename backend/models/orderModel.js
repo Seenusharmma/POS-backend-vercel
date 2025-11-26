@@ -81,6 +81,28 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    chairsBooked: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 4, // TABLE OPTIONS: Maximum 4 chairs per table
+    },
+    chairIndices: {
+      type: [Number], // Array of chair indices (0-3) for dine-in orders
+      default: [],
+      validate: {
+        validator: function(v) {
+          // TABLE OPTIONS: Each index must be between 0-3 (4 chairs per table)
+          return v.every(idx => idx >= 0 && idx <= 3);
+        },
+        message: 'Chair indices must be between 0 and 3'
+      }
+    },
+    chairLetters: {
+      type: String,
+      trim: true,
+      default: "", // Chair letters (a, b, c, d) for display, space-separated
+    },
     deliveryLocation: {
       latitude: {
         type: Number,

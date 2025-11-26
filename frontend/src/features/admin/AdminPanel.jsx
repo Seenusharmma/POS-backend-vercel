@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import toast, { Toaster } from "react-hot-toast";
+import { FaChair, FaPhone } from "react-icons/fa";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 
@@ -294,6 +295,58 @@ const AdminPanel = () => {
                       </span>
                     )}
                   </div>
+
+                  {/* Table Badge or Phone Number Display */}
+                  {(() => {
+                    const hasTable = order.tableNumber && typeof order.tableNumber === 'number' && order.tableNumber > 0;
+                    const hasContact = order.contactNumber && typeof order.contactNumber === 'string' && order.contactNumber.trim() !== '';
+                    
+                    // Helper function to get all chair letters
+                    const getChairDisplay = () => {
+                      if (order.chairLetters && typeof order.chairLetters === 'string' && order.chairLetters.trim() !== '') {
+                        const letters = order.chairLetters.trim();
+                        if (letters.includes(' ')) {
+                          return letters;
+                        } else if (letters.length > 1) {
+                          return letters.split('').join(' ');
+                        }
+                        return letters;
+                      }
+                      if (order.chairIndices && Array.isArray(order.chairIndices) && order.chairIndices.length > 0) {
+                        const sortedIndices = [...order.chairIndices].sort((a, b) => a - b);
+                        return sortedIndices.map(idx => String.fromCharCode(97 + idx)).join(' ');
+                      }
+                      if (order.chairsBooked > 0) {
+                        return `${order.chairsBooked} seat${order.chairsBooked > 1 ? "s" : ""}`;
+                      }
+                      return '';
+                    };
+                    
+                    const chairDisplay = getChairDisplay();
+                    
+                    if (hasTable) {
+                      return (
+                        <div className="mb-2 inline-flex items-center gap-2 px-3 py-1.5 bg-pink-50 border border-red-300 rounded-lg">
+                          <FaChair className="text-red-600 text-xs sm:text-sm flex-shrink-0" />
+                          <span className="text-xs font-semibold text-red-700">
+                            Table {order.tableNumber}
+                            {chairDisplay ? ` (${chairDisplay})` : ''}
+                          </span>
+                        </div>
+                      );
+                    } else if (hasContact) {
+                      return (
+                        <div className="mb-2 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-300 rounded-lg">
+                          <FaPhone className="text-blue-600 text-xs sm:text-sm flex-shrink-0" />
+                          <span className="text-xs font-semibold text-blue-700">
+                            📞 {order.contactNumber} (Delivery/Parcel)
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
                   <p className="font-semibold text-gray-800">
                     {order.foodName}
                     {order.selectedSize && (

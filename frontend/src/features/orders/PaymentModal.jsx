@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaTimes } from "react-icons/fa";
+import { FaTimes, FaChair } from "react-icons/fa";
 import axios from "axios";
 import API_BASE from "../../config/api";
 import toast from "react-hot-toast";
@@ -14,7 +14,12 @@ const PaymentModal = ({
   totalAmount, 
   user,
   socketRef: parentSocketRef,
-  onPaymentComplete
+  onPaymentComplete,
+  tableNumber: propTableNumber = 0,
+  chairsBooked: propChairsBooked = 0,
+  chairIndices: propChairIndices = [],
+  chairLetters: propChairLetters = "",
+  contactNumber: propContactNumber = ""
 }) => {
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [showOrderSlip, setShowOrderSlip] = useState(false);
@@ -45,11 +50,15 @@ const PaymentModal = ({
     setIsCreatingOrder(true);
     try {
       // Validate and prepare payload before sending
+      const selectedTableNumber = propTableNumber || 0; // Use selected table or 0 for delivery
       const validatedPayload = cartData.map((i) => ({
         foodName: i.name || i.foodName,
         category: i.category || "Uncategorized",
         type: i.type || "Veg",
-        tableNumber: 0, // Default table number
+        tableNumber: selectedTableNumber, // Use selected table number
+        chairsBooked: selectedTableNumber > 0 ? propChairsBooked : 0, // Number of chairs booked (only for dine-in)
+        chairIndices: selectedTableNumber > 0 ? propChairIndices : [], // Chair indices (0-3) for dine-in
+        chairLetters: selectedTableNumber > 0 ? propChairLetters : "", // Chair letters (a, b, c, d) for display
         quantity: Number(i.quantity) || 1,
         price: Number(i.price) * Number(i.quantity) || 0,
         userId: user?.uid || "",
@@ -57,8 +66,8 @@ const PaymentModal = ({
         userName: user?.displayName || "Guest User",
         image: i.image || "",
         selectedSize: i.selectedSize || null,
-        isInRestaurant: true,
-        contactNumber: "",
+        isInRestaurant: selectedTableNumber > 0, // true if table selected, false for delivery
+        contactNumber: propContactNumber || "", // Phone number for parcel/delivery orders
         deliveryLocation: null,
       }));
 
@@ -122,7 +131,6 @@ const PaymentModal = ({
         duration: 5000,
         position: "top-center",
       });
-      setPaymentConfirmed(false);
       setIsCreatingOrder(false);
     }
   };
@@ -153,6 +161,30 @@ const PaymentModal = ({
 
           {/* Content */}
           <div className="p-4 sm:p-6">
+            {/* Table Selection Display */}
+            {propTableNumber > 0 && (
+              <div className="mb-4 p-3 bg-red-50 border-2 border-red-300 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <FaChair className="text-red-600" />
+                  <span className="text-sm font-semibold text-red-700">
+                    Table {propTableNumber}
+                    {propChairLetters ? ` (${propChairLetters})` : ` • ${propChairsBooked} seat${propChairsBooked > 1 ? "s" : ""}`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Phone Number Display for Parcel/Delivery */}
+            {propTableNumber === 0 && propContactNumber && (
+              <div className="mb-4 p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-blue-700">
+                    📞 Contact: {propContactNumber}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Order Summary */}
             <div className="mb-6 bg-gray-50 rounded-lg p-4">
               <h3 className="font-semibold text-gray-700 mb-2">Order Summary</h3>

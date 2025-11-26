@@ -7,12 +7,13 @@ import toast, { Toaster } from "react-hot-toast";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import { updateQuantityAsync, removeFromCartAsync, clearCartAsync } from "../../store/slices/cartSlice";
 import { useNavigate } from "react-router-dom";
-import { FaTrashAlt, FaShoppingBag } from "react-icons/fa";
+import { FaTrashAlt, FaShoppingBag, FaChair } from "react-icons/fa";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
 import LogoLoader from "../../components/ui/LogoLoader";
 import PaymentModal from "./PaymentModal";
+import TableSelectionModal from "./Tables/TableSelectionModal";
 
 const OrderPage = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -23,6 +24,12 @@ const OrderPage = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
+  const [tableNumber, setTableNumber] = useState("");
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [chairsBooked, setChairsBooked] = useState(1);
+  const [chairIndices, setChairIndices] = useState([]);
+  const [chairLetters, setChairLetters] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const pollingStopRef = useRef(null);
@@ -525,10 +532,30 @@ const OrderPage = () => {
     if (!user) return toast.error("Please login first!");
     if (cart.length === 0) return toast.error("Your cart is empty!");
 
-    // Store cart data for payment modal
+    // Validate phone number for parcel/delivery orders
+    if (!tableNumber && !contactNumber.trim()) {
+      toast.error("Please enter your phone number for parcel/delivery orders");
+      return;
+    }
+
+    // Validate phone number format (basic validation)
+    if (!tableNumber && contactNumber.trim()) {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(contactNumber.trim())) {
+        toast.error("Please enter a valid 10-digit phone number");
+        return;
+      }
+    }
+
+    // Store cart data for payment modal (include table selection and phone number)
     setPendingCartData({
       cart,
       user,
+      tableNumber: tableNumber ? Number(tableNumber) : 0,
+      chairsBooked: tableNumber ? chairsBooked : 0,
+      chairIndices: tableNumber ? chairIndices : [],
+      chairLetters: tableNumber ? chairLetters : "",
+      contactNumber: contactNumber.trim(),
     });
 
     // Show payment modal FIRST (before creating orders)
@@ -642,6 +669,75 @@ const OrderPage = () => {
           <div className="bg-white shadow-lg rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:sticky lg:top-10 h-fit">
             <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Bill Summary</h3>
 
+            {/* Table Selection */}
+            <div className="mb-4 pb-4 border-b border-gray-200">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Select Table (Optional)
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowTableModal(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm ${
+                    tableNumber
+                      ? "bg-red-50 border-red-300 text-red-700"
+                      : "bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <FaChair className="text-sm" />
+                  <span className="font-medium">
+                    {tableNumber 
+                      ? `Table ${tableNumber}${chairLetters ? ` (${chairLetters})` : ` (${chairsBooked} seat${chairsBooked > 1 ? "s" : ""})`}` 
+                      : "Select Table"}
+                  </span>
+                </button>
+                {tableNumber && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTableNumber("");
+                      setChairsBooked(1);
+                      setChairIndices([]);
+                      setChairLetters("");
+                    }}
+                    className="px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Clear table selection"
+                  >
+                    <FaTrashAlt className="text-sm" />
+                  </button>
+                )}
+              </div>
+              {!tableNumber && (
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Leave unselected for delivery/takeaway orders
+                </p>
+              )}
+            </div>
+
+            {/* Phone Number Input - Show only for parcel/delivery (when no table selected) */}
+            {!tableNumber && (
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={contactNumber}
+                  onChange={(e) => {
+                    // Only allow numbers and limit to 10 digits
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setContactNumber(value);
+                  }}
+                  placeholder="Enter 10-digit phone number"
+                  className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none transition-colors text-sm"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  📞 Required for parcel/delivery orders
+                </p>
+              </div>
+            )}
+
             <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between font-bold text-gray-800 text-base sm:text-lg">
               <span>Total</span>
               <span>₹{total.toFixed(2)}</span>
@@ -728,8 +824,32 @@ const OrderPage = () => {
           user={pendingCartData.user}
           socketRef={socketRef}
           onPaymentComplete={handlePaymentComplete}
+          tableNumber={pendingCartData.tableNumber}
+          chairsBooked={pendingCartData.chairsBooked}
+          chairIndices={pendingCartData.chairIndices}
+          chairLetters={pendingCartData.chairLetters}
+          contactNumber={pendingCartData.contactNumber}
         />
       )}
+
+      {/* Table Selection Modal */}
+      <TableSelectionModal
+        isOpen={showTableModal}
+        onClose={() => setShowTableModal(false)}
+        tableNumber={tableNumber}
+        setTableNumber={setTableNumber}
+        availableTables={[]}
+        onChairsSelected={(chairData) => {
+          if (chairData && typeof chairData === 'object') {
+            setChairsBooked(chairData.count || 1);
+            setChairIndices(chairData.indices || []);
+            setChairLetters(chairData.letters || "");
+          } else {
+            // Fallback for old format (just count)
+            setChairsBooked(chairData || 1);
+          }
+        }}
+      />
     </div>
   );
 };

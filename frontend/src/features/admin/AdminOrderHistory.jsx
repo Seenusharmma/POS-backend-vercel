@@ -7,7 +7,7 @@ import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import LogoLoader from "../../components/ui/LogoLoader";
 import OrderSlip from "../orders/OrderSlip";
-import { FaReceipt } from "react-icons/fa";
+import { FaReceipt, FaChair, FaPhone } from "react-icons/fa";
 
 const AdminOrderHistory = () => {
   const [orders, setOrders] = useState([]);
@@ -195,11 +195,61 @@ const AdminOrderHistory = () => {
                     <span className="font-medium">{firstOrder.userName || "Guest"}</span>
                   </div>
                   <span className="hidden sm:inline">|</span>
-                  <span className="hidden sm:inline">|</span>
                   <span>
                     Items: <span className="font-medium">{orderGroup.length}</span>
                   </span>
                 </div>
+
+                {/* Table Badge or Phone Number Display */}
+                {(() => {
+                  const hasTable = firstOrder.tableNumber && typeof firstOrder.tableNumber === 'number' && firstOrder.tableNumber > 0;
+                  const hasContact = firstOrder.contactNumber && typeof firstOrder.contactNumber === 'string' && firstOrder.contactNumber.trim() !== '';
+                  
+                  // Helper function to get all chair letters
+                  const getChairDisplay = () => {
+                    if (firstOrder.chairLetters && typeof firstOrder.chairLetters === 'string' && firstOrder.chairLetters.trim() !== '') {
+                      const letters = firstOrder.chairLetters.trim();
+                      if (letters.includes(' ')) {
+                        return letters;
+                      } else if (letters.length > 1) {
+                        return letters.split('').join(' ');
+                      }
+                      return letters;
+                    }
+                    if (firstOrder.chairIndices && Array.isArray(firstOrder.chairIndices) && firstOrder.chairIndices.length > 0) {
+                      const sortedIndices = [...firstOrder.chairIndices].sort((a, b) => a - b);
+                      return sortedIndices.map(idx => String.fromCharCode(97 + idx)).join(' ');
+                    }
+                    if (firstOrder.chairsBooked > 0) {
+                      return `${firstOrder.chairsBooked} seat${firstOrder.chairsBooked > 1 ? "s" : ""}`;
+                    }
+                    return '';
+                  };
+                  
+                  const chairDisplay = getChairDisplay();
+                  
+                  if (hasTable) {
+                    return (
+                      <div className="mb-2 inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-pink-50 border border-red-300 rounded-lg">
+                        <FaChair className="text-red-600 text-xs sm:text-sm flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-semibold text-red-700">
+                          Table {firstOrder.tableNumber}
+                          {chairDisplay ? ` (${chairDisplay})` : ''}
+                        </span>
+                      </div>
+                    );
+                  } else if (hasContact) {
+                    return (
+                      <div className="mb-2 inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 border border-blue-300 rounded-lg">
+                        <FaPhone className="text-blue-600 text-xs sm:text-sm flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-semibold text-blue-700">
+                          📞 {firstOrder.contactNumber} (Delivery/Parcel)
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {/* Status Badge */}
                 <div className="mt-2 sm:mt-3">
