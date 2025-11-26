@@ -24,6 +24,7 @@ const OrderPage = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
+  const [orderType, setOrderType] = useState("dine-in"); // 'dine-in' | 'parcel'
   const [tableNumber, setTableNumber] = useState("");
   const [showTableModal, setShowTableModal] = useState(false);
   const [chairsBooked, setChairsBooked] = useState(1);
@@ -529,17 +530,25 @@ const OrderPage = () => {
       🧾 SUBMIT ORDER (Show Payment First)
   ============================ */
   const handleSubmit = () => {
+    const isDineIn = orderType === "dine-in";
+
     if (!user) return toast.error("Please login first!");
     if (cart.length === 0) return toast.error("Your cart is empty!");
 
-    // Validate phone number for parcel/delivery orders
-    if (!tableNumber && !contactNumber.trim()) {
-      toast.error("Please enter your phone number for parcel/delivery orders");
-      return;
-    }
+    // ✅ Dine-in validation: require table selection
+    if (isDineIn) {
+      if (!tableNumber) {
+        toast.error("Please select a table for Dine-in orders");
+        return;
+      }
+    } else {
+      // ✅ Parcel / Delivery validation: require phone number
+      if (!contactNumber.trim()) {
+        toast.error("Please enter your phone number for parcel/delivery orders");
+        return;
+      }
 
-    // Validate phone number format (basic validation)
-    if (!tableNumber && contactNumber.trim()) {
+      // Validate phone number format (basic validation)
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(contactNumber.trim())) {
         toast.error("Please enter a valid 10-digit phone number");
@@ -551,11 +560,11 @@ const OrderPage = () => {
     setPendingCartData({
       cart,
       user,
-      tableNumber: tableNumber ? Number(tableNumber) : 0,
-      chairsBooked: tableNumber ? chairsBooked : 0,
-      chairIndices: tableNumber ? chairIndices : [],
-      chairLetters: tableNumber ? chairLetters : "",
-      contactNumber: contactNumber.trim(),
+      tableNumber: isDineIn && tableNumber ? Number(tableNumber) : 0,
+      chairsBooked: isDineIn && tableNumber ? chairsBooked : 0,
+      chairIndices: isDineIn && tableNumber ? chairIndices : [],
+      chairLetters: isDineIn && tableNumber ? chairLetters : "",
+      contactNumber: !isDineIn ? contactNumber.trim() : "",
     });
 
     // Show payment modal FIRST (before creating orders)
@@ -669,53 +678,94 @@ const OrderPage = () => {
           <div className="bg-white shadow-lg rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:sticky lg:top-10 h-fit">
             <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Bill Summary</h3>
 
-            {/* Table Selection */}
+            {/* Order Type Selection */}
             <div className="mb-4 pb-4 border-b border-gray-200">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Select Table (Optional)
-              </label>
-              <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-gray-700 mb-2">Order Type</p>
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowTableModal(true)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm ${
-                    tableNumber
-                      ? "bg-red-50 border-red-300 text-red-700"
+                  onClick={() => {
+                    setOrderType("dine-in");
+                    setContactNumber("");
+                  }}
+                  className={`px-3 py-1.5 rounded-full border-2 text-xs sm:text-sm font-semibold transition-all ${
+                    orderType === "dine-in"
+                      ? "bg-red-50 border-red-500 text-red-700 shadow-sm"
                       : "bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100"
                   }`}
                 >
-                  <FaChair className="text-sm" />
-                  <span className="font-medium">
-                    {tableNumber 
-                      ? `Table ${tableNumber}${chairLetters ? ` (${chairLetters})` : ` (${chairsBooked} seat${chairsBooked > 1 ? "s" : ""})`}` 
-                      : "Select Table"}
-                  </span>
+                  Dine-in
                 </button>
-                {tableNumber && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTableNumber("");
-                      setChairsBooked(1);
-                      setChairIndices([]);
-                      setChairLetters("");
-                    }}
-                    className="px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Clear table selection"
-                  >
-                    <FaTrashAlt className="text-sm" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrderType("parcel");
+                    // Clear table selection when switching to parcel
+                    setTableNumber("");
+                    setChairsBooked(1);
+                    setChairIndices([]);
+                    setChairLetters("");
+                  }}
+                  className={`px-3 py-1.5 rounded-full border-2 text-xs sm:text-sm font-semibold transition-all ${
+                    orderType === "parcel"
+                      ? "bg-red-50 border-red-500 text-red-700 shadow-sm"
+                      : "bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  Parcel
+                </button>
               </div>
-              {!tableNumber && (
-                <p className="text-xs text-gray-500 mt-2">
-                  💡 Leave unselected for delivery/takeaway orders
-                </p>
-              )}
             </div>
 
-            {/* Phone Number Input - Show only for parcel/delivery (when no table selected) */}
-            {!tableNumber && (
+            {/* Table Selection - Only for Dine-in */}
+            {orderType === "dine-in" && (
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Select Table
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTableModal(true)}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm ${
+                      tableNumber
+                        ? "bg-red-50 border-red-300 text-red-700"
+                        : "bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    <FaChair className="text-sm" />
+                    <span className="font-medium">
+                      {tableNumber 
+                        ? `Table ${tableNumber}${chairLetters ? ` (${chairLetters})` : ` (${chairsBooked} seat${chairsBooked > 1 ? "s" : ""})`}` 
+                        : "Select Table"}
+                    </span>
+                  </button>
+                  {tableNumber && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTableNumber("");
+                        setChairsBooked(1);
+                        setChairIndices([]);
+                        setChairLetters("");
+                      }}
+                      className="px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Clear table selection"
+                    >
+                      <FaTrashAlt className="text-sm" />
+                    </button>
+                  )}
+                </div>
+                {!tableNumber && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    💡 Table selection is required for Dine-in orders
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Phone Number Input - Only for Parcel/Delivery */}
+            {orderType === "parcel" && (
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Phone Number <span className="text-red-500">*</span>
