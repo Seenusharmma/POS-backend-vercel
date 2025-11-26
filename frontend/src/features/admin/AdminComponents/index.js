@@ -5,4 +5,5 @@ export { default as OrdersSection } from "./OrdersSection";
 export { default as FoodCard } from "./FoodCard";
 export { default as FoodListSection } from "./FoodListSection";
 export { default as AddFoodForm } from "./AddFoodForm";
+export { default as GroupedOrderCard } from "./GroupedOrderCard";
 

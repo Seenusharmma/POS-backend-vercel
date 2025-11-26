@@ -55,6 +55,28 @@ const OrderPage = () => {
     }
   };
 
+  // 🔔 Request Notification Permission
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // 🔔 Helper to show system notification
+  const showSystemNotification = (title, body) => {
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(title, {
+          body,
+          icon: "/pwa-192x192.png", // Standard PWA icon
+          vibrate: [200, 100, 200],
+        });
+      } catch (e) {
+        console.warn("System notification failed:", e);
+      }
+    }
+  };
+
   /* ===========================
       🔌 FETCH & SOCKET SETUP
   ============================ */
@@ -141,6 +163,7 @@ const OrderPage = () => {
             duration: 4000,
             position: "top-center",
           });
+          showSystemNotification("Order Placed 📦", `Your order for ${newOrder.foodName} has been placed!`);
         }
         
         setOrders((prev) => {
@@ -184,6 +207,7 @@ const OrderPage = () => {
                   },
                 }
               );
+              showSystemNotification("Order Completed 🎉", `Your order for ${updatedOrder.foodName} is complete!`);
             } else {
               // ✅ Update order status for non-completed orders
               setOrders((prev) => {
@@ -217,6 +241,10 @@ const OrderPage = () => {
                     fontWeight: "600",
                   },
                 }
+              );
+              showSystemNotification(
+                "Order Update 👨‍🍳", 
+                `${statusMessages[updatedOrder.status] || "Status updated"}: ${updatedOrder.foodName}`
               );
             }
           } else {
@@ -253,6 +281,7 @@ const OrderPage = () => {
               },
               position: 'top-center',
             });
+            showSystemNotification("Payment Confirmed 💰", "Your payment has been successfully confirmed.");
           }
           setOrders((prev) =>
             prev.map((o) =>
@@ -339,6 +368,7 @@ const OrderPage = () => {
           duration: 4000,
           position: "top-center",
         });
+        showSystemNotification("Order Placed 📦", `Your order for ${newOrder.foodName} has been placed!`);
       }
       // Also refresh to ensure consistency
       fetchAllOrders();
@@ -382,6 +412,7 @@ const OrderPage = () => {
             },
           }
         );
+        showSystemNotification("Order Completed 🎉", `Your order for ${updatedOrder.foodName} is complete!`);
       } else {
         // ✅ Update order status for non-completed orders
         setOrders((prev) => {
@@ -420,6 +451,10 @@ const OrderPage = () => {
             },
           }
         );
+        showSystemNotification(
+          "Order Update 👨‍🍳", 
+          `${statusMessages[updatedOrder.status] || "Status updated"}: ${updatedOrder.foodName}`
+        );
       }
     });
     
@@ -444,6 +479,7 @@ const OrderPage = () => {
           },
           position: 'top-center',
         });
+        showSystemNotification("Payment Confirmed 💰", "Your payment has been successfully confirmed.");
       }
       // Also refresh to ensure consistency
       fetchAllOrders();
