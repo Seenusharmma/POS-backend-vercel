@@ -17,7 +17,7 @@ const generateFirebaseServiceWorker = () => {
     projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'YOUR_PROJECT_ID',
     storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'YOUR_STORAGE_BUCKET',
     messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || 'YOUR_MESSAGING_SENDER_ID',
-    appId:'BFxAY87ANeDWT-rcTCFi6whKlC6Z2_14gzTfJj6ZcNEmOsuWwzvZX-yAeehiuVZt39lK3FRfxLB0xZTtrRyYwaU',
+    appId: process.env.VITE_FIREBASE_APP_ID || 'YOUR_APP_ID',
   };
 
   const serviceWorkerContent = `// Firebase Cloud Messaging Service Worker
