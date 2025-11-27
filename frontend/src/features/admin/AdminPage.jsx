@@ -1011,7 +1011,7 @@ const AdminPage = () => {
         )}
         {activeTab === "foods" && (
           <FoodListSection
-            foods={applyGlobalFilter(foods)}
+            filteredFoods={applyGlobalFilter(foods)}
             onEdit={editFood}
             onDelete={deleteFood}
             onToggleAvailability={toggleAvailability}

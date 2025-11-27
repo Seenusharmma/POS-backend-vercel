@@ -16,7 +16,7 @@ import Footer from "./components/common/Footer";
 import TotalSales from "./features/admin/TotalSales";
 import BottomNav from "./components/common/BottomNav";
 import WebUIOverlay from "./components/overlay/WebUIOverlay";
-import PushNotificationSetup from "./components/notifications/PushNotificationSetup";
+
 
 const AppContent = () => {
   const location = useLocation();
@@ -83,7 +83,7 @@ const AppContent = () => {
       {!isLoginPage && <Footer />}
       <BottomNav />
       <WebUIOverlay />
-      <PushNotificationSetup />
+
     </>
   );
 };

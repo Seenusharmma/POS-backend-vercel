@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaUser, FaEnvelope, FaSignOutAlt, FaShoppingBag, FaHistory } from "react-icons/fa";
 import toast from "react-hot-toast";
-import TestPushNotification from "../components/notifications/TestPushNotification";
+
 
 const Profile = () => {
   const dispatch = useAppDispatch();
@@ -126,15 +126,7 @@ const Profile = () => {
           </div>
         </motion.div>
 
-        {/* Test Push Notifications */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="mb-4 sm:mb-6"
-        >
-          <TestPushNotification />
-        </motion.div>
+
 
         {/* Logout Button */}
         <motion.button
