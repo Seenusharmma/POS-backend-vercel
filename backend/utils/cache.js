@@ -1,11 +1,12 @@
 import { getRedisClient, isRedisAvailable } from "../config/redis.js";
 
 // Cache TTL (Time To Live) in seconds
+// ⚡ Optimized for better performance - longer TTL for stable data
 const CACHE_TTL = {
-  FOODS: 300, // 5 minutes
+  FOODS: 1800, // 30 minutes (food menu rarely changes)
   ORDERS: 60, // 1 minute (orders change frequently)
-  CART: 300, // 5 minutes
-  ADMIN: 300, // 5 minutes
+  CART: 600, // 10 minutes (increased from 5)
+  ADMIN: 600, // 10 minutes (increased from 5)
 };
 
 // Cache key prefixes

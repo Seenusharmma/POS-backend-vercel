@@ -52,8 +52,17 @@ export default defineConfig({
     exclude: ['locatorjs'], // Exclude locatorjs to suppress warnings
   },
   build: {
-    // Suppress console warnings in production
+    // ⚡ Performance optimizations for production builds
     rollupOptions: {
+      output: {
+        // Manual chunk splitting for better caching
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'redux-vendor': ['@reduxjs/toolkit', 'react-redux'],
+          'ui-vendor': ['framer-motion', 'react-hot-toast', 'react-icons'],
+          'map-vendor': ['leaflet', 'react-leaflet']
+        }
+      },
       onwarn(warning, warn) {
         // Suppress locatorjs warnings (browser extension)
         if (warning.message && warning.message.includes('locatorjs')) {
@@ -61,7 +70,13 @@ export default defineConfig({
         }
         warn(warning);
       }
-    }
+    },
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
+    // Minification settings
+    minify: 'esbuild', // Faster than terser
+    target: 'es2015',  // Modern browsers support
+    cssCodeSplit: true // Split CSS for better caching
   },
   // Ensure service worker is served correctly
   publicDir: 'public',

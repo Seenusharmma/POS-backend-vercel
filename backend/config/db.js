@@ -39,11 +39,11 @@ export const connectDB = async (retryCount = 0, maxRetries = 3) => {
     mongoose.set("bufferCommands", false); // Disable mongoose buffering globally
     
     // Connection options optimized for serverless (Vercel) with better error handling
-    // Note: retryWrites and w should be in URI, not options
+    // ⚡ Reduced timeouts for faster failure/recovery on serverless
     const options = {
-      serverSelectionTimeoutMS: 30000, // Increased timeout (30s) for better reliability
-      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-      connectTimeoutMS: 30000, // Increased connection timeout (30s)
+      serverSelectionTimeoutMS: 10000, // 10s - faster failure detection for serverless
+      socketTimeoutMS: 20000, // 20s - quicker timeout for inactive sockets
+      connectTimeoutMS: 10000, // 10s - faster connection timeout
       maxPoolSize: 10, // Maintain up to 10 socket connections
       minPoolSize: 1, // Maintain at least 1 socket connection
       // ✅ Add retry options

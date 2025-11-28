@@ -3,6 +3,7 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import compression from "compression"; // ⚡ Response compression for faster transfers
 import { connectDB } from "./config/db.js";
 import { connectRedis } from "./config/redis.js";
 import foodRoutes from "./routes/foodRoute.js";
@@ -137,33 +138,9 @@ if (!isVercel) {
       console.error("💡 The server will still start, but API requests may fail");
     });
 } else {
-  // Vercel: Connection will be established on first request
+  // Vercel: Connection will be established on first request (faster cold starts)
   console.log("⚠️ Running on Vercel - MongoDB connection will be established per request");
-  // Try to establish connection in background (non-blocking)
-  connectDB(0, 2) // Less retries for Vercel (2 instead of 3)
-    .then((result) => {
-      if (result) {
-        console.log("✅ MongoDB pre-connected successfully");
-      } else {
-        console.warn("⚠️ MongoDB pre-connection failed, will retry on first request");
-      }
-    })
-    .catch((err) => {
-      console.warn("⚠️ MongoDB pre-connection failed, will retry on first request:", err.message);
-    });
-  
-  // Try to connect Redis on Vercel (non-blocking)
-  connectRedis()
-    .then((result) => {
-      if (result) {
-        console.log("✅ Redis pre-connected successfully");
-      } else {
-        console.warn("⚠️ Redis pre-connection failed, will retry on first request");
-      }
-    })
-    .catch((err) => {
-      console.warn("⚠️ Redis pre-connection failed, will retry on first request:", err.message);
-    });
+  // Note: Pre-connection removed for faster cold starts - each request will connect as needed
 }
 
 // ✅ Security Headers Middleware (must be before CORS)
@@ -205,6 +182,20 @@ app.use(
 // ✅ Body parser with increased limits for file uploads
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// ⚡ Response compression - reduces response size by 70-80%
+app.use(compression({
+  threshold: 1024, // Only compress responses > 1KB
+  level: 6,        // Balance between speed and compression ratio
+  filter: (req, res) => {
+    // Don't compress if client doesn't support it
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    // Use compression filter function
+    return compression.filter(req, res);
+  }
+}));
 
 // ✅ Store Socket.IO instance in app for route access
 app.set("io", io);
