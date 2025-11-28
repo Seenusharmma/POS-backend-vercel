@@ -3,7 +3,7 @@ import Order from "../models/orderModel.js";
 import mongoose from "mongoose";
 import { connectDB } from "../config/db.js";
 import { getCache, setCache, invalidateCache, CACHE_KEYS, CACHE_TTL } from "../utils/cache.js";
-import { sendPushToUser } from "../utils/sendPushNotification.js";
+import { sendPushToUser, sendPushToAdmins } from "../utils/sendPushNotification.js";
 
 // 📦 Get all orders
 export const getOrders = async (req, res) => {
@@ -152,6 +152,16 @@ export const createOrder = async (req, res) => {
       ).catch(err => console.error("Push notification error:", err));
     }
 
+    // 📢 Send push notification to Admins
+    sendPushToAdmins(
+      "📢 New Order Placed!",
+      `New order from ${order.userEmail || "Guest"} for ${order.foodName}`,
+      {
+        tag: `admin-order-${order._id}`,
+        data: { orderId: order._id, type: "new_order_admin" }
+      }
+    ).catch(err => console.error("Admin push notification error:", err));
+
     res.status(201).json({
       success: true,
       message: "Order placed successfully",
@@ -221,6 +231,16 @@ export const createMultipleOrders = async (req, res) => {
         console.log("📦 Emitted newOrderPlaced event for order:", order._id);
       });
     }
+
+    // 📢 Send push notification to Admins for multiple orders
+    sendPushToAdmins(
+      "📢 New Orders Placed!",
+      `${req.body.length} new orders received from ${req.body[0].userEmail || "Guest"}`,
+      {
+        tag: `admin-multiple-orders-${Date.now()}`,
+        data: { count: req.body.length, type: "new_orders_admin" }
+      }
+    ).catch(err => console.error("Admin push notification error:", err));
 
     res.status(201).json({
       success: true,
