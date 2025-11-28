@@ -16,6 +16,8 @@ import Footer from "./components/common/Footer";
 import TotalSales from "./features/admin/TotalSales";
 import BottomNav from "./components/common/BottomNav";
 import WebUIOverlay from "./components/overlay/WebUIOverlay";
+import PushNotificationManager from "./components/notifications/PushNotificationManager";
+
 
 
 const AppContent = () => {
@@ -24,6 +26,9 @@ const AppContent = () => {
 
   return (
     <>
+      {/* Push Notification Manager - Initializes notifications for logged-in users */}
+      <PushNotificationManager />
+      
       <Navbar />
       <Routes>
           {/* Public Routes */}

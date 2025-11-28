@@ -11,6 +11,7 @@ import cartRoutes from "./routes/cartRoute.js";
 import adminRoutes from "./routes/adminRoute.js";
 import pushRoutes from "./routes/pushRoute.js";
 import offerRoutes from "./routes/offerRoute.js";
+import testRoute from "./routes/testRoute.js"; // Test route for debugging
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
@@ -222,6 +223,7 @@ try {
   app.use("/api/admin", adminRoutes);
   app.use("/api/push", pushRoutes);
   app.use("/api/offers", offerRoutes);
+  app.use("/api", testRoute); // Test routes for debugging
 } catch (error) {
   console.error("❌ Error setting up routes:", error);
 }

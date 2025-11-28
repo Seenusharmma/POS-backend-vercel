@@ -12,8 +12,8 @@ const getApiBase = () => {
                         window.location.hostname.includes('localhost');
   
   if (isDevelopment) {
-    // Development: use localhost backend
-    return 'http://localhost:5000';
+    // Development: use localhost backend on port 8000
+    return 'http://localhost:8000';
   }
   
   // Production: use Vercel backend
