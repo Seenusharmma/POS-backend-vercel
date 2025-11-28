@@ -11,7 +11,6 @@ import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "../store/hooks";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
-import LogoLoader from "../components/ui/LogoLoader"; // ✅ Import loader
 import { checkAdminStatus } from "../services/adminApi";
 
 // 🔊 Import sounds
@@ -22,7 +21,6 @@ const LoginPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true); // ✅ Page loader state
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
 
@@ -37,11 +35,7 @@ const LoginPage = () => {
     audio.play();
   };
 
-  // ✅ Show logo loader when page first loads
-  useEffect(() => {
-    const timer = setTimeout(() => setPageLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+
 
   // ✅ Redirect logged-in user based on admin status
   useEffect(() => {
@@ -145,8 +139,7 @@ const LoginPage = () => {
     }
   };
 
-  // ✅ Show loader before page appears
-  if (pageLoading) return <LogoLoader />;
+
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-orange-100 via-yellow-50 to-white overflow-hidden">

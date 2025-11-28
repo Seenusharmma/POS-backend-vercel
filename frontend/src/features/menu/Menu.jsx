@@ -8,7 +8,6 @@ import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import Fuse from "fuse.js";
 import API_BASE from "../../config/api";
-import LogoLoader from "../../components/ui/LogoLoader";
 import MenuSkeleton from "../../components/ui/MenuSkeleton";
 import { useFoodFilter, useAppSelector, useAppDispatch } from "../../store/hooks";
 import { addToCartAsync } from "../../store/slices/cartSlice";

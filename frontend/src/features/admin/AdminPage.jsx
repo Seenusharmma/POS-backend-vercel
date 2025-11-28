@@ -8,7 +8,6 @@ import imageCompression from "browser-image-compression";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
-import LogoLoader from "../../components/ui/LogoLoader";
 import TotalSales from "./TotalSales";
 import AdminOrderHistory from "./AdminOrderHistory";
 import { useFoodFilter, useAppSelector } from "../../store/hooks";
@@ -54,7 +53,6 @@ const AdminPage = () => {
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
   const [highlightedOrder, setHighlightedOrder] = useState(null);
-  const [pageLoading, setPageLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("orders");
   const socketRef = useRef(null);
   const audioRef = useRef(null);
@@ -98,8 +96,6 @@ const AdminPage = () => {
       setOrders(activeOrders);
     } catch {
       toast.error("Failed to load data");
-    } finally {
-      setTimeout(() => setPageLoading(false), 800);
     }
   };
 
@@ -984,7 +980,6 @@ const AdminPage = () => {
     return acc;
   }, {});
 
-  if (pageLoading) return <LogoLoader />;
 
   /* ================================
      🧭 UI Layout

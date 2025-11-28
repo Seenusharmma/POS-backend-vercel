@@ -9,12 +9,10 @@ import { pollOrders } from "../utils/polling";
 import OrderHistoryCard from "../features/orders/History/OrderHistoryCard";
 import EmptyState from "../features/orders/History/EmptyState";
 import { motion } from "framer-motion";
-import LogoLoader from "../components/ui/LogoLoader";
 
 const OrderHistory = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [showOrderSlip, setShowOrderSlip] = useState(false);
   const [selectedOrderGroup, setSelectedOrderGroup] = useState([]);
   const socketRef = useRef(null);
@@ -23,7 +21,6 @@ const OrderHistory = () => {
   // ✅ Fetch user's completed orders
   const fetchHistory = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/api/orders`);
       // Filter for user's completed orders (check both email and userId)
@@ -41,7 +38,6 @@ const OrderHistory = () => {
       toast.error("Failed to fetch order history!");
       console.error(err);
     }
-    setLoading(false);
   }, [user]);
 
   // Group orders by order session (same date, same user)
@@ -370,8 +366,6 @@ const OrderHistory = () => {
       {/* Handle States */}
       {!user ? (
         <EmptyState type="noOrders" />
-      ) : loading ? (
-        <LogoLoader />
       ) : orders.length === 0 ? (
         <EmptyState type="noOrders" onRefresh={fetchHistory} />
       ) : (

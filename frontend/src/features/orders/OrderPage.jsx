@@ -11,7 +11,6 @@ import { FaTrashAlt, FaShoppingBag, FaChair } from "react-icons/fa";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
-import LogoLoader from "../../components/ui/LogoLoader";
 import PaymentModal from "./PaymentModal";
 import TableSelectionModal from "./Tables/TableSelectionModal";
 
@@ -21,7 +20,6 @@ const OrderPage = () => {
   const cartTotal = useAppSelector((state) => state.cart.total);
   const dispatch = useAppDispatch();
   const [orders, setOrders] = useState([]);
-  const [pageLoading, setPageLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
   const [orderType, setOrderType] = useState("dine-in"); // 'dine-in' | 'parcel'
@@ -88,8 +86,6 @@ const OrderPage = () => {
       setOrders(userOrders);
     } catch {
       toast.error("Couldn't load orders.");
-    } finally {
-      setTimeout(() => setPageLoading(false), 800);
     }
   }, [user]);
 
@@ -619,7 +615,7 @@ const OrderPage = () => {
   /* ===========================
       🧭 UI
   ============================ */
-  if (pageLoading) return <LogoLoader />;
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8f3] to-white py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6 lg:px-10 mt-10 pb-20">
