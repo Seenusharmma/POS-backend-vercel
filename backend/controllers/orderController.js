@@ -1,13 +1,4 @@
-/**
- * TABLE OPTIONS CONFIGURATION:
- * - Total Tables: 40 tables (numbered 1-40)
- * - Chairs per Table: 4 chairs per table
- * - Table Numbering: Tables are numbered from 1 to 40
- * - Chair Indices: Each table has 4 chairs indexed 0-3 (top row: 0,1 | bottom row: 2,3)
- * - Delivery Orders: Use tableNumber = 0 for delivery/takeaway orders (not dine-in)
- * - Table Selection: Users can select multiple chairs at the same table
- * - Availability: Tables are considered booked if they have active orders (status !== "Completed" && status !== "Served")
- */
+
 import Order from "../models/orderModel.js";
 import mongoose from "mongoose";
 import { connectDB } from "../config/db.js";
@@ -446,5 +437,56 @@ export const deleteOrder = async (req, res) => {
       success: false,
       message: "Failed to delete order",
     });
+  }
+};
+// 🔒 Get Occupied Tables
+export const getOccupiedTables = async (req, res) => {
+  try {
+    // Find all active orders (not completed or served)
+    // Note: You might want to include "Served" if they are still occupying the table
+    // For now, assuming "Completed" means they left.
+    const activeOrders = await Order.find({
+      status: { $ne: "Completed" },
+      isInRestaurant: true
+    });
+
+    const occupied = {};
+
+    activeOrders.forEach(order => {
+      // Handle multiple tables format
+      if (order.tables && order.tables.length > 0) {
+        order.tables.forEach(t => {
+          if (!occupied[t.tableNumber]) {
+            occupied[t.tableNumber] = [];
+          }
+          // Add unique chair indices
+          if (t.chairIndices && Array.isArray(t.chairIndices)) {
+             t.chairIndices.forEach(idx => {
+               if (!occupied[t.tableNumber].includes(idx)) {
+                 occupied[t.tableNumber].push(idx);
+               }
+             });
+          }
+        });
+      } 
+      // Handle legacy single table format
+      else if (order.tableNumber) {
+        if (!occupied[order.tableNumber]) {
+          occupied[order.tableNumber] = [];
+        }
+        if (order.chairIndices && Array.isArray(order.chairIndices)) {
+          order.chairIndices.forEach(idx => {
+            if (!occupied[order.tableNumber].includes(idx)) {
+              occupied[order.tableNumber].push(idx);
+            }
+          });
+        }
+      }
+    });
+
+    res.status(200).json(occupied);
+  } catch (error) {
+    console.error("Error fetching occupied tables:", error);
+    res.status(500).json({ message: "Failed to fetch occupied tables" });
   }
 };

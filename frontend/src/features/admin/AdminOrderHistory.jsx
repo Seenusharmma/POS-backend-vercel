@@ -207,6 +207,16 @@ const AdminOrderHistory = () => {
                   
                   // Helper function to get all chair letters
                   const getChairDisplay = () => {
+                    // Check for multiple tables first
+                    if (firstOrder.tables && firstOrder.tables.length > 0) {
+                      return firstOrder.tables.map(t => {
+                        const letters = t.chairLetters || '';
+                        // Format: "1 a, b"
+                        if (letters) return `${t.tableNumber} ${letters}`;
+                        return `${t.tableNumber}`;
+                      }).join(' & '); // Join with " & "
+                    }
+
                     if (firstOrder.chairLetters && typeof firstOrder.chairLetters === 'string' && firstOrder.chairLetters.trim() !== '') {
                       const letters = firstOrder.chairLetters.trim();
                       if (letters.includes(' ')) {
@@ -233,8 +243,10 @@ const AdminOrderHistory = () => {
                       <div className="mb-2 inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-pink-50 border border-red-300 rounded-lg">
                         <FaChair className="text-red-600 text-xs sm:text-sm flex-shrink-0" />
                         <span className="text-xs sm:text-sm font-semibold text-red-700">
-                          Table {firstOrder.tableNumber}
-                          {chairDisplay ? ` (${chairDisplay})` : ''}
+                          {firstOrder.tables && firstOrder.tables.length > 0 
+                            ? `${chairDisplay}`
+                            : `Table ${firstOrder.tableNumber}${chairDisplay ? ` (${chairDisplay})` : ''}`
+                          }
                         </span>
                       </div>
                     );

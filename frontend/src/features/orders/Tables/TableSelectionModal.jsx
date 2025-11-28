@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes } from "react-icons/fa";
 import TableSelect from "./TableSelect";
+import axios from "axios";
+import API_BASE from "../../../config/api";
 
 /**
  * TABLE OPTIONS CONFIGURATION:
@@ -16,11 +18,33 @@ import TableSelect from "./TableSelect";
 const TableSelectionModal = ({
   isOpen,
   onClose,
-  tableNumber,
-  setTableNumber,
+  selectedTables,
+  setSelectedTables,
   availableTables,
   onChairsSelected,
 }) => {
+  const [occupiedTables, setOccupiedTables] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  // Fetch occupied tables when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchOccupiedTables();
+    }
+  }, [isOpen]);
+
+  const fetchOccupiedTables = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE}/api/orders/occupied-tables`);
+      setOccupiedTables(res.data);
+    } catch (error) {
+      console.error("Error fetching occupied tables:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -56,10 +80,13 @@ const TableSelectionModal = ({
             {/* Content - Scrollable */}
             <div className="overflow-y-auto flex-1 p-2 sm:p-3">
               <TableSelect
-                tableNumber={tableNumber}
-                setTableNumber={setTableNumber}
+                selectedTables={selectedTables}
+                onSelectionChange={(tables) => {
+                    setSelectedTables(tables);
+                    if (onChairsSelected) onChairsSelected(tables);
+                }}
                 availableTables={availableTables}
-                onChairsSelected={onChairsSelected}
+                occupiedTables={occupiedTables}
                 compact={true}
               />
             </div>

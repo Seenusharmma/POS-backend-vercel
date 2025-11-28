@@ -25,11 +25,8 @@ const OrderPage = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
   const [orderType, setOrderType] = useState("dine-in"); // 'dine-in' | 'parcel'
-  const [tableNumber, setTableNumber] = useState("");
+  const [selectedTables, setSelectedTables] = useState([]);
   const [showTableModal, setShowTableModal] = useState(false);
-  const [chairsBooked, setChairsBooked] = useState(1);
-  const [chairIndices, setChairIndices] = useState([]);
-  const [chairLetters, setChairLetters] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const socketRef = useRef(null);
   const audioRef = useRef(null);
@@ -573,7 +570,7 @@ const OrderPage = () => {
 
     // ✅ Dine-in validation: require table selection
     if (isDineIn) {
-      if (!tableNumber) {
+      if (selectedTables.length === 0) {
         toast.error("Please select a table for Dine-in orders");
         return;
       }
@@ -596,10 +593,7 @@ const OrderPage = () => {
     setPendingCartData({
       cart,
       user,
-      tableNumber: isDineIn && tableNumber ? Number(tableNumber) : 0,
-      chairsBooked: isDineIn && tableNumber ? chairsBooked : 0,
-      chairIndices: isDineIn && tableNumber ? chairIndices : [],
-      chairLetters: isDineIn && tableNumber ? chairLetters : "",
+      selectedTables: isDineIn ? selectedTables : [],
       contactNumber: !isDineIn ? contactNumber.trim() : "",
     });
 
@@ -737,10 +731,7 @@ const OrderPage = () => {
                   onClick={() => {
                     setOrderType("parcel");
                     // Clear table selection when switching to parcel
-                    setTableNumber("");
-                    setChairsBooked(1);
-                    setChairIndices([]);
-                    setChairLetters("");
+                    setSelectedTables([]);
                   }}
                   className={`px-3 py-1.5 rounded-full border-2 text-xs sm:text-sm font-semibold transition-all ${
                     orderType === "parcel"
@@ -764,26 +755,23 @@ const OrderPage = () => {
                     type="button"
                     onClick={() => setShowTableModal(true)}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm ${
-                      tableNumber
+                      selectedTables.length > 0
                         ? "bg-red-50 border-red-300 text-red-700"
                         : "bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100"
                     }`}
                   >
                     <FaChair className="text-sm" />
                     <span className="font-medium">
-                      {tableNumber 
-                        ? `Table ${tableNumber}${chairLetters ? ` (${chairLetters})` : ` (${chairsBooked} seat${chairsBooked > 1 ? "s" : ""})`}` 
+                      {selectedTables.length > 0
+                        ? `${selectedTables.length} Table${selectedTables.length > 1 ? 's' : ''} Selected`
                         : "Select Table"}
                     </span>
                   </button>
-                  {tableNumber && (
+                  {selectedTables.length > 0 && (
                     <button
                       type="button"
                       onClick={() => {
-                        setTableNumber("");
-                        setChairsBooked(1);
-                        setChairIndices([]);
-                        setChairLetters("");
+                        setSelectedTables([]);
                       }}
                       className="px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Clear table selection"
@@ -792,7 +780,7 @@ const OrderPage = () => {
                     </button>
                   )}
                 </div>
-                {!tableNumber && (
+                {selectedTables.length === 0 && (
                   <p className="text-xs text-gray-500 mt-2">
                     💡 Table selection is required for Dine-in orders
                   </p>
@@ -910,10 +898,7 @@ const OrderPage = () => {
           user={pendingCartData.user}
           socketRef={socketRef}
           onPaymentComplete={handlePaymentComplete}
-          tableNumber={pendingCartData.tableNumber}
-          chairsBooked={pendingCartData.chairsBooked}
-          chairIndices={pendingCartData.chairIndices}
-          chairLetters={pendingCartData.chairLetters}
+          selectedTables={pendingCartData.selectedTables}
           contactNumber={pendingCartData.contactNumber}
         />
       )}
@@ -922,18 +907,12 @@ const OrderPage = () => {
       <TableSelectionModal
         isOpen={showTableModal}
         onClose={() => setShowTableModal(false)}
-        tableNumber={tableNumber}
-        setTableNumber={setTableNumber}
+        selectedTables={selectedTables}
+        setSelectedTables={setSelectedTables}
         availableTables={[]}
-        onChairsSelected={(chairData) => {
-          if (chairData && typeof chairData === 'object') {
-            setChairsBooked(chairData.count || 1);
-            setChairIndices(chairData.indices || []);
-            setChairLetters(chairData.letters || "");
-          } else {
-            // Fallback for old format (just count)
-            setChairsBooked(chairData || 1);
-          }
+        onChairsSelected={(tables) => {
+            // Optional: You can do additional logic here if needed
+            // But state is already updated via setSelectedTables
         }}
       />
     </div>

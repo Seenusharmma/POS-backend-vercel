@@ -32,6 +32,16 @@ const GroupedOrderCard = ({
 
   // Helper function to get chair letters
   const getChairDisplay = (order) => {
+    // Check for multiple tables first
+    if (order.tables && order.tables.length > 0) {
+      return order.tables.map(t => {
+        const letters = t.chairLetters || '';
+        // Format: "1 a, b"
+        if (letters) return `${t.tableNumber} ${letters}`;
+        return `${t.tableNumber}`;
+      }).join(' & '); // Join with " & "
+    }
+
     if (order.chairLetters && typeof order.chairLetters === 'string' && order.chairLetters.trim() !== '') {
       const letters = order.chairLetters.trim();
       if (letters.includes(' ')) return letters;
@@ -75,8 +85,10 @@ const GroupedOrderCard = ({
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-pink-50 border border-red-200 rounded-lg">
                 <FaChair className="text-red-600 text-sm" />
                 <span className="text-xs font-bold text-red-700">
-                  Table {firstOrder.tableNumber}
-                  {chairDisplay ? ` (${chairDisplay})` : ''}
+                  {firstOrder.tables && firstOrder.tables.length > 0 
+                    ? `${chairDisplay}`
+                    : `Table ${firstOrder.tableNumber}${chairDisplay ? ` (${chairDisplay})` : ''}`
+                  }
                 </span>
               </div>
             );

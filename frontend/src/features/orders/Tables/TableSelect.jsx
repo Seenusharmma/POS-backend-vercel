@@ -15,9 +15,26 @@ import API_BASE from "../../../config/api";
  * - Table Selection: Users can select multiple chairs at the same table
  * - Availability: Tables are considered booked if they have active orders (status !== "Completed" && status !== "Served")
  */
-const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSelected, compact = false }) => {
+const TableSelect = ({ 
+  selectedTables = [], 
+  onSelectionChange, 
+  availableTables, 
+  occupiedTables = {}, // { tableId: [chairIndices] }
+  compact = false 
+}) => {
   const [tables, setTables] = useState([]);
-  const [selectedChairs, setSelectedChairs] = useState({}); // { tableNumber: [chairNumbers] }
+  // Initialize selectedChairs from props if provided
+  const [selectedChairs, setSelectedChairs] = useState(() => {
+    const initial = {};
+    if (Array.isArray(selectedTables)) {
+      selectedTables.forEach(t => {
+        if (t.tableNumber) {
+          initial[t.tableNumber] = t.chairIndices || [];
+        }
+      });
+    }
+    return initial;
+  }); // { tableNumber: [chairNumbers] }
   const [loading, setLoading] = useState(true);
   const [showLegend, setShowLegend] = useState(true);
 
@@ -25,6 +42,13 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
   useEffect(() => {
     const fetchTableAvailability = async () => {
       try {
+        // If availableTables is passed, use it to build structure
+        if (availableTables && availableTables.length > 0) {
+             setTables(availableTables);
+             setLoading(false);
+             return;
+        }
+
         const res = await axios.get(`${API_BASE}/api/orders`);
         // TABLE OPTIONS: Filter active orders (tables 1-40, delivery uses 0)
         const activeOrders = res.data.filter(
@@ -83,17 +107,19 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
     };
 
     fetchTableAvailability();
-    const interval = setInterval(fetchTableAvailability, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
+  }, [availableTables]);
 
   // TABLE OPTIONS: Handle chair selection (chairs 0-3 per table, tables 1-40)
   const handleChairClick = (tableNum, chairIndex) => {
     const table = tables.find((t) => t.tableNumber === tableNum);
     if (!table) return;
 
-    // TABLE OPTIONS: Check if chair is already booked (chair indices 0-3)
-    if (table.bookedChairIndices.includes(chairIndex)) {
+    // Check if chair is occupied (booked by someone else)
+    const isOccupied = occupiedTables[tableNum] && occupiedTables[tableNum].includes(chairIndex);
+    if (isOccupied) return;
+
+    // TABLE OPTIONS: Check if chair is already booked (legacy check)
+    if (table.bookedChairIndices && table.bookedChairIndices.includes(chairIndex)) {
       return; // Can't select booked chair
     }
 
@@ -101,39 +127,27 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
     setSelectedChairs((prev) => {
       const tableChairs = prev[tableNum] || [];
       const isSelected = tableChairs.includes(chairIndex);
+      let updated;
 
       if (isSelected) {
         // Deselect chair
-        const updated = { ...prev };
+        updated = { ...prev };
         updated[tableNum] = tableChairs.filter((c) => c !== chairIndex);
         if (updated[tableNum].length === 0) {
           delete updated[tableNum];
-          setTableNumber("");
-        } else {
-          setTableNumber(tableNum.toString());
         }
-        return updated;
       } else {
-        // Select chair - can select multiple chairs at same table
-        // If selecting from different table, clear previous selection
-        if (tableNumber && tableNumber !== tableNum.toString()) {
-          const updated = { [tableNum]: [chairIndex] };
-          setTableNumber(tableNum.toString());
-          return updated;
-        } else {
-          // Add to current table (can select multiple)
-          const updated = { ...prev };
-          updated[tableNum] = [...tableChairs, chairIndex].sort((a, b) => a - b);
-          setTableNumber(tableNum.toString());
-          return updated;
-        }
+        // Select chair - Add to current table (can select multiple)
+        // MULTI-TABLE UPDATE: Do NOT clear other tables
+        updated = { ...prev };
+        updated[tableNum] = [...tableChairs, chairIndex].sort((a, b) => a - b);
       }
+      return updated;
     });
   };
 
   const clearSelection = () => {
     setSelectedChairs({});
-    setTableNumber("");
   };
 
   // TABLE OPTIONS: Get chair state (available/selected/booked) for chairs 0-3 at tables 1-40
@@ -141,8 +155,13 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
     const table = tables.find((t) => t.tableNumber === tableNum);
     if (!table) return "available";
 
-    // TABLE OPTIONS: Check if chair is booked (chair indices 0-3)
-    if (table.bookedChairIndices.includes(chairIndex)) {
+    // Check if chair is occupied (from prop)
+    if (occupiedTables[tableNum] && occupiedTables[tableNum].includes(chairIndex)) {
+        return "booked";
+    }
+
+    // TABLE OPTIONS: Check if chair is booked (legacy check)
+    if (table.bookedChairIndices && table.bookedChairIndices.includes(chairIndex)) {
       return "booked";
     }
 
@@ -156,9 +175,12 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
   };
 
   // TABLE OPTIONS: Get count of selected chairs (1-4) for the current table (1-40)
-  const getSelectedChairsCount = () => {
-    if (!tableNumber) return 0;
-    return selectedChairs[Number(tableNumber)]?.length || 0;
+  const getSelectedChairsCount = (tableNum) => {
+    if (!tableNum) {
+        // Total selected chairs across all tables
+        return Object.values(selectedChairs).reduce((acc, chairs) => acc + chairs.length, 0);
+    }
+    return selectedChairs[Number(tableNum)]?.length || 0;
   };
 
   // Convert chair indices to letters: 0=a, 1=b, 2=c, 3=d
@@ -168,22 +190,20 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
 
   // Notify parent component of selected chairs (both count and indices)
   useEffect(() => {
-    if (!tableNumber) {
-      if (onChairsSelected) {
-        onChairsSelected({ count: 1, indices: [] }); // Default to 1 if no table selected
-      }
-      return;
+    if (onSelectionChange) {
+        const tablesList = Object.keys(selectedChairs).map(tableNum => {
+            const tNum = Number(tableNum);
+            const indices = selectedChairs[tNum];
+            return {
+                tableNumber: tNum,
+                chairIndices: indices,
+                chairLetters: getChairLetters(indices),
+                chairsBooked: indices.length
+            };
+        });
+        onSelectionChange(tablesList);
     }
-    
-    const tableNum = Number(tableNumber);
-    const indices = selectedChairs[tableNum] || [];
-    const count = indices.length || 1;
-    
-    if (onChairsSelected) {
-      onChairsSelected({ count, indices, letters: getChairLetters(indices) });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChairs, tableNumber]);
+  }, [selectedChairs, onSelectionChange]);
 
   if (loading) {
   return (
@@ -209,18 +229,19 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
               Click on available green chairs to select. You can choose multiple seats at the same table.
             </p>
           </div>
-        {tableNumber && (
+        {Object.keys(selectedChairs).length > 0 && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-3 bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 rounded-xl px-4 py-3 w-full sm:w-auto shadow-md"
+            className="flex flex-wrap items-center gap-3 bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 rounded-xl px-4 py-3 w-full sm:w-auto shadow-md"
           >
             <FaCheckCircle className="text-red-600 flex-shrink-0 text-lg" />
             <div className="text-sm sm:text-base font-bold text-red-700 flex-1">
-              Table {tableNumber}
-              {selectedChairs[Number(tableNumber)] && selectedChairs[Number(tableNumber)].length > 0
-                ? ` (${getChairLetters(selectedChairs[Number(tableNumber)])})`
-                : ` • ${getSelectedChairsCount()} seat${getSelectedChairsCount() !== 1 ? "s" : ""}`}
+              {Object.keys(selectedChairs).map(tNum => (
+                  <span key={tNum} className="mr-2">
+                      Table {tNum} ({getChairLetters(selectedChairs[tNum])})
+                  </span>
+              ))}
             </div>
             <button
               onClick={clearSelection}
@@ -285,7 +306,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
       <div className={`bg-gradient-to-br from-gray-50 via-white to-gray-50 ${compact ? 'rounded-lg p-1 sm:p-1.5' : 'rounded-2xl p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8'} border-2 border-gray-200 shadow-inner ${compact ? 'max-h-[500px] sm:max-h-[600px]' : 'max-h-[400px] sm:max-h-[500px] md:max-h-[600px] lg:max-h-[750px] xl:max-h-[800px]'} overflow-y-auto custom-scrollbar w-full`}>
         <div className={`grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 ${compact ? 'gap-1 sm:gap-1.5' : 'gap-2 sm:gap-3 md:gap-4 lg:gap-5 xl:gap-6'}`}>
           {tables.map((table, index) => {
-            const isTableSelected = tableNumber === table.tableNumber.toString();
+            const isTableSelected = !!selectedChairs[table.tableNumber];
             const selectedCount = selectedChairs[table.tableNumber]?.length || 0;
 
             return (
@@ -447,7 +468,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
 
       {/* Selected Summary */}
       <AnimatePresence>
-        {tableNumber && getSelectedChairsCount() > 0 && (
+        {Object.keys(selectedChairs).length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -461,10 +482,10 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className={`${compact ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'} font-bold text-red-700 truncate`}>
-                    Table {tableNumber} Selected
+                    {Object.keys(selectedChairs).length} Table{Object.keys(selectedChairs).length > 1 ? 's' : ''} Selected
                   </p>
                   <p className={`${compact ? 'text-[9px]' : 'text-[10px] sm:text-xs'} text-red-600`}>
-                    {getSelectedChairsCount()} seat{getSelectedChairsCount() > 1 ? "s" : ""} chosen
+                    {getSelectedChairsCount()} seat{getSelectedChairsCount() > 1 ? "s" : ""} chosen total
                   </p>
                 </div>
               </div>
@@ -480,7 +501,7 @@ const TableSelect = ({ tableNumber, setTableNumber, availableTables, onChairsSel
         )}
       </AnimatePresence>
 
-      {!tableNumber && !compact && (
+      {Object.keys(selectedChairs).length === 0 && !compact && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

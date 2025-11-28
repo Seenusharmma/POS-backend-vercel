@@ -15,8 +15,9 @@ import {
   createMultipleOrders,
   updateOrderStatus,
   deleteOrder,
+  getOccupiedTables
 } from "../controllers/orderController.js";
-import Order from "../models/orderModel.js"; // ✅ Import your Order model
+import Order from "../models/orderModel.js";
 
 const router = express.Router();
 
@@ -24,6 +25,7 @@ const router = express.Router();
    🧾 Existing Routes
 =========================================== */
 router.get("/", getOrders);
+router.get("/occupied-tables", getOccupiedTables); // New route
 router.post("/create", createOrder);
 router.post("/create-multiple", createMultipleOrders);
 router.put("/:id", updateOrderStatus);
