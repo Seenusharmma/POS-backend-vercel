@@ -38,8 +38,16 @@ router.post("/subscribe", async (req, res) => {
       return res.status(400).json({ error: "Subscription and userEmail are required" });
     }
 
+    // Ensure database connection (for serverless)
+    const mongoose = await import('mongoose');
+    if (mongoose.default.connection.readyState !== 1) {
+      console.log('🔄 Establishing database connection for push subscription...');
+      const { connectDB } = await import('../config/db.js');
+      await connectDB();
+    }
+
     // Save or update subscription with platform set to 'web-push'
-    await Subscription.findOneAndUpdate(
+    const result = await Subscription.findOneAndUpdate(
       { userEmail, platform: 'web-push' },
       {
         userEmail,
@@ -51,10 +59,11 @@ router.post("/subscribe", async (req, res) => {
     );
 
     console.log(`✅ Web Push subscription saved for: ${userEmail}`);
-    res.json({ success: true, message: "Subscription saved" });
+    return res.status(200).json({ success: true, message: "Subscription saved" });
   } catch (error) {
-    console.error("Error saving subscription:", error);
-    res.status(500).json({ error: "Failed to save subscription" });
+    console.error("❌ Error saving subscription:", error);
+    console.error("Error details:", error.message, error.stack);
+    return res.status(500).json({ error: "Failed to save subscription", details: error.message });
   }
 });
 
