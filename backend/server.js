@@ -45,6 +45,7 @@ if (!isVercel) {
       origin: [
         "https://foodfantasy-live.vercel.app",
         "http://localhost:5173",
+        process.env.FRONTEND_URL, // Allow configured frontend URL
       ],
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true,
@@ -172,6 +173,7 @@ app.use(
     origin: [
       "https://foodfantasy-live.vercel.app",
       "http://localhost:5173",
+      process.env.FRONTEND_URL, // Allow configured frontend URL
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,

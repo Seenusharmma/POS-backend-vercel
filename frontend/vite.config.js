@@ -48,10 +48,10 @@ export default defineConfig({
     }
   ],
   optimizeDeps: {
-    include: ['leaflet', 'react-leaflet'],
     exclude: ['locatorjs'], // Exclude locatorjs to suppress warnings
   },
   build: {
+    outDir: 'dist',
     // ⚡ Performance optimizations for production builds
     rollupOptions: {
       output: {
@@ -60,7 +60,7 @@ export default defineConfig({
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           'redux-vendor': ['@reduxjs/toolkit', 'react-redux'],
           'ui-vendor': ['framer-motion', 'react-hot-toast', 'react-icons'],
-          'map-vendor': ['leaflet', 'react-leaflet']
+          'map-vendor': ['maplibre-gl', '@vis.gl/react-maplibre']
         }
       },
       onwarn(warning, warn) {
