@@ -205,99 +205,12 @@ const AdminPage = () => {
     // Socket connections are unreliable on serverless platforms
     // Polling ensures we ALWAYS get real-time updates
     const shouldUsePollingAsPrimary = true; // Always use polling for admin
-    const pollingInterval = 1500; // ⚡ Fast 1.5s polling for near real-time feel
+    const pollingInterval = 5000; // ⚡ 5s polling to reduce server load
     
-    // ⚡ Set up a direct polling mechanism that syncs ALL orders
-    const syncOrdersFromPolling = async () => {
-      try {
-        const freshOrders = await fetchOrdersForPolling();
-        
-        // ⚡ Skip if no orders (likely an error)
-        if (!Array.isArray(freshOrders) || freshOrders.length === 0) {
-          return;
-        }
-        
-        const currentOrderIds = new Set(freshOrders.map(o => o._id));
-        
-        // ⚡ Always update orders state with fresh data
-        setOrders((prev) => {
-          // Check if there are new orders
-          const prevOrderIds = new Set(prev.map(o => o._id));
-          
-          // Find new orders
-          const newOrders = freshOrders.filter(o => !prevOrderIds.has(o._id));
-          
-          // ⚡ FIX: Handle notifications OUTSIDE setState to avoid React warning
-          // Store new orders for processing after state update
-          if (newOrders.length > 0) {
-            // Use setTimeout to defer notifications outside render cycle
-            setTimeout(() => {
-              newOrders.forEach(newOrder => {
-                if (newOrder && newOrder._id) {
-          playNotificationSound();
-                  toast.success(`📦 New Order: ${newOrder.foodName}`, {
-            duration: 5000,
-            position: "top-right",
-            icon: "🆕",
-            style: {
-              background: "#10b981",
-              color: "#fff",
-              fontSize: "16px",
-              fontWeight: "600",
-            },
-          });
-              setHighlightedOrder(newOrder._id);
-              setTimeout(() => setHighlightedOrder(null), 3000);
-                }
-              });
-            }, 0);
-          }
-          
-          // Check for status changes
-          freshOrders.forEach(newOrder => {
-            const oldOrder = prev.find(o => o._id === newOrder._id);
-            if (oldOrder && oldOrder.status !== newOrder.status) {
-              // Use setTimeout to defer notifications outside render cycle
-              setTimeout(() => {
-            playNotificationSound();
-            const statusMessages = {
-              Pending: "⏳ Order status: Pending",
-              Cooking: "👨‍🍳 Order is being cooked",
-              Ready: "✅ Order is ready",
-              Served: "🍽️ Order has been served",
-              Completed: "🎉 Order completed",
-            };
-            toast.success(
-                  `${statusMessages[newOrder.status] || "Order status updated"}: ${newOrder.foodName}`,
-              {
-                duration: 4000,
-                position: "top-right",
-                style: {
-                  background: "#3b82f6",
-                  color: "#fff",
-                  fontSize: "16px",
-                  fontWeight: "600",
-                },
-              }
-            );
-              }, 0);
-        }
-
-          });
-          
-          // ⚡ Always return fresh orders list (ensures UI is always in sync)
-          return freshOrders;
-        });
-        
-      } catch (error) {
-        // Silent error handling - don't spam console
-        consecutiveErrorsRef.current += 1;
-      }
-    };
     
-    // ⚡ Start aggressive polling immediately
-    syncOrdersFromPolling(); // Initial fetch
-    directPollingIntervalRef.current = setInterval(syncOrdersFromPolling, pollingInterval);
+    // ⚡ Start polling
+    // We rely on pollOrders utility which handles diffing and callbacks
+    // syncOrdersFromPolling was removed to prevent duplicate requests and side-effects
     
     // ⚡ Also use the existing pollOrders for additional change detection
     pollingStopRef.current = pollOrders(
