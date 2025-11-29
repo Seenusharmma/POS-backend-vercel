@@ -1,7 +1,6 @@
-import { Helmet } from 'react-helmet-async';
-
 /**
  * SEO Component - Manages meta tags and structured data for better search ranking
+ * Uses React 19 native metadata support (tags are automatically hoisted to <head>)
  */
 const SEO = ({ 
   title = "Food Fantasy - Best Restaurant in Town",
@@ -46,8 +45,8 @@ const SEO = ({
   };
 
   return (
-    <Helmet>
-      {/* Primary Meta Tags */}
+    <>
+      {/* Primary Meta Tags - React 19 automatically hoists these to <head> */}
       <title>{title}</title>
       <meta name="title" content={title} />
       <meta name="description" content={description} />
@@ -75,7 +74,7 @@ const SEO = ({
       <script type="application/ld+json">
         {JSON.stringify(structuredData)}
       </script>
-    </Helmet>
+    </>
   );
 };
 
