@@ -26,25 +26,6 @@ export default defineConfig({
           console.error('❌ Failed to copy service worker:', error.message);
         }
       }
-    },
-    // Copy Firebase messaging service worker for mobile push notifications
-    {
-      name: 'copy-firebase-messaging-sw',
-      closeBundle() {
-        try {
-          const source = 'public/firebase-messaging-sw.js';
-          const dest = 'dist/firebase-messaging-sw.js';
-          
-          if (existsSync(source)) {
-            copyFileSync(source, dest);
-            console.log('✅ Firebase messaging service worker copied to dist/firebase-messaging-sw.js');
-          } else {
-            console.warn('⚠️ Firebase messaging SW source file not found:', source);
-          }
-        } catch (error) {
-          console.error('❌ Failed to copy Firebase messaging SW:', error.message);
-        }
-      }
     }
   ],
   optimizeDeps: {
