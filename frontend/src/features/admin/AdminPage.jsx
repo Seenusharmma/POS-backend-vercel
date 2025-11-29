@@ -702,14 +702,11 @@ const AdminPage = () => {
         formData.append("sizeType", foodForm.sizeType || "standard");
         
         if (foodForm.sizeType === "half-full") {
-          // Append Half/Full prices
-          formData.append("halfFull[Half]", foodForm.halfFull.Half || "");
-          formData.append("halfFull[Full]", foodForm.halfFull.Full || "");
+          // Append Half/Full prices as JSON string
+          formData.append("halfFull", JSON.stringify(foodForm.halfFull));
         } else {
-          // Append Standard sizes (Small/Medium/Large)
-          formData.append("sizes[Small]", foodForm.sizes.Small || "");
-          formData.append("sizes[Medium]", foodForm.sizes.Medium || "");
-          formData.append("sizes[Large]", foodForm.sizes.Large || "");
+          // Append Standard sizes as JSON string
+          formData.append("sizes", JSON.stringify(foodForm.sizes));
         }
       }
       
@@ -717,10 +714,14 @@ const AdminPage = () => {
 
       let res;
       if (editMode) {
-        res = await axios.put(`${API_BASE}/api/foods/${editId}`, formData);
+        res = await axios.put(`${API_BASE}/api/foods/${editId}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("✅ Food updated successfully!");
       } else {
-        res = await axios.post(`${API_BASE}/api/foods/add`, formData);
+        res = await axios.post(`${API_BASE}/api/foods/add`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("✅ Food added successfully!");
       }
 
@@ -928,12 +929,12 @@ const AdminPage = () => {
         {activeTab === "addFood" && (
           <AddFoodForm
             foodForm={foodForm}
-            handleChange={handleChange}
-            handleImageChange={handleImageChange}
-            handleDragOver={handleDragOver}
-            handleDragLeave={handleDragLeave}
-            handleDrop={handleDrop}
-            handleRemoveImage={handleRemoveImage}
+            onFormChange={handleChange}
+            onImageChange={handleImageChange}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onRemoveImage={handleRemoveImage}
             onSave={saveFood}
             onReset={resetForm}
             editMode={editMode}

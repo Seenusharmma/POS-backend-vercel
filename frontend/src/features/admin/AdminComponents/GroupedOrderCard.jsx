@@ -1,5 +1,5 @@
-import React from "react";
-import { FaChair, FaPhone, FaClock, FaTrashAlt } from "react-icons/fa";
+import React, { useState } from "react";
+import { FaChair, FaPhone, FaClock, FaTrashAlt, FaChevronDown } from "react-icons/fa";
 
 /**
  * Grouped Order Card Component
@@ -14,6 +14,9 @@ const GroupedOrderCard = ({
 }) => {
   if (!orders || orders.length === 0) return null;
 
+  // State for expand/collapse - collapsed by default
+  const [isExpanded, setIsExpanded] = useState(false);
+
   // Get common details from the first order
   const firstOrder = orders[0];
   const orderDate = new Date(firstOrder.createdAt).toLocaleDateString(undefined, {
@@ -23,11 +26,9 @@ const GroupedOrderCard = ({
   });
 
   const statusColors = {
-    Pending: "text-yellow-600 bg-yellow-50 border-yellow-200",
-    Cooking: "text-blue-600 bg-blue-50 border-blue-200",
-    Ready: "text-purple-600 bg-purple-50 border-purple-200",
+    Order: "text-yellow-600 bg-yellow-50 border-yellow-200",
     Served: "text-green-600 bg-green-50 border-green-200",
-    Completed: "text-gray-600 bg-gray-50 border-gray-200",
+    Complete: "text-gray-600 bg-gray-50 border-gray-200",
   };
 
   // Helper function to get chair letters
@@ -59,125 +60,150 @@ const GroupedOrderCard = ({
   };
 
   return (
-    <div className="border border-gray-200 rounded-xl shadow-sm bg-white mb-4 overflow-hidden">
-      {/* 🏷️ Header - User & Location Info */}
-      <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-gray-800">
-              👤 {userName || firstOrder.userName || "Guest User"}
-            </span>
-            <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200 flex items-center gap-1">
-              <FaClock className="text-[10px]" /> {orderDate}
-            </span>
+    <div className="border border-gray-200 rounded-lg shadow-sm bg-white mb-1 sm:mb-3 overflow-hidden">
+      {/* 🏷️ Header - Date & Location Info with Expand/Collapse Button */}
+      <div className="bg-gray-50 px-2 py-2 sm:px-4 sm:py-3 border-b border-gray-200">
+        <div className="flex justify-between items-start gap-2">
+          <div className="flex-1 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-xs text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200 flex items-center gap-1">
+                <FaClock className="text-[9px]" /> {orderDate}
+              </span>
+            </div>
+
+            {/* Location Badge */}
+            {(() => {
+              const hasTable = firstOrder.tableNumber && firstOrder.tableNumber > 0;
+              const hasContact = firstOrder.contactNumber && firstOrder.contactNumber.trim() !== '';
+              const chairDisplay = getChairDisplay(firstOrder);
+              
+              if (hasTable) {
+                return (
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-pink-50 border border-red-200 rounded">
+                    <FaChair className="text-red-600 text-xs" />
+                    <span className="text-[10px] sm:text-xs font-bold text-red-700">
+                      {firstOrder.tables && firstOrder.tables.length > 0 
+                        ? `${chairDisplay}`
+                        : `Table ${firstOrder.tableNumber}${chairDisplay ? ` (${chairDisplay})` : ''}`
+                      }
+                    </span>
+                  </div>
+                );
+              } else if (hasContact) {
+                return (
+                  <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-200 rounded">
+                    <FaPhone className="text-blue-600 text-xs" />
+                    <span className="text-[10px] sm:text-xs font-bold text-blue-700">
+                      📞 {firstOrder.contactNumber}
+                    </span>
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
-          <span className="text-xs text-gray-500">📧 {userEmail || firstOrder.userEmail}</span>
+
+          {/* Expand/Collapse Button */}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1.5 hover:bg-gray-200 rounded-full transition-all duration-200 flex-shrink-0"
+            title={isExpanded ? "Collapse details" : "Expand details"}
+          >
+            <FaChevronDown 
+              className={`text-gray-600 text-xs sm:text-sm transition-transform duration-300 ${
+                isExpanded ? "rotate-180" : "rotate-0"
+              }`}
+            />
+          </button>
         </div>
 
-        {/* Location Badge */}
-        {(() => {
-          const hasTable = firstOrder.tableNumber && firstOrder.tableNumber > 0;
-          const hasContact = firstOrder.contactNumber && firstOrder.contactNumber.trim() !== '';
-          const chairDisplay = getChairDisplay(firstOrder);
-          
-          if (hasTable) {
-            return (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-pink-50 border border-red-200 rounded-lg">
-                <FaChair className="text-red-600 text-sm" />
-                <span className="text-xs font-bold text-red-700">
-                  {firstOrder.tables && firstOrder.tables.length > 0 
-                    ? `${chairDisplay}`
-                    : `Table ${firstOrder.tableNumber}${chairDisplay ? ` (${chairDisplay})` : ''}`
-                  }
-                </span>
-              </div>
-            );
-          } else if (hasContact) {
-            return (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-                <FaPhone className="text-blue-600 text-sm" />
-                <span className="text-xs font-bold text-blue-700">
-                  📞 {firstOrder.contactNumber}
-                </span>
-              </div>
-            );
-          }
-          return null;
-        })()}
+        {/* Summary when collapsed */}
+        {!isExpanded && (
+          <div className="mt-1.5 pt-1.5 border-t border-gray-200 flex justify-between items-center">
+            <span className="text-[10px] sm:text-xs font-semibold text-gray-600">
+              {orders.length} item{orders.length > 1 ? 's' : ''}
+            </span>
+            <span className="text-xs sm:text-sm font-bold text-gray-800">
+              ₹{orders.reduce((sum, o) => sum + (o.price * o.quantity), 0)}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* 📋 Order Items List */}
-      <div className="divide-y divide-gray-100">
-        {orders.map((order) => {
-          const itemTime = new Date(order.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          
-          return (
-            <div key={order._id} className="p-3 sm:p-4 flex flex-col sm:flex-row gap-3 sm:items-center justify-between hover:bg-gray-50 transition-colors">
-              {/* Item Details */}
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="font-bold text-gray-800 text-sm sm:text-base">
-                    {order.foodName}
-                  </span>
-                  {order.selectedSize && (
-                    <span className="text-xs font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-100">
-                      {order.selectedSize}
+      {/* 📋 Order Items List - Expandable */}
+      {isExpanded && (
+        <div className="divide-y divide-gray-100 transition-all duration-300 ease-in-out">
+          {orders.map((order) => {
+            const itemTime = new Date(order.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            
+            return (
+              <div key={order._id} className="p-2 sm:p-4 flex flex-col sm:flex-row gap-2 sm:items-center justify-between hover:bg-gray-50 transition-colors">
+                {/* Item Details */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                    <span className="font-bold text-gray-800 text-xs sm:text-sm">
+                      {order.foodName}
                     </span>
-                  )}
-                  <span className="text-xs text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded">
-                    {order.type}
-                  </span>
-                  <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                    <FaClock className="text-[8px]" /> {itemTime}
-                  </span>
+                    {order.selectedSize && (
+                      <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1 py-0.5 rounded border border-orange-100">
+                        {order.selectedSize}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-gray-500 border border-gray-200 px-1 py-0.5 rounded">
+                      {order.type}
+                    </span>
+                    <span className="text-[9px] text-gray-400 bg-gray-100 px-1 py-0.5 rounded flex items-center gap-1">
+                      <FaClock className="text-[8px]" /> {itemTime}
+                    </span>
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-gray-500">
+                    Qty: <span className="font-semibold text-gray-700">{order.quantity}</span> • 
+                    Price: <span className="font-semibold text-gray-700">₹{order.price}</span>
+                  </div>
                 </div>
-                <div className="text-xs sm:text-sm text-gray-500">
-                  Qty: <span className="font-semibold text-gray-700">{order.quantity}</span> • 
-                  Price: <span className="font-semibold text-gray-700">₹{order.price}</span>
+
+                {/* Actions & Status */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end mt-1 sm:mt-0">
+                  {/* Status Select */}
+                  <select
+                    value={order.status}
+                    onChange={(e) => onStatusChange(order._id, e.target.value)}
+                    className={`text-[10px] sm:text-xs font-semibold px-1.5 py-1 rounded border cursor-pointer outline-none focus:ring-1 focus:ring-blue-300 ${statusColors[order.status] || "text-gray-600 border-gray-300"}`}
+                  >
+                    <option>Order</option>
+                    <option>Served</option>
+                    <option>Complete</option>
+                  </select>
+
+                  {/* Delete Button */}
+                  <button
+                    onClick={() => onDeleteOrder(order._id)}
+                    className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-full transition-colors"
+                    title="Delete item"
+                  >
+                    <FaTrashAlt className="text-xs" />
+                  </button>
                 </div>
               </div>
-
-              {/* Actions & Status */}
-              <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                {/* Status Select */}
-                <select
-                  value={order.status}
-                  onChange={(e) => onStatusChange(order._id, e.target.value)}
-                  className={`text-xs sm:text-sm font-semibold px-2 py-1.5 rounded-lg border cursor-pointer outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-300 ${statusColors[order.status] || "text-gray-600 border-gray-300"}`}
-                >
-                  <option>Pending</option>
-                  <option>Cooking</option>
-                  <option>Ready</option>
-                  <option>Served</option>
-                  <option>Completed</option>
-                </select>
-
-                {/* Delete Button */}
-                <button
-                  onClick={() => onDeleteOrder(order._id)}
-                  className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-full transition-colors"
-                  title="Delete item"
-                >
-                  <FaTrashAlt />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
       
-      {/* Footer Summary */}
-      <div className="bg-gray-50 px-4 py-2 border-t border-gray-200 flex justify-between items-center">
-        <span className="text-xs font-semibold text-gray-500">
-          Total Items: {orders.length}
-        </span>
-        <span className="text-sm font-bold text-gray-800">
-          Total: ₹{orders.reduce((sum, o) => sum + (o.price * o.quantity), 0)}
-        </span>
-      </div>
+      {/* Footer Summary - Only show when expanded */}
+      {isExpanded && (
+        <div className="bg-gray-50 px-2 py-1.5 sm:px-4 sm:py-2 border-t border-gray-200 flex justify-between items-center">
+          <span className="text-[10px] sm:text-xs font-semibold text-gray-500">
+            Total Items: {orders.length}
+          </span>
+          <span className="text-xs sm:text-sm font-bold text-gray-800">
+            Total: ₹{orders.reduce((sum, o) => sum + (o.price * o.quantity), 0)}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

@@ -37,12 +37,8 @@ const LiveOrderCard = ({ order, upiID, payeeName }) => {
         Status:{" "}
         <span
           className={`font-semibold ${
-            order.status === "Pending"
+            order.status === "Order"
               ? "text-yellow-600"
-              : order.status === "Cooking"
-              ? "text-blue-600"
-              : order.status === "Ready"
-              ? "text-purple-600"
               : order.status === "Served"
               ? "text-green-600"
               : "text-gray-600"
@@ -52,7 +48,7 @@ const LiveOrderCard = ({ order, upiID, payeeName }) => {
         </span>
       </p>
 
-      {order.status === "Completed" && (
+      {order.status === "Complete" && (
         <PaymentQR
           price={order.price}
           upiLink={upiLink}

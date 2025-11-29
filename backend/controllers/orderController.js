@@ -272,7 +272,7 @@ export const updateOrderStatus = async (req, res) => {
     const updateData = {};
     
     if (status) {
-      const validStatuses = ["Pending", "Cooking", "Ready", "Served", "Completed"];
+      const validStatuses = ["Order", "Served", "Complete"];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
@@ -345,11 +345,9 @@ export const updateOrderStatus = async (req, res) => {
         // 📱 Send push notification to user about status change
         if (order.userEmail) {
           const statusMessages = {
-            Pending: "⏳ Your order is pending",
-            Cooking: "👨‍🍳 Your order is being cooked",
-            Ready: "✅ Your order is ready!",
+            Order: "📦 Your order has been placed",
             Served: "🍽️ Your order has been served",
-            Completed: "🎉 Your order is completed!"
+            Complete: "🎉 Your order is complete!"
           };
           
           sendPushToUser(
@@ -417,8 +415,8 @@ export const deleteOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // If not admin, only allow delete if status is "Completed"
-    if (!isAdmin && order.status !== "Completed") {
+    // If not admin, only allow delete if status is "Complete"
+    if (!isAdmin && order.status !== "Complete") {
       return res.status(400).json({
         success: false,
         message: "You can only delete completed orders",
@@ -462,11 +460,10 @@ export const deleteOrder = async (req, res) => {
 // 🔒 Get Occupied Tables
 export const getOccupiedTables = async (req, res) => {
   try {
-    // Find all active orders (not completed or served)
-    // Note: You might want to include "Served" if they are still occupying the table
-    // For now, assuming "Completed" means they left.
+    // Find all active orders (not complete)
+    // Note: "Complete" means they left the table
     const activeOrders = await Order.find({
-      status: { $ne: "Completed" },
+      status: { $ne: "Complete" },
       isInRestaurant: true
     });
 

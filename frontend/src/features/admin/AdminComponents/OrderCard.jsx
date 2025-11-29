@@ -15,11 +15,9 @@ const OrderCard = ({
   userEmail,
 }) => {
   const statusColors = {
-    Pending: "text-yellow-600",
-    Cooking: "text-blue-600",
-    Ready: "text-purple-600",
+    Order: "text-yellow-600",
     Served: "text-green-600",
-    Completed: "text-gray-600",
+    Complete: "text-gray-600",
   };
 
   // Helper function to get chair letters - ensures all selected chairs are shown
@@ -146,11 +144,9 @@ const OrderCard = ({
           onChange={(e) => onStatusChange(order._id, e.target.value)}
           className="border rounded p-1.5 sm:p-2 text-xs sm:text-sm w-full"
         >
-          <option>Pending</option>
-          <option>Cooking</option>
-          <option>Ready</option>
+          <option>Order</option>
           <option>Served</option>
-          <option>Completed</option>
+          <option>Complete</option>
         </select>
       </div>
     </div>
