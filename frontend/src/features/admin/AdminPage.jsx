@@ -8,6 +8,7 @@ import imageCompression from "browser-image-compression";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
+import newOrderSound from "../../assets/sounds/neworder.mp3";
 import TotalSales from "./TotalSales";
 import AdminOrderHistory from "./AdminOrderHistory";
 import { useFoodFilter, useAppSelector } from "../../store/hooks";
@@ -56,6 +57,7 @@ const AdminPage = () => {
   const [activeTab, setActiveTab] = useState("orders");
   const socketRef = useRef(null);
   const audioRef = useRef(null);
+  const newOrderAudioRef = useRef(null);
   const pollingStopRef = useRef(null);
   const directPollingIntervalRef = useRef(null);
   const socketConnectionTimeoutRef = useRef(null);
@@ -80,6 +82,56 @@ const AdminPage = () => {
       console.warn("Error playing notification sound:", error);
     }
   };
+
+  // 🔊 Play New Order Sound (Custom)
+  const playNewOrderSound = () => {
+    try {
+      if (!newOrderAudioRef.current) {
+        newOrderAudioRef.current = new Audio(newOrderSound);
+        newOrderAudioRef.current.volume = 0.7;
+      }
+      newOrderAudioRef.current.currentTime = 0;
+      console.log("🔊 Attempting to play new order sound...");
+      newOrderAudioRef.current.play()
+        .then(() => console.log("✅ New order sound playing"))
+        .catch((err) => {
+            console.warn("❌ Audio play failed:", err);
+            if (err.name === "NotAllowedError") {
+                toast("🔇 Tap here to enable sounds", {
+                    icon: "🔊",
+                    style: { borderRadius: '10px', background: '#333', color: '#fff' },
+                });
+            }
+        });
+    } catch (error) {
+      console.warn("❌ Error playing new order sound:", error);
+    }
+  };
+
+  // 🔊 Proactive Audio Unlock for Admin
+  useEffect(() => {
+    const unlockAudio = () => {
+        const sounds = [new Audio("/notify.mp3"), new Audio(newOrderSound)];
+        sounds.forEach(s => {
+            s.volume = 0;
+            s.play().catch(() => {});
+        });
+        
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+    };
+
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
+
+    return () => {
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
 
   /* ================================
      🔌 Socket.IO + Fetch Data
@@ -205,12 +257,14 @@ const AdminPage = () => {
     // Socket connections are unreliable on serverless platforms
     // Polling ensures we ALWAYS get real-time updates
     const shouldUsePollingAsPrimary = true; // Always use polling for admin
-    const pollingInterval = 5000; // ⚡ 5s polling to reduce server load
+    const pollingInterval = 2000; // ⚡ 2s polling for faster updates
     
     
     // ⚡ Start polling
     // We rely on pollOrders utility which handles diffing and callbacks
     // syncOrdersFromPolling was removed to prevent duplicate requests and side-effects
+    
+    console.log("⚡ Starting polling with interval:", pollingInterval, "ms");
     
     // ⚡ Also use the existing pollOrders for additional change detection
     pollingStopRef.current = pollOrders(
@@ -218,6 +272,24 @@ const AdminPage = () => {
       // onNewOrder callback
       (newOrder) => {
         if (!newOrder || !newOrder._id) return;
+        
+        console.log("🔔 Polling detected new order:", newOrder);
+        
+        // 🔊 Play NEW ORDER notification sound
+        playNewOrderSound();
+        
+        // Show notification toast
+        toast.success(`📦 New Order: ${newOrder.foodName}`, {
+          duration: 5000,
+          position: "top-right",
+          icon: "🆕",
+          style: {
+            background: "#10b981",
+            color: "#fff",
+            fontSize: "16px",
+            fontWeight: "600",
+          },
+        });
         
         // ⚡ Always update state (polling is primary mechanism)
         setOrders((prev) => {
@@ -277,6 +349,7 @@ const AdminPage = () => {
         if (socket && typeof socket.emit === "function") {
           // Small delay to ensure socket is fully ready
           setTimeout(() => {
+            console.log("🔑 Admin identifying...");
             socket.emit("identify", { type: "admin", userId: null });
           }, 100);
         }
@@ -289,8 +362,10 @@ const AdminPage = () => {
 
     // ✅ Listen for identification confirmation
     socket.on("identified", (data) => {
+      console.log("✅ Socket identified:", data);
       // Admin successfully identified and joined "admins" room
       if (data && data.type === "admin") {
+        console.log("✅ Admin joined 'admins' room successfully!");
         socketConnectedRef.current = true;
       }
     });
@@ -336,14 +411,15 @@ const AdminPage = () => {
     });
 
     socket.on("newOrderPlaced", (newOrder) => {
+      console.log("🔔 Admin received newOrderPlaced:", newOrder);
       // ✅ CRITICAL: Verify we received a valid order object
       if (!newOrder || !newOrder._id) {
         console.warn("⚠️ Received invalid newOrderPlaced event:", newOrder);
         return;
       }
       
-      // 🔊 Play notification sound for new orders
-      playNotificationSound();
+      // 🔊 Play NEW ORDER notification sound (custom)
+      playNewOrderSound();
       
       // Show notification toast
       toast.success(`📦 New Order: ${newOrder.foodName}`, {

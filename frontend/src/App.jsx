@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { animateScroll as scroll } from "react-scroll";   // Scroll Top
+
 import { Provider } from "react-redux";
 import { store } from "./store/store";
 import { AuthProvider } from "./store/AuthProvider";
@@ -20,13 +20,15 @@ const OrderHistory = lazy(() => import("./pages/OrderHistory"));
 const Profile = lazy(() => import("./pages/Profile"));
 const AdminPage = lazy(() => import("./features/admin/AdminPage"));
 const TotalSales = lazy(() => import("./features/admin/TotalSales"));
+import TopProgressBar from "./components/ui/TopProgressBar";
+import "./components/ui/nprogress.css";
 
 // Top Scroller
 const ScrollToTop = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    scroll.scrollToTop({ duration: 100, smooth: true });
+    window.scrollTo(0, 0);
   }, [pathname]);
 
   return null;
@@ -38,6 +40,9 @@ const AppContent = () => {
 
   return (
     <>
+      {/* Top Progress Bar for YouTube-like loading */}
+      <TopProgressBar />
+      
       {/* Top Scroller */}
       <ScrollToTop />
 
