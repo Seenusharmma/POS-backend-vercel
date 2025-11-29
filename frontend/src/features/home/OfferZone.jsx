@@ -6,7 +6,6 @@ import API_BASE from "../../config/api";
 import Slider1 from "../../assets/Slider!.webp";
 import Slider2 from "../../assets/Slider2.webp";
 import Hero from "../../assets/hero.png";
-import Apple from "../../assets/apple.png";
 
 const OfferZone = ({ isMobile = false }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -20,7 +19,6 @@ const OfferZone = ({ isMobile = false }) => {
     { image: Slider1, title: "Special Combo", discount: "30% OFF" },
     { image: Slider2, title: "Weekend Special", discount: "25% OFF" },
     { image: Hero, title: "Family Pack", discount: "40% OFF" },
-    { image: Apple, title: "Fresh Delights", discount: "20% OFF" },
   ];
 
   // Fetch active offers from API

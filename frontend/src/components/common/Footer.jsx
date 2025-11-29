@@ -14,7 +14,7 @@ const Footer = () => {
   };
 
   return (
-    <footer className="hidden md:block relative bg-gradient-to-b from-white via-orange-50/30 to-gray-50 border-t border-orange-100">
+    <footer className="block relative bg-gradient-to-b from-white via-orange-50/30 to-gray-50 border-t border-orange-100">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 mb-10">

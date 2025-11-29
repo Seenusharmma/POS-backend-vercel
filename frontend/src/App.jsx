@@ -1,5 +1,6 @@
-import React, { lazy, Suspense } from "react";
+import React, { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { animateScroll as scroll } from "react-scroll";   // Scroll Top
 import { Provider } from "react-redux";
 import { store } from "./store/store";
 import { AuthProvider } from "./store/AuthProvider";
@@ -20,7 +21,16 @@ const Profile = lazy(() => import("./pages/Profile"));
 const AdminPage = lazy(() => import("./features/admin/AdminPage"));
 const TotalSales = lazy(() => import("./features/admin/TotalSales"));
 
+// Top Scroller
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
 
+  useEffect(() => {
+    scroll.scrollToTop({ duration: 100, smooth: true });
+  }, [pathname]);
+
+  return null;
+};
 
 const AppContent = () => {
   const location = useLocation();
@@ -28,72 +38,74 @@ const AppContent = () => {
 
   return (
     <>
+      {/* Top Scroller */}
+      <ScrollToTop />
+
       {/* Push Notification Manager - Initializes notifications for logged-in users */}
       <PushNotificationManager />
       
       <Navbar />
+
       {/* ⚡ Suspense wrapper for lazy loaded routes - no loader for instant feel */}
       <Suspense fallback={null}>
         <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/menu" element={<Menu />} />
-            <Route path="/login" element={<LoginPage />} />
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/menu" element={<Menu />} />
+          <Route path="/login" element={<LoginPage />} />
 
-            {/* Protected User Routes */}
-            <Route
-              path="/order"
-              element={
-                <ProtectedRoute>
-                  <OrderPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/history"
-              element={
-                <ProtectedRoute>
-                  <OrderHistory />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
+          {/* Protected User Routes */}
+          <Route
+            path="/order"
+            element={
+              <ProtectedRoute>
+                <OrderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <OrderHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Protected Admin Route */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute adminOnly={true}>
-                  <AdminPage />
-                </ProtectedRoute>
-              }
-            />
+          {/* Protected Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sales"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <TotalSales />
+              </ProtectedRoute>
+            }
+          />
 
-            {/* Protected Admin Route */}
-            <Route
-              path="/admin/sales"
-              element={
-                <ProtectedRoute adminOnly={true}>
-                  <TotalSales />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Fallback route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Fallback route */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+
       {!isLoginPage && <Footer />}
       <BottomNav />
       <WebUIOverlay />
-
     </>
   );
 };
