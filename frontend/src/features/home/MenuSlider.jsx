@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaChevronRight, FaChevronLeft, FaShoppingCart, FaLeaf, FaDrumstickBite } from "react-icons/fa";
 import SizeSelectionModal from "../../components/common/SizeSelectionModal";
 import { useFoodFilter } from "../../store/hooks";
-import CarouselContainer from "./CarouselContainer";
+// import CarouselContainer from "./CarouselContainer";
 
 const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick, foods = [], onAddToCart }) => {
   const menuRef = useRef(null);
@@ -341,17 +341,7 @@ const MenuSlider = ({ categories = [], selectedCategory = null, onCategoryClick,
           {/* Selected category content with carousel */}
           {selectedCategory && !isLoadingItems && (
             <div className="space-y-2 md:space-y-3">
-              {selectedCategoryFoods.length > 0 && (
-                <div className="h-40 sm:h-44 md:h-52 lg:h-56 rounded-xl overflow-hidden mb-1.5 md:mb-2">
-                  <CarouselContainer
-                    foods={selectedCategoryFoods}
-                    type={foodFilter || "Food"}
-                    onAddToCart={onAddToCart}
-                    autoSlideInterval={4500}
-                    emptyMessage={`No items in ${selectedCategory}`}
-                  />
-                </div>
-              )}
+
 
               {selectedCategoryFoods.length > 0 ? (
                 <div className="grid grid-cols-1 gap-1.5 md:gap-2.5 lg:gap-3">

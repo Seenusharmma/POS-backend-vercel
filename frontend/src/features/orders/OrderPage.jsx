@@ -144,43 +144,46 @@ const OrderPage = () => {
       }
     };
 
-    // ✅ Start polling as fallback (only if socket not connected, or always on serverless)
-    // Poll interval: 3s on serverless, 5s as backup on regular servers
-    pollingStopRef.current = pollOrders(
-      fetchUserOrdersForPolling,
-      // onNewOrder callback
-      (newOrder) => {
-        // ✅ Only show notification if socket isn't connected (avoid duplicates)
-        if (!socketConnectedRef.current) {
+    // ✅ Start polling ONLY if serverless OR socket is not connected
+    // This prevents "call order again and again" when socket is working
+    if (isServerless || !socketConnectedRef.current) {
+      pollingStopRef.current = pollOrders(
+        fetchUserOrdersForPolling,
+        // onNewOrder callback
+        (newOrder) => {
+          // Double check socket status to avoid race conditions
+          if (socketConnectedRef.current) return;
+
           toast.success(`📦 Order Placed: ${newOrder.foodName}`, {
             duration: 4000,
             position: "top-center",
           });
           showSystemNotification("Order Placed 📦", `Your order for ${newOrder.foodName} has been placed!`);
-        }
-        
-        setOrders((prev) => {
-          const exists = prev.find((o) => o._id === newOrder._id);
-          if (!exists) {
-            return [newOrder, ...prev];
-          }
-          return prev;
-        });
-      },
-      // onStatusChange callback - CRITICAL for real-time status updates
-      (updatedOrder, oldOrder) => {
-        // ✅ Validate order belongs to user
-        if (!updatedOrder || !updatedOrder._id || !user) return;
-        
-        const isUserOrder = 
-          (updatedOrder.userEmail === user.email) || 
-          (updatedOrder.userId === user.uid);
-        
-        if (!isUserOrder) return;
-        
-        // ✅ Handle status changes (only if socket not handling it to avoid duplicates)
-        if (updatedOrder.status !== oldOrder?.status) {
-          if (!socketConnectedRef.current) {
+          
+          setOrders((prev) => {
+            const exists = prev.find((o) => o._id === newOrder._id);
+            if (!exists) {
+              return [newOrder, ...prev];
+            }
+            return prev;
+          });
+        },
+        // onStatusChange callback
+        (updatedOrder, oldOrder) => {
+          // Double check socket status to avoid race conditions
+          if (socketConnectedRef.current) return;
+          
+          // ✅ Validate order belongs to user
+          if (!updatedOrder || !updatedOrder._id || !user) return;
+          
+          const isUserOrder = 
+            (updatedOrder.userEmail === user.email) || 
+            (updatedOrder.userId === user.uid);
+          
+          if (!isUserOrder) return;
+          
+          // ✅ Handle status changes
+          if (updatedOrder.status !== oldOrder?.status) {
             playNotificationSound();
             
             // ✅ CRITICAL: Handle Completed status - remove from live orders
@@ -240,28 +243,10 @@ const OrderPage = () => {
                 `${statusMessages[updatedOrder.status] || "Status updated"}: ${updatedOrder.foodName}`
               );
             }
-          } else {
-            // Socket is connected but polling detected change - still update state
-            if (updatedOrder.status === "Completed") {
-              setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
-            } else {
-              setOrders((prev) => {
-                const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
-                if (existingIndex === -1) {
-                  return [updatedOrder, ...prev];
-                } else {
-                  const updated = [...prev];
-                  updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
-                  return updated;
-                }
-              });
-            }
           }
-        }
 
-        // ✅ Handle payment status changes
-        if (updatedOrder.paymentStatus !== oldOrder?.paymentStatus && updatedOrder.paymentStatus === "Paid") {
-          if (!socketConnectedRef.current) {
+          // ✅ Handle payment status changes
+          if (updatedOrder.paymentStatus !== oldOrder?.paymentStatus && updatedOrder.paymentStatus === "Paid") {
             playNotificationSound();
             toast.success("💰 Payment Confirmed: Your payment has been confirmed by admin.", {
               duration: 5000,
@@ -275,16 +260,17 @@ const OrderPage = () => {
               position: 'top-center',
             });
             showSystemNotification("Payment Confirmed 💰", "Your payment has been successfully confirmed.");
+            
+            setOrders((prev) =>
+              prev.map((o) =>
+                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
+              )
+            );
           }
-          setOrders((prev) =>
-            prev.map((o) =>
-              o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
-            )
-          );
-        }
-      },
-      isServerless ? 3000 : 5000 // Poll every 3s on serverless, 5s as backup on regular servers
-    );
+        },
+        isServerless ? 3000 : 5000
+      );
+    }
 
     // Connection event listeners
     socket.on("connect", () => {

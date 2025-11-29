@@ -214,6 +214,7 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.1 }}
               />
             )}
             
@@ -225,7 +226,7 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   exit={{ scale: 0, rotate: 180 }}
-                  transition={{ type: "spring", stiffness: 600, damping: 25 }}
+                  transition={{ type: "spring", stiffness: 800, damping: 20 }}
                 >
                   <FaCheck className="text-[10px] sm:text-xs md:text-sm" />
                 </motion.div>
@@ -235,8 +236,8 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
                   initial={{ scale: 0, y: -5 }}
                   animate={{ scale: 1, y: 0 }}
                   exit={{ scale: 0, y: 5 }}
-                  transition={{ type: "spring", stiffness: 600, damping: 25 }}
-                  className="group-hover/btn:rotate-12 transition-transform duration-300"
+                  transition={{ type: "spring", stiffness: 800, damping: 20 }}
+                  className="group-hover/btn:rotate-12 transition-transform duration-200"
                 >
                   <FaShoppingCart className="text-[10px] sm:text-xs md:text-sm" />
                 </motion.div>
@@ -259,14 +260,14 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.15 }}
           >
             <motion.div
               className={`${successColor} text-white px-3 sm:px-5 md:px-6 py-2 sm:py-3 md:py-4 rounded-lg sm:rounded-xl md:rounded-2xl flex items-center gap-1.5 sm:gap-2 md:gap-3 shadow-2xl border-2 border-white/30`}
               initial={{ scale: 0.8, y: 20, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.8, y: 20, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              transition={{ type: "spring", stiffness: 500, damping: 20, duration: 0.15 }}
             >
               <FaCheck className="text-sm sm:text-base md:text-lg" />
               <span className="font-bold text-xs sm:text-sm md:text-base">Added to Cart!</span>
