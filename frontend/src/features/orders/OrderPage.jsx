@@ -72,9 +72,7 @@ const OrderPage = () => {
         successAudioRef.current.volume = 0.6;
       }
       successAudioRef.current.currentTime = 0;
-      console.log("🔊 Attempting to play success sound...");
       successAudioRef.current.play()
-        .then(() => console.log("✅ Success sound playing"))
         .catch((err) => {
             console.warn("❌ Audio play failed:", err);
             if (err.name === "NotAllowedError") {
@@ -97,9 +95,7 @@ const OrderPage = () => {
         servedAudioRef.current.volume = 0.6;
       }
       servedAudioRef.current.currentTime = 0;
-      console.log("🔊 Attempting to play served sound...");
       servedAudioRef.current.play()
-        .then(() => console.log("✅ Served sound playing"))
         .catch((err) => {
             console.warn("❌ Audio play failed:", err);
             if (err.name === "NotAllowedError") {
@@ -122,9 +118,7 @@ const OrderPage = () => {
         completedAudioRef.current.volume = 0.6;
       }
       completedAudioRef.current.currentTime = 0;
-      console.log("🔊 Attempting to play completed sound...");
       completedAudioRef.current.play()
-        .then(() => console.log("✅ Completed sound playing"))
         .catch((err) => {
             console.warn("❌ Audio play failed:", err);
             if (err.name === "NotAllowedError") {
@@ -147,9 +141,7 @@ const OrderPage = () => {
         deletedAudioRef.current.volume = 0.6;
       }
       deletedAudioRef.current.currentTime = 0;
-      console.log("🔊 Attempting to play deleted sound...");
       deletedAudioRef.current.play()
-        .then(() => console.log("✅ Deleted sound playing"))
         .catch((err) => {
             console.warn("❌ Audio play failed:", err);
             if (err.name === "NotAllowedError") {
@@ -507,11 +499,8 @@ const OrderPage = () => {
         (updatedOrder.userId === user.uid);
       
       if (!isUserOrder) {
-        console.log("ℹ️ Order does not belong to user, ignoring.");
         return; // Not user's order, ignore
       }
-      
-      console.log(`Checking status for sound: ${updatedOrder.status}`);
       
       // 🔊 Play notification sound based on status
       if (updatedOrder.status === "Complete" || updatedOrder.status === "Completed") {

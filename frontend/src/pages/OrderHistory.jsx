@@ -172,7 +172,7 @@ const OrderHistory = () => {
     });
 
     socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
+      // Socket disconnected
     });
 
     socket.on("connect_error", (error) => {

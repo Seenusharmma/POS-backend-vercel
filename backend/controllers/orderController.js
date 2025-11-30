@@ -460,44 +460,53 @@ export const deleteOrder = async (req, res) => {
 // 🔒 Get Occupied Tables
 export const getOccupiedTables = async (req, res) => {
   try {
-    // Find all active orders (not complete)
-    // Note: "Complete" means they left the table
-    const activeOrders = await Order.find({
-      status: { $ne: "Complete" },
-      isInRestaurant: true
-    });
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
 
-    const occupied = {};
-
-    activeOrders.forEach(order => {
-      // Handle multiple tables format
-      if (order.tables && order.tables.length > 0) {
-        order.tables.forEach(t => {
-          if (!occupied[t.tableNumber]) {
-            occupied[t.tableNumber] = [];
-          }
-          // Add unique chair indices
-          if (t.chairIndices && Array.isArray(t.chairIndices)) {
-             t.chairIndices.forEach(idx => {
-               if (!occupied[t.tableNumber].includes(idx)) {
-                 occupied[t.tableNumber].push(idx);
-               }
-             });
-          }
-        });
-      } 
-      // Handle legacy single table format
-      else if (order.tableNumber) {
-        if (!occupied[order.tableNumber]) {
-          occupied[order.tableNumber] = [];
-        }
-        if (order.chairIndices && Array.isArray(order.chairIndices)) {
-          order.chairIndices.forEach(idx => {
-            if (!occupied[order.tableNumber].includes(idx)) {
-              occupied[order.tableNumber].push(idx);
+    // ⚡ Optimized Aggregation Pipeline
+    // 1. Match active dine-in orders
+    // 2. Normalize data structure (handle both multi-table and legacy single-table)
+    // 3. Unwind tables to process each table individually
+    // 4. Group by tableNumber and collect unique chair indices
+    const occupiedData = await Order.aggregate([
+      { 
+        $match: { 
+          status: { $ne: "Complete" }, 
+          isInRestaurant: true 
+        } 
+      },
+      {
+        $project: {
+          // Normalize to common 'tables' structure
+          tables: {
+            $cond: {
+              if: { $gt: [{ $size: { $ifNull: ["$tables", []] } }, 0] },
+              then: "$tables",
+              else: [{ tableNumber: "$tableNumber", chairIndices: "$chairIndices" }]
             }
-          });
+          }
         }
+      },
+      { $unwind: "$tables" },
+      {
+        $group: {
+          _id: "$tables.tableNumber",
+          // Flatten the array of arrays of indices
+          allChairs: { $push: "$tables.chairIndices" }
+        }
+      }
+    ]);
+
+    // Format result: { tableNumber: [uniqueChairIndices] }
+    const occupied = {};
+    
+    occupiedData.forEach(item => {
+      if (item._id !== null && item._id !== undefined) {
+        // Flatten and deduplicate chairs
+        const flatChairs = item.allChairs.flat().filter(c => c !== null && c !== undefined);
+        occupied[item._id] = [...new Set(flatChairs)].sort((a, b) => a - b);
       }
     });
 

@@ -61,7 +61,6 @@ const AdminPanel = () => {
 
     // Connection event listeners
     socket.on("connect", () => {
-      console.log("✅ AdminPanel Socket connected:", socket.id);
     });
 
     socket.on("disconnect", (reason) => {
@@ -69,7 +68,6 @@ const AdminPanel = () => {
         // Server disconnected the socket, try to reconnect
         socket.connect();
       }
-      console.log("❌ AdminPanel Socket disconnected:", reason);
     });
 
     socket.on("connect_error", (error) => {
@@ -88,11 +86,11 @@ const AdminPanel = () => {
     });
 
     socket.on("reconnect_attempt", () => {
-      console.log("🔄 Attempting to reconnect socket...");
+      // Silently attempt reconnection
     });
 
     socket.on("reconnect", (attemptNumber) => {
-      console.log("✅ Socket reconnected after", attemptNumber, "attempts");
+      // Silently reconnected
     });
 
     socket.on("reconnect_error", (error) => {

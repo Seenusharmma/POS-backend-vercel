@@ -29,12 +29,6 @@ const SizeSelectionModal = ({ food, isOpen, onClose, onConfirm }) => {
       return;
     }
     const selectedPrice = sizePrices[selectedSize];
-    console.log("🔍 Size selection confirm:", {
-      selectedSize,
-      selectedPrice,
-      sizePrices,
-      food: food.name,
-    });
     
     if (!selectedPrice || selectedPrice === null || selectedPrice === undefined) {
       console.error("❌ Invalid price for selected size:", selectedSize);

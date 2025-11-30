@@ -91,9 +91,7 @@ const AdminPage = () => {
         newOrderAudioRef.current.volume = 0.7;
       }
       newOrderAudioRef.current.currentTime = 0;
-      console.log("🔊 Attempting to play new order sound...");
       newOrderAudioRef.current.play()
-        .then(() => console.log("✅ New order sound playing"))
         .catch((err) => {
             console.warn("❌ Audio play failed:", err);
             if (err.name === "NotAllowedError") {
@@ -201,8 +199,14 @@ const AdminPage = () => {
     // This ensures real-time updates regardless of socket status
     const fetchOrdersForPolling = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/orders`, {
+        // Add timestamp to prevent caching
+        const res = await axios.get(`${API_BASE}/api/orders?_t=${Date.now()}`, {
           timeout: 5000, // 5s timeout
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
         });
         consecutiveErrorsRef.current = 0; // Reset error count on success
         const activeOrders = res.data.filter((o) => o.status !== "Completed");
@@ -223,17 +227,16 @@ const AdminPage = () => {
           console.warn("Error fetching orders for polling:", error?.message || error);
         }
         
-        // ⚡ Circuit breaker: Stop polling if too many consecutive errors
+        // ⚡ Circuit breaker: Log warning but DO NOT stop polling
+        // We want continuous auto-refresh attempts even after failures
         if (consecutiveErrorsRef.current >= maxConsecutiveErrors) {
-          if (directPollingIntervalRef.current) {
-            clearInterval(directPollingIntervalRef.current);
-            directPollingIntervalRef.current = null;
-          }
-          toast.error("Unable to fetch orders. Server may be unavailable.", {
-            duration: 5000,
-            position: "top-right",
-          });
-          return [];
+           // Just reset error count periodically to avoid infinite error logs if needed
+           // or just let it keep trying silently
+           if (consecutiveErrorsRef.current % 10 === 0) {
+             console.log("Polling continuing despite errors... (Auto-retry active)");
+           }
+           // Return empty to indicate failure this time, but polling interval continues
+           return [];
         }
         
         return [];
@@ -264,16 +267,12 @@ const AdminPage = () => {
     // We rely on pollOrders utility which handles diffing and callbacks
     // syncOrdersFromPolling was removed to prevent duplicate requests and side-effects
     
-    console.log("⚡ Starting polling with interval:", pollingInterval, "ms");
-    
     // ⚡ Also use the existing pollOrders for additional change detection
     pollingStopRef.current = pollOrders(
       fetchOrdersForPolling,
       // onNewOrder callback
       (newOrder) => {
         if (!newOrder || !newOrder._id) return;
-        
-        console.log("🔔 Polling detected new order:", newOrder);
         
         // 🔊 Play NEW ORDER notification sound
         playNewOrderSound();
@@ -349,7 +348,6 @@ const AdminPage = () => {
         if (socket && typeof socket.emit === "function") {
           // Small delay to ensure socket is fully ready
           setTimeout(() => {
-            console.log("🔑 Admin identifying...");
             socket.emit("identify", { type: "admin", userId: null });
           }, 100);
         }
@@ -362,10 +360,8 @@ const AdminPage = () => {
 
     // ✅ Listen for identification confirmation
     socket.on("identified", (data) => {
-      console.log("✅ Socket identified:", data);
       // Admin successfully identified and joined "admins" room
       if (data && data.type === "admin") {
-        console.log("✅ Admin joined 'admins' room successfully!");
         socketConnectedRef.current = true;
       }
     });
@@ -411,7 +407,6 @@ const AdminPage = () => {
     });
 
     socket.on("newOrderPlaced", (newOrder) => {
-      console.log("🔔 Admin received newOrderPlaced:", newOrder);
       // ✅ CRITICAL: Verify we received a valid order object
       if (!newOrder || !newOrder._id) {
         console.warn("⚠️ Received invalid newOrderPlaced event:", newOrder);
@@ -437,15 +432,16 @@ const AdminPage = () => {
       // ✅ CRITICAL: Always add/update order if it's not completed
       // Use functional update to avoid stale state issues
       if (newOrder.status !== "Completed") {
+        // ⚡ FIX: Handle side effects outside setOrders
+        setHighlightedOrder(newOrder._id);
+        setTimeout(() => setHighlightedOrder(null), 3000);
+
         setOrders((prev) => {
           // Find if order already exists
           const existingIndex = prev.findIndex((o) => o._id === newOrder._id);
           
           if (existingIndex === -1) {
             // New order - add to beginning of array
-            // Highlight the new order
-            setHighlightedOrder(newOrder._id);
-            setTimeout(() => setHighlightedOrder(null), 3000);
             return [newOrder, ...prev];
           } else {
             // Order exists but might be outdated - update it with latest data

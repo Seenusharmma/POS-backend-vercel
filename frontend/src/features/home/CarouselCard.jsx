@@ -43,7 +43,6 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
   };
 
   const handleSizeConfirm = (selectedSize, selectedPrice) => {
-    console.log("🎯 Size confirmed:", { selectedSize, selectedPrice, food: food.name });
     const foodWithSize = {
       ...food,
       selectedSize,
@@ -53,7 +52,6 @@ const CarouselCard = ({ food, type, onAddToCart }) => {
       sizes: food.sizes || null, // Ensure sizes object is included
       halfFull: food.halfFull || null, // Ensure halfFull object is included
     };
-    console.log("📦 Food with size to add:", foodWithSize);
     onAddToCart(foodWithSize);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
