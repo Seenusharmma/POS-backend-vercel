@@ -87,11 +87,11 @@ export const getOrders = async (req, res) => {
 };
 
 // ➕ Create single order
+// ➕ Create single order
 export const createOrder = async (req, res) => {
   try {
     // Ensure database connection (for serverless)
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for createOrder...");
       await connectDB();
     }
 
@@ -120,28 +120,17 @@ export const createOrder = async (req, res) => {
     const order = new Order(req.body);
     await order.save();
 
-    // ✅ Invalidate orders cache
-    await invalidateCache(CACHE_KEYS.ORDERS);
-
-    // ✅ Emit new order to Admin (real-time) - Use room-based broadcasting
-    const io = req.app.get("io");
-    if (io && typeof io.to === "function") {
-      // Emit to admins room for faster delivery
-      io.to("admins").emit("newOrderPlaced", order);
-      // Also emit to specific user if userId exists
-      if (order.userId) {
-        io.to(`user:${order.userId}`).emit("newOrderPlaced", order);
-      }
-      console.log("📦 Emitted newOrderPlaced event for order:", order._id);
-    } else if (io && typeof io.emit === "function") {
-      // Fallback for non-room-based setup
-      io.emit("newOrderPlaced", order);
-      console.log("📦 Emitted newOrderPlaced event for order:", order._id);
-    }
-
-    // 📱 Send push notification to user
-    if (order.userEmail) {
-      sendPushToUser(
+    // ⚡ Fire-and-forget / Parallel Execution for non-critical tasks
+    // We don't need to wait for these to complete before sending response
+    // But in Vercel, we must ensure they are at least started and ideally awaited if we want to guarantee execution
+    // Using Promise.allSettled to prevent one failure from stopping others
+    
+    const backgroundTasks = [
+      // 1. Invalidate cache
+      invalidateCache(CACHE_KEYS.ORDERS),
+      
+      // 2. Send Push to User
+      order.userEmail ? sendPushToUser(
         order.userEmail,
         "📦 Order Placed!",
         `Your order for ${order.foodName} has been placed successfully!`,
@@ -149,18 +138,32 @@ export const createOrder = async (req, res) => {
           tag: `order-${order._id}`,
           data: { orderId: order._id, type: "new_order" }
         }
-      ).catch(err => console.error("Push notification error:", err));
-    }
+      ) : Promise.resolve(),
+      
+      // 3. Send Push to Admins
+      sendPushToAdmins(
+        "📢 New Order Placed!",
+        `New order from ${order.userEmail || "Guest"} for ${order.foodName}`,
+        {
+          tag: `admin-order-${order._id}`,
+          data: { orderId: order._id, type: "new_order_admin" }
+        }
+      )
+    ];
 
-    // 📢 Send push notification to Admins
-    sendPushToAdmins(
-      "📢 New Order Placed!",
-      `New order from ${order.userEmail || "Guest"} for ${order.foodName}`,
-      {
-        tag: `admin-order-${order._id}`,
-        data: { orderId: order._id, type: "new_order_admin" }
+    // Execute background tasks concurrently
+    Promise.allSettled(backgroundTasks).catch(err => console.error("Background task error:", err));
+
+    // ✅ Emit new order to Admin (real-time) - Sync emission is fast enough
+    const io = req.app.get("io");
+    if (io && typeof io.to === "function") {
+      io.to("admins").emit("newOrderPlaced", order);
+      if (order.userId) {
+        io.to(`user:${order.userId}`).emit("newOrderPlaced", order);
       }
-    ).catch(err => console.error("Admin push notification error:", err));
+    } else if (io && typeof io.emit === "function") {
+      io.emit("newOrderPlaced", order);
+    }
 
     res.status(201).json({
       success: true,
