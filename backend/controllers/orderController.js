@@ -152,7 +152,9 @@ export const createOrder = async (req, res) => {
     ];
 
     // Execute background tasks concurrently
-    Promise.allSettled(backgroundTasks).catch(err => console.error("Background task error:", err));
+    // ⚡ CRITICAL: We MUST await this on Vercel/Serverless
+    // Otherwise the function freezes/terminates before tasks complete
+    await Promise.allSettled(backgroundTasks);
 
     // ✅ Emit new order to Admin (real-time) - Sync emission is fast enough
     const io = req.app.get("io");
@@ -236,7 +238,8 @@ export const createMultipleOrders = async (req, res) => {
     }
 
     // 📢 Send push notification to Admins for multiple orders
-    sendPushToAdmins(
+    // ⚡ CRITICAL: Await this for Vercel
+    await sendPushToAdmins(
       "📢 New Orders Placed!",
       `${req.body.length} new orders received from ${req.body[0].userEmail || "Guest"}`,
       {
@@ -353,7 +356,7 @@ export const updateOrderStatus = async (req, res) => {
             Complete: "🎉 Your order is complete!"
           };
           
-          sendPushToUser(
+          await sendPushToUser(
             order.userEmail,
             statusMessages[order.status] || "Order Status Updated",
             `${order.foodName} - Status: ${order.status}`,
