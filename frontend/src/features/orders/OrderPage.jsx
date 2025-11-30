@@ -399,7 +399,7 @@ const OrderPage = () => {
             );
           }
         },
-        isServerless ? 3000 : 5000
+        540 // ⚡ 0.54s polling as requested
       );
     }
 
