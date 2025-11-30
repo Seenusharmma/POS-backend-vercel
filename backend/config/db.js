@@ -5,13 +5,16 @@ dotenv.config();
 
 // Cache the connection to avoid multiple connections in serverless
 let cachedConnection = null;
+// Initialize secondary connection object immediately so it can be used in models
+// It will be connected later in connectDB
+const secondaryConnection = mongoose.createConnection();
 
 export const connectDB = async (retryCount = 0, maxRetries = 3) => {
   try {
     // If connection already exists and is connected, return it
     if (cachedConnection && mongoose.connection.readyState === 1) {
       console.log("✅ Using existing MongoDB connection");
-      return cachedConnection;
+      return { primary: cachedConnection, secondary: secondaryConnection };
     }
 
     let mongoUri = process.env.MONGODB_URI;
@@ -76,7 +79,7 @@ export const connectDB = async (retryCount = 0, maxRetries = 3) => {
       
       if (mongoose.connection.readyState === 1) {
         cachedConnection = mongoose.connection;
-        return cachedConnection;
+        return { primary: cachedConnection, secondary: secondaryConnection };
       }
     }
     
@@ -88,8 +91,26 @@ export const connectDB = async (retryCount = 0, maxRetries = 3) => {
       }
     }
 
-    // Connect to MongoDB
-    cachedConnection = await mongoose.connect(mongoUri, options);
+    // Connect to MongoDB (Primary)
+    const mongooseInstance = await mongoose.connect(mongoUri, options);
+    cachedConnection = mongooseInstance.connection;
+    
+    // Connect to Secondary MongoDB
+    if (process.env.SECONDARY_DB_URI) {
+      try {
+        // Only connect if not already connected/connecting
+        if (secondaryConnection.readyState === 0) {
+          console.log("🔗 Connecting to Secondary MongoDB...");
+          // Use openUri to connect the existing connection object
+          await secondaryConnection.openUri(process.env.SECONDARY_DB_URI, options);
+          console.log("✅ Secondary MongoDB Connected Successfully");
+        }
+      } catch (secErr) {
+        console.error("❌ Failed to initiate secondary connection:", secErr);
+      }
+    } else {
+      console.warn("⚠️ SECONDARY_DB_URI not defined, skipping secondary connection");
+    }
     
     // Wait a bit longer to ensure connection is fully established (especially for serverless)
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -120,7 +141,7 @@ export const connectDB = async (retryCount = 0, maxRetries = 3) => {
       console.log("🔄 MongoDB reconnected");
     });
 
-    return cachedConnection;
+    return { primary: cachedConnection, secondary: secondaryConnection };
   } catch (err) {
     const errorMessage = err.message || "Unknown error";
     const errorCode = err.code || "UNKNOWN";
@@ -167,5 +188,7 @@ export const connectDB = async (retryCount = 0, maxRetries = 3) => {
     return null;
   }
 };
+
+export { secondaryConnection };
 
 
