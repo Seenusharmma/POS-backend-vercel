@@ -46,17 +46,40 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
     }
   };
 
-  // Get status color
-  const getStatusColor = (status) => {
+  // Get status color and info
+  const getStatusInfo = (status) => {
     switch (status) {
-      case "Complete":
-        return "bg-green-100 text-green-700";
+      case "Order":
+        return { color: "bg-yellow-100 text-yellow-700", icon: "📝" };
+      case "Preparing":
+        return { color: "bg-blue-100 text-blue-700", icon: "👨‍🍳" };
+      case "Served":
+        return { color: "bg-purple-100 text-purple-700", icon: "🍽️" };
+      case "Completed":
+        return { color: "bg-green-100 text-green-700", icon: "✅" };
       case "Paid":
-        return "bg-green-100 text-green-700";
+        return { color: "bg-green-100 text-green-700", icon: "💰" };
       default:
-        return "bg-gray-100 text-gray-600";
+        return { color: "bg-gray-100 text-gray-600", icon: "📦" };
     }
   };
+
+  // Get current step index for progress indicator
+  const getStatusStep = (status) => {
+    const steps = ["Order", "Preparing", "Served", "Completed"];
+    return steps.indexOf(status);
+  };
+
+  // Status progress steps
+  const statusSteps = [
+    { label: "Order", icon: "📝", color: "yellow" },
+    { label: "Preparing", icon: "👨‍🍳", color: "blue" },
+    { label: "Served", icon: "🍽️", color: "purple" },
+    { label: "Completed", icon: "✅", color: "green" },
+  ];
+
+  const currentStep = getStatusStep(firstOrder.status);
+  const statusInfo = getStatusInfo(firstOrder.status);
 
 
   return (
@@ -74,10 +97,9 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
                 Order #{orderId}
               </h3>
               <span
-                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(
-                  firstOrder.status
-                )}`}
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 ${statusInfo.color}`}
               >
+                <span>{statusInfo.icon}</span>
                 {firstOrder.status}
               </span>
             </div>
@@ -104,6 +126,57 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
           <span>
             {orderGroup.length} item{orderGroup.length > 1 ? "s" : ""}
           </span>
+        </div>
+
+        {/* Status Progress Indicator */}
+        <div className="mb-4 px-2">
+          <div className="relative flex items-start justify-between gap-1">
+            {statusSteps.map((step, index) => {
+              const isCompleted = index <= currentStep;
+              const isCurrent = index === currentStep;
+              const colorClasses = {
+                yellow: isCompleted ? "bg-yellow-500 text-white border-yellow-500" : "bg-gray-200 text-gray-400 border-gray-300",
+                blue: isCompleted ? "bg-blue-500 text-white border-blue-500" : "bg-gray-200 text-gray-400 border-gray-300",
+                purple: isCompleted ? "bg-purple-500 text-white border-purple-500" : "bg-gray-200 text-gray-400 border-gray-300",
+                green: isCompleted ? "bg-green-500 text-white border-green-500" : "bg-gray-200 text-gray-400 border-gray-300",
+              };
+
+              return (
+                <React.Fragment key={step.label}>
+                  <div className="flex flex-col items-center flex-1 relative z-10">
+                    {/* Step Icon */}
+                    <div
+                      className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all border-2 ${
+                        colorClasses[step.color]
+                      } ${
+                        isCurrent ? "scale-110 shadow-lg" : ""
+                      }`}
+                    >
+                      {step.icon}
+                    </div>
+                    {/* Step Label */}
+                    <p
+                      className={`mt-1 text-[10px] sm:text-xs font-medium text-center ${
+                        isCompleted ? "text-gray-700" : "text-gray-400"
+                      }`}
+                    >
+                      {step.label}
+                    </p>
+                  </div>
+                  {/* Connector Line */}
+                  {index < statusSteps.length - 1 && (
+                    <div className="flex items-center" style={{ marginTop: "13px", flex: "0 0 auto", width: "20%" }}>
+                      <div
+                        className={`h-0.5 w-full transition-all ${
+                          isCompleted ? "bg-" + step.color + "-500" : "bg-gray-300"
+                        }`}
+                      ></div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -209,24 +282,10 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Delivery Address</h4>
                   <div className="flex items-start gap-2 text-xs text-gray-600 bg-white p-2 rounded-lg">
                     <FaMapMarkerAlt className="text-blue-500 mt-0.5" />
-                    <span>
-                      {firstOrder.deliveryLocation.address ||
-                        `${firstOrder.deliveryLocation.latitude?.toFixed(4)}, ${firstOrder.deliveryLocation.longitude?.toFixed(4)}`}
-                    </span>
+                    <span className="flex-1">{firstOrder.deliveryLocation || "Address not available"}</span>
                   </div>
                 </div>
               )}
-
-              {/* Order Summary */}
-              <div className="bg-white p-3 rounded-lg">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Order Summary</h4>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between font-bold text-gray-800 pt-2 border-t border-gray-200">
-                    <span>Total:</span>
-                    <span className="text-red-600">₹{totalAmount.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </motion.div>
         )}
@@ -236,4 +295,3 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
 };
 
 export default OrderHistoryCard;
-
