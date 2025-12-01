@@ -28,4 +28,10 @@ const foodSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ⚡ Indexes for performance
+foodSchema.index({ category: 1 });
+foodSchema.index({ type: 1 });
+foodSchema.index({ available: 1 });
+foodSchema.index({ createdAt: -1 });
+
 export default mongoose.model("Food", foodSchema);

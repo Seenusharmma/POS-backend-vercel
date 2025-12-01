@@ -70,16 +70,11 @@ const PaymentModal = ({
         contactNumber: propContactNumber || "", // Phone number for parcel/delivery orders
         deliveryLocation: null,
       }));
-
-      console.log("Sending order payload:", validatedPayload); // Debug log
       
       const response = await axios.post(`${API_BASE}/api/orders/create-multiple`, validatedPayload);
       
-      console.log("Order creation response:", response.data); // Debug log
-      
       // Store created orders for order slip
       const orders = response.data.orders || [];
-      console.log("Created orders for slip:", orders); // Debug log
       setCreatedOrders(orders);
       
       // Socket events are already emitted by backend when orders are created

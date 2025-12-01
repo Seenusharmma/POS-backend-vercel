@@ -18,7 +18,6 @@ export const requestNotificationPermission = async () => {
 
   try {
     const permission = await Notification.requestPermission();
-    console.log('Notification permission:', permission);
     return permission;
   } catch (error) {
     console.error('Error requesting notification permission:', error);
@@ -55,12 +54,11 @@ export const registerServiceWorker = async () => {
     // Check if service worker is already registered
     const existingRegistration = await navigator.serviceWorker.getRegistration();
     if (existingRegistration) {
-      console.log('Service worker already registered, updating...');
       // Update existing service worker
       try {
         await existingRegistration.update();
       } catch (updateError) {
-        console.log('Service worker update check:', updateError.message);
+        // Silent update check
       }
       // Wait for service worker to be ready
       await navigator.serviceWorker.ready;
@@ -68,13 +66,10 @@ export const registerServiceWorker = async () => {
     }
 
     // Register new service worker
-    console.log('Registering new service worker...');
     const registration = await navigator.serviceWorker.register('/service-worker.js', {
       scope: '/',
       updateViaCache: 'none' // Always check for updates
     });
-    
-    console.log('Service worker registered:', registration.scope);
     
     // Wait for service worker to be ready (with timeout)
     const readyPromise = navigator.serviceWorker.ready;
@@ -83,7 +78,6 @@ export const registerServiceWorker = async () => {
     );
     
     await Promise.race([readyPromise, timeoutPromise]);
-    console.log('Service worker is ready');
     
     return registration;
   } catch (error) {
@@ -114,11 +108,9 @@ export const subscribeToPush = async (vapidPublicKey, registration = null) => {
       // Check if subscription is still valid (has keys)
       const subscriptionKeys = subscription.toJSON().keys;
       if (subscriptionKeys && subscriptionKeys.p256dh && subscriptionKeys.auth) {
-        console.log('Already subscribed to push notifications');
         return subscription;
       } else {
         // Subscription exists but is invalid, unsubscribe first
-        console.log('Invalid subscription found, unsubscribing...');
         await subscription.unsubscribe();
         subscription = null;
       }
@@ -130,8 +122,6 @@ export const subscribeToPush = async (vapidPublicKey, registration = null) => {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
       });
-
-      console.log('Subscribed to push notifications:', subscription);
     }
     
     return subscription;
@@ -149,7 +139,6 @@ export const unsubscribeFromPush = async () => {
     
     if (subscription) {
       await subscription.unsubscribe();
-      console.log('Unsubscribed from push notifications');
       return true;
     }
     return false;
@@ -234,12 +223,10 @@ export const initializePushNotifications = async (vapidPublicKey, userEmail) => 
     // Request permission
     const permission = await requestNotificationPermission();
     if (permission !== 'granted') {
-      console.log('Notification permission not granted:', permission);
       return { success: false, reason: 'permission_denied', permission };
     }
 
     // Register service worker and wait for it to be ready
-    console.log('Registering service worker...');
     const registration = await registerServiceWorker();
     if (!registration) {
       console.error('Service worker registration failed');
@@ -247,9 +234,7 @@ export const initializePushNotifications = async (vapidPublicKey, userEmail) => 
     }
 
     // Ensure service worker is ready before subscribing
-    console.log('Waiting for service worker to be ready...');
     await navigator.serviceWorker.ready;
-    console.log('Service worker is ready, subscribing to push...');
 
     // Subscribe to push with the registration
     const subscription = await subscribeToPush(vapidPublicKey, registration);
@@ -267,7 +252,6 @@ export const initializePushNotifications = async (vapidPublicKey, userEmail) => 
 
     // Import API_BASE from centralized config
     const API_BASE = (await import('../services/api.js')).default;
-    console.log('Saving subscription to backend:', API_BASE);
     
     const response = await fetch(`${API_BASE}/api/push/subscribe`, {
       method: 'POST',
@@ -287,7 +271,6 @@ export const initializePushNotifications = async (vapidPublicKey, userEmail) => 
     }
 
     const result = await response.json();
-    console.log('✅ Push notifications initialized successfully:', result);
     return { success: true, subscription, result };
   } catch (error) {
     console.error('Error initializing push notifications:', error);

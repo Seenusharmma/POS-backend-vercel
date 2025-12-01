@@ -28,7 +28,6 @@ const FoodCard = ({ food, addToCart }) => {
   };
 
   const handleSizeConfirm = (selectedSize, selectedPrice) => {
-    console.log("🎯 Size confirmed:", { selectedSize, selectedPrice, food: food.name });
     const foodWithSize = {
       ...food,
       selectedSize,
@@ -38,7 +37,6 @@ const FoodCard = ({ food, addToCart }) => {
       sizes: food.sizes || null, // Ensure sizes object is included
       halfFull: food.halfFull || null, // Ensure halfFull object is included
     };
-    console.log("📦 Food with size to add:", foodWithSize);
     addToCart(foodWithSize);
     setShowSizeModal(false);
   };

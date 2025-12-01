@@ -89,8 +89,9 @@ export const pollOrders = (fetchOrders, onNewOrder, onStatusChange, interval = 3
   let lastOrderMap = new Map(); // Map for faster lookups
 
   const onUpdate = (newOrders, oldOrders) => {
-    // ✅ Handle first load - initialize tracking
-    if (!oldOrders || oldOrders.length === 0) {
+    // ✅ CRITICAL FIX: Only skip on FIRST load (null/undefined), not when array is empty
+    // This was preventing detection of the first order when starting from empty state
+    if (oldOrders === null || oldOrders === undefined) {
       lastOrders = Array.isArray(newOrders) ? [...newOrders] : [];
       lastOrderIds = new Set(lastOrders.map(o => o._id));
       lastOrderMap = new Map(lastOrders.map(o => [o._id, o]));

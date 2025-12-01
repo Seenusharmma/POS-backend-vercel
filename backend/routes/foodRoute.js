@@ -168,6 +168,24 @@ router.post("/add", upload.single("image"), async (req, res) => {
     // If sizes are disabled, price is required
     const hasSizesBool = hasSizes === "true" || hasSizes === true;
     const finalSizeType = hasSizesBool ? (sizeType || "standard") : null;
+
+    // Parse sizes and halfFull if they are strings (from FormData)
+    let parsedSizesInput = sizes;
+    let parsedHalfFullInput = halfFull;
+
+    try {
+      if (typeof sizes === 'string') parsedSizesInput = JSON.parse(sizes);
+    } catch (e) {
+      console.error("Error parsing sizes JSON:", e);
+      parsedSizesInput = {};
+    }
+
+    try {
+      if (typeof halfFull === 'string') parsedHalfFullInput = JSON.parse(halfFull);
+    } catch (e) {
+      console.error("Error parsing halfFull JSON:", e);
+      parsedHalfFullInput = {};
+    }
     
     if (!name || !category || !type) {
       return res.status(400).json({
@@ -187,8 +205,8 @@ router.post("/add", upload.single("image"), async (req, res) => {
       if (finalSizeType === "half-full") {
         // Validate Half/Full sizes
         const halfFullPrices = {
-          Half: halfFull?.Half ? Number(halfFull.Half) : null,
-          Full: halfFull?.Full ? Number(halfFull.Full) : null,
+          Half: parsedHalfFullInput?.Half ? Number(parsedHalfFullInput.Half) : null,
+          Full: parsedHalfFullInput?.Full ? Number(parsedHalfFullInput.Full) : null,
         };
         
         // At least one Half/Full price should be provided
@@ -201,9 +219,9 @@ router.post("/add", upload.single("image"), async (req, res) => {
       } else {
         // Validate Standard sizes
         const sizePrices = {
-          Small: sizes?.Small ? Number(sizes.Small) : null,
-          Medium: sizes?.Medium ? Number(sizes.Medium) : null,
-          Large: sizes?.Large ? Number(sizes.Large) : null,
+          Small: parsedSizesInput?.Small ? Number(parsedSizesInput.Small) : null,
+          Medium: parsedSizesInput?.Medium ? Number(parsedSizesInput.Medium) : null,
+          Large: parsedSizesInput?.Large ? Number(parsedSizesInput.Large) : null,
         };
         
         // At least one size price should be provided
@@ -252,8 +270,8 @@ router.post("/add", upload.single("image"), async (req, res) => {
       if (finalSizeType === "half-full") {
         // Parse Half/Full sizes
         parsedHalfFull = {
-          Half: halfFull?.Half ? Number(halfFull.Half) : null,
-          Full: halfFull?.Full ? Number(halfFull.Full) : null,
+          Half: parsedHalfFullInput?.Half ? Number(parsedHalfFullInput.Half) : null,
+          Full: parsedHalfFullInput?.Full ? Number(parsedHalfFullInput.Full) : null,
         };
         parsedSizes = {
           Small: null,
@@ -263,9 +281,9 @@ router.post("/add", upload.single("image"), async (req, res) => {
       } else {
         // Parse Standard sizes (Small/Medium/Large)
         parsedSizes = {
-          Small: sizes?.Small ? Number(sizes.Small) : null,
-          Medium: sizes?.Medium ? Number(sizes.Medium) : null,
-          Large: sizes?.Large ? Number(sizes.Large) : null,
+          Small: parsedSizesInput?.Small ? Number(parsedSizesInput.Small) : null,
+          Medium: parsedSizesInput?.Medium ? Number(parsedSizesInput.Medium) : null,
+          Large: parsedSizesInput?.Large ? Number(parsedSizesInput.Large) : null,
         };
         parsedHalfFull = {
           Half: null,
@@ -362,11 +380,39 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     // ✅ Handle size options
     if (updateData.hasSizes === "true" || updateData.hasSizes === true) {
       updateData.hasSizes = true;
+      
+      // Parse sizes JSON if string
+      if (typeof updateData.sizes === 'string') {
+        try {
+          updateData.sizes = JSON.parse(updateData.sizes);
+        } catch (e) {
+          console.error("Error parsing sizes JSON in update:", e);
+          updateData.sizes = {};
+        }
+      }
+
+      // Parse halfFull JSON if string
+      if (typeof updateData.halfFull === 'string') {
+        try {
+          updateData.halfFull = JSON.parse(updateData.halfFull);
+        } catch (e) {
+          console.error("Error parsing halfFull JSON in update:", e);
+          updateData.halfFull = {};
+        }
+      }
+
       if (updateData.sizes) {
         updateData.sizes = {
           Small: updateData.sizes.Small ? Number(updateData.sizes.Small) : null,
           Medium: updateData.sizes.Medium ? Number(updateData.sizes.Medium) : null,
           Large: updateData.sizes.Large ? Number(updateData.sizes.Large) : null,
+        };
+      }
+      
+      if (updateData.halfFull) {
+        updateData.halfFull = {
+          Half: updateData.halfFull.Half ? Number(updateData.halfFull.Half) : null,
+          Full: updateData.halfFull.Full ? Number(updateData.halfFull.Full) : null,
         };
       }
     } else if (updateData.hasSizes === "false" || updateData.hasSizes === false) {
@@ -375,6 +421,10 @@ router.put("/:id", upload.single("image"), async (req, res) => {
         Small: null,
         Medium: null,
         Large: null,
+      };
+      updateData.halfFull = {
+        Half: null,
+        Full: null,
       };
     }
 

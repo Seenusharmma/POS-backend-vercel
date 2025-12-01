@@ -70,6 +70,12 @@ export const sendPushToUser = async (userEmail, title, body, options = {}) => {
  * @param {string} body - Notification body
  * @param {object} options - Additional options
  */
+/**
+ * Send push notification to all subscribed users
+ * @param {string} title - Notification title
+ * @param {string} body - Notification body
+ * @param {object} options - Additional options
+ */
 export const sendPushToAll = async (title, body, options = {}) => {
   try {
     if (!vapidPublicKey || !vapidPrivateKey) {
@@ -93,25 +99,40 @@ export const sendPushToAll = async (title, body, options = {}) => {
       requireInteraction: options.requireInteraction || false
     });
 
+    // ⚡ Parallel Execution with Promise.allSettled
+    const results = await Promise.allSettled(
+      subscriptions.map(subDoc => 
+        webpush.sendNotification(subDoc.subscription, payload)
+          .then(() => ({ status: 'fulfilled', id: subDoc._id }))
+          .catch(err => {
+            // Attach ID to error for cleanup
+            err.subscriptionId = subDoc._id;
+            throw err;
+          })
+      )
+    );
+
     let sent = 0;
     let failed = 0;
     const invalidSubscriptions = [];
 
-    for (const subDoc of subscriptions) {
-      try {
-        await webpush.sendNotification(subDoc.subscription, payload);
+    results.forEach(result => {
+      if (result.status === 'fulfilled') {
         sent++;
-      } catch (error) {
+      } else {
         failed++;
+        const error = result.reason;
         if (error.statusCode === 410 || error.statusCode === 404) {
-          invalidSubscriptions.push(subDoc._id);
+          if (error.subscriptionId) invalidSubscriptions.push(error.subscriptionId);
         }
       }
-    }
+    });
 
     if (invalidSubscriptions.length > 0) {
-      await Subscription.deleteMany({ _id: { $in: invalidSubscriptions } });
-      console.log(`🗑️ Removed ${invalidSubscriptions.length} invalid subscriptions`);
+      // Fire-and-forget cleanup
+      Subscription.deleteMany({ _id: { $in: invalidSubscriptions } })
+        .then(res => console.log(`🗑️ Removed ${res.deletedCount} invalid subscriptions`))
+        .catch(err => console.error("❌ Error removing invalid subscriptions:", err));
     }
 
     console.log(`✅ Push notification sent: ${sent} successful, ${failed} failed`);
@@ -138,7 +159,6 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
 
     // 1. Get all admin emails
     const admins = await Admin.find({}, "email");
-    console.log(`👥 Found ${admins.length} admins in database:`, admins.map(a => a.email));
     
     if (!admins.length) {
       console.log("⚠️ No admins found in Admin collection.");
@@ -151,8 +171,6 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
       userEmail: { $in: adminEmails },
       platform: 'web-push'
     });
-    
-    console.log(`📱 Found ${subscriptions.length} subscriptions for admins:`, subscriptions.map(s => s.userEmail));
     
     if (subscriptions.length === 0) {
       console.log("⚠️ No active push subscriptions found for any admin.");
@@ -169,27 +187,42 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
       requireInteraction: options.requireInteraction || false
     });
 
+    // ⚡ Parallel Execution with Promise.allSettled
+    const results = await Promise.allSettled(
+      subscriptions.map(subDoc => 
+        webpush.sendNotification(subDoc.subscription, payload)
+          .then(() => ({ status: 'fulfilled', email: subDoc.userEmail }))
+          .catch(err => {
+            err.subscriptionId = subDoc._id;
+            err.email = subDoc.userEmail;
+            throw err;
+          })
+      )
+    );
+
     let sent = 0;
     let failed = 0;
     const invalidSubscriptions = [];
 
-    for (const subDoc of subscriptions) {
-      try {
-        await webpush.sendNotification(subDoc.subscription, payload);
+    results.forEach(result => {
+      if (result.status === 'fulfilled') {
         sent++;
-        console.log(`✅ Sent to admin: ${subDoc.userEmail}`);
-      } catch (error) {
+        console.log(`✅ Sent to admin: ${result.value.email}`);
+      } else {
         failed++;
-        console.error(`❌ Failed to send to admin ${subDoc.userEmail}:`, error.statusCode);
+        const error = result.reason;
+        console.error(`❌ Failed to send to admin ${error.email}:`, error.statusCode);
         if (error.statusCode === 410 || error.statusCode === 404) {
-          invalidSubscriptions.push(subDoc._id);
+          if (error.subscriptionId) invalidSubscriptions.push(error.subscriptionId);
         }
       }
-    }
+    });
 
     if (invalidSubscriptions.length > 0) {
-      await Subscription.deleteMany({ _id: { $in: invalidSubscriptions } });
-      console.log(`🗑️ Removed ${invalidSubscriptions.length} invalid admin subscriptions`);
+      // Fire-and-forget cleanup
+      Subscription.deleteMany({ _id: { $in: invalidSubscriptions } })
+        .then(res => console.log(`🗑️ Removed ${res.deletedCount} invalid admin subscriptions`))
+        .catch(err => console.error("❌ Error removing invalid admin subscriptions:", err));
     }
 
     console.log(`✅ Admin Push Result: ${sent} sent, ${failed} failed`);

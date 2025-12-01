@@ -87,11 +87,11 @@ export const getOrders = async (req, res) => {
 };
 
 // ➕ Create single order
+// ➕ Create single order
 export const createOrder = async (req, res) => {
   try {
     // Ensure database connection (for serverless)
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for createOrder...");
       await connectDB();
     }
 
@@ -120,28 +120,17 @@ export const createOrder = async (req, res) => {
     const order = new Order(req.body);
     await order.save();
 
-    // ✅ Invalidate orders cache
-    await invalidateCache(CACHE_KEYS.ORDERS);
-
-    // ✅ Emit new order to Admin (real-time) - Use room-based broadcasting
-    const io = req.app.get("io");
-    if (io && typeof io.to === "function") {
-      // Emit to admins room for faster delivery
-      io.to("admins").emit("newOrderPlaced", order);
-      // Also emit to specific user if userId exists
-      if (order.userId) {
-        io.to(`user:${order.userId}`).emit("newOrderPlaced", order);
-      }
-      console.log("📦 Emitted newOrderPlaced event for order:", order._id);
-    } else if (io && typeof io.emit === "function") {
-      // Fallback for non-room-based setup
-      io.emit("newOrderPlaced", order);
-      console.log("📦 Emitted newOrderPlaced event for order:", order._id);
-    }
-
-    // 📱 Send push notification to user
-    if (order.userEmail) {
-      sendPushToUser(
+    // ⚡ Fire-and-forget / Parallel Execution for non-critical tasks
+    // We don't need to wait for these to complete before sending response
+    // But in Vercel, we must ensure they are at least started and ideally awaited if we want to guarantee execution
+    // Using Promise.allSettled to prevent one failure from stopping others
+    
+    const backgroundTasks = [
+      // 1. Invalidate cache
+      invalidateCache(CACHE_KEYS.ORDERS),
+      
+      // 2. Send Push to User
+      order.userEmail ? sendPushToUser(
         order.userEmail,
         "📦 Order Placed!",
         `Your order for ${order.foodName} has been placed successfully!`,
@@ -149,18 +138,34 @@ export const createOrder = async (req, res) => {
           tag: `order-${order._id}`,
           data: { orderId: order._id, type: "new_order" }
         }
-      ).catch(err => console.error("Push notification error:", err));
-    }
+      ) : Promise.resolve(),
+      
+      // 3. Send Push to Admins
+      sendPushToAdmins(
+        "📢 New Order Placed!",
+        `New order from ${order.userEmail || "Guest"} for ${order.foodName}`,
+        {
+          tag: `admin-order-${order._id}`,
+          data: { orderId: order._id, type: "new_order_admin" }
+        }
+      )
+    ];
 
-    // 📢 Send push notification to Admins
-    sendPushToAdmins(
-      "📢 New Order Placed!",
-      `New order from ${order.userEmail || "Guest"} for ${order.foodName}`,
-      {
-        tag: `admin-order-${order._id}`,
-        data: { orderId: order._id, type: "new_order_admin" }
+    // Execute background tasks concurrently
+    // ⚡ CRITICAL: We MUST await this on Vercel/Serverless
+    // Otherwise the function freezes/terminates before tasks complete
+    await Promise.allSettled(backgroundTasks);
+
+    // ✅ Emit new order to Admin (real-time) - Sync emission is fast enough
+    const io = req.app.get("io");
+    if (io && typeof io.to === "function") {
+      io.to("admins").emit("newOrderPlaced", order);
+      if (order.userId) {
+        io.to(`user:${order.userId}`).emit("newOrderPlaced", order);
       }
-    ).catch(err => console.error("Admin push notification error:", err));
+    } else if (io && typeof io.emit === "function") {
+      io.emit("newOrderPlaced", order);
+    }
 
     res.status(201).json({
       success: true,
@@ -233,7 +238,8 @@ export const createMultipleOrders = async (req, res) => {
     }
 
     // 📢 Send push notification to Admins for multiple orders
-    sendPushToAdmins(
+    // ⚡ CRITICAL: Await this for Vercel
+    await sendPushToAdmins(
       "📢 New Orders Placed!",
       `${req.body.length} new orders received from ${req.body[0].userEmail || "Guest"}`,
       {
@@ -272,7 +278,7 @@ export const updateOrderStatus = async (req, res) => {
     const updateData = {};
     
     if (status) {
-      const validStatuses = ["Pending", "Cooking", "Ready", "Served", "Completed"];
+      const validStatuses = ["Order", "Served", "Complete"];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
@@ -345,14 +351,12 @@ export const updateOrderStatus = async (req, res) => {
         // 📱 Send push notification to user about status change
         if (order.userEmail) {
           const statusMessages = {
-            Pending: "⏳ Your order is pending",
-            Cooking: "👨‍🍳 Your order is being cooked",
-            Ready: "✅ Your order is ready!",
+            Order: "📦 Your order has been placed",
             Served: "🍽️ Your order has been served",
-            Completed: "🎉 Your order is completed!"
+            Complete: "🎉 Your order is complete!"
           };
           
-          sendPushToUser(
+          await sendPushToUser(
             order.userEmail,
             statusMessages[order.status] || "Order Status Updated",
             `${order.foodName} - Status: ${order.status}`,
@@ -417,8 +421,8 @@ export const deleteOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    // If not admin, only allow delete if status is "Completed"
-    if (!isAdmin && order.status !== "Completed") {
+    // If not admin, only allow delete if status is "Complete"
+    if (!isAdmin && order.status !== "Complete") {
       return res.status(400).json({
         success: false,
         message: "You can only delete completed orders",
@@ -462,45 +466,53 @@ export const deleteOrder = async (req, res) => {
 // 🔒 Get Occupied Tables
 export const getOccupiedTables = async (req, res) => {
   try {
-    // Find all active orders (not completed or served)
-    // Note: You might want to include "Served" if they are still occupying the table
-    // For now, assuming "Completed" means they left.
-    const activeOrders = await Order.find({
-      status: { $ne: "Completed" },
-      isInRestaurant: true
-    });
+    // Ensure database connection (for serverless)
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
 
-    const occupied = {};
-
-    activeOrders.forEach(order => {
-      // Handle multiple tables format
-      if (order.tables && order.tables.length > 0) {
-        order.tables.forEach(t => {
-          if (!occupied[t.tableNumber]) {
-            occupied[t.tableNumber] = [];
-          }
-          // Add unique chair indices
-          if (t.chairIndices && Array.isArray(t.chairIndices)) {
-             t.chairIndices.forEach(idx => {
-               if (!occupied[t.tableNumber].includes(idx)) {
-                 occupied[t.tableNumber].push(idx);
-               }
-             });
-          }
-        });
-      } 
-      // Handle legacy single table format
-      else if (order.tableNumber) {
-        if (!occupied[order.tableNumber]) {
-          occupied[order.tableNumber] = [];
-        }
-        if (order.chairIndices && Array.isArray(order.chairIndices)) {
-          order.chairIndices.forEach(idx => {
-            if (!occupied[order.tableNumber].includes(idx)) {
-              occupied[order.tableNumber].push(idx);
+    // ⚡ Optimized Aggregation Pipeline
+    // 1. Match active dine-in orders
+    // 2. Normalize data structure (handle both multi-table and legacy single-table)
+    // 3. Unwind tables to process each table individually
+    // 4. Group by tableNumber and collect unique chair indices
+    const occupiedData = await Order.aggregate([
+      { 
+        $match: { 
+          status: { $ne: "Complete" }, 
+          isInRestaurant: true 
+        } 
+      },
+      {
+        $project: {
+          // Normalize to common 'tables' structure
+          tables: {
+            $cond: {
+              if: { $gt: [{ $size: { $ifNull: ["$tables", []] } }, 0] },
+              then: "$tables",
+              else: [{ tableNumber: "$tableNumber", chairIndices: "$chairIndices" }]
             }
-          });
+          }
         }
+      },
+      { $unwind: "$tables" },
+      {
+        $group: {
+          _id: "$tables.tableNumber",
+          // Flatten the array of arrays of indices
+          allChairs: { $push: "$tables.chairIndices" }
+        }
+      }
+    ]);
+
+    // Format result: { tableNumber: [uniqueChairIndices] }
+    const occupied = {};
+    
+    occupiedData.forEach(item => {
+      if (item._id !== null && item._id !== undefined) {
+        // Flatten and deduplicate chairs
+        const flatChairs = item.allChairs.flat().filter(c => c !== null && c !== undefined);
+        occupied[item._id] = [...new Set(flatChairs)].sort((a, b) => a - b);
       }
     });
 

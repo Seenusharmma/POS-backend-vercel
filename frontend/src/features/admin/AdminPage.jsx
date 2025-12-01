@@ -8,6 +8,7 @@ import imageCompression from "browser-image-compression";
 import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
+import newOrderSound from "../../assets/sounds/neworder.mp3";
 import TotalSales from "./TotalSales";
 import AdminOrderHistory from "./AdminOrderHistory";
 import { useFoodFilter, useAppSelector } from "../../store/hooks";
@@ -56,6 +57,7 @@ const AdminPage = () => {
   const [activeTab, setActiveTab] = useState("orders");
   const socketRef = useRef(null);
   const audioRef = useRef(null);
+  const newOrderAudioRef = useRef(null);
   const pollingStopRef = useRef(null);
   const directPollingIntervalRef = useRef(null);
   const socketConnectionTimeoutRef = useRef(null);
@@ -80,6 +82,54 @@ const AdminPage = () => {
       console.warn("Error playing notification sound:", error);
     }
   };
+
+  // 🔊 Play New Order Sound (Custom)
+  const playNewOrderSound = () => {
+    try {
+      if (!newOrderAudioRef.current) {
+        newOrderAudioRef.current = new Audio(newOrderSound);
+        newOrderAudioRef.current.volume = 0.7;
+      }
+      newOrderAudioRef.current.currentTime = 0;
+      newOrderAudioRef.current.play()
+        .catch((err) => {
+            console.warn("❌ Audio play failed:", err);
+            if (err.name === "NotAllowedError") {
+                toast("🔇 Tap here to enable sounds", {
+                    icon: "🔊",
+                    style: { borderRadius: '10px', background: '#333', color: '#fff' },
+                });
+            }
+        });
+    } catch (error) {
+      console.warn("❌ Error playing new order sound:", error);
+    }
+  };
+
+  // 🔊 Proactive Audio Unlock for Admin
+  useEffect(() => {
+    const unlockAudio = () => {
+        const sounds = [new Audio("/notify.mp3"), new Audio(newOrderSound)];
+        sounds.forEach(s => {
+            s.volume = 0;
+            s.play().catch(() => {});
+        });
+        
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+    };
+
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
+
+    return () => {
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
 
   /* ================================
      🔌 Socket.IO + Fetch Data
@@ -149,8 +199,14 @@ const AdminPage = () => {
     // This ensures real-time updates regardless of socket status
     const fetchOrdersForPolling = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/orders`, {
+        // Add timestamp to prevent caching
+        const res = await axios.get(`${API_BASE}/api/orders?_t=${Date.now()}`, {
           timeout: 5000, // 5s timeout
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+          }
         });
         consecutiveErrorsRef.current = 0; // Reset error count on success
         const activeOrders = res.data.filter((o) => o.status !== "Completed");
@@ -171,17 +227,16 @@ const AdminPage = () => {
           console.warn("Error fetching orders for polling:", error?.message || error);
         }
         
-        // ⚡ Circuit breaker: Stop polling if too many consecutive errors
+        // ⚡ Circuit breaker: Log warning but DO NOT stop polling
+        // We want continuous auto-refresh attempts even after failures
         if (consecutiveErrorsRef.current >= maxConsecutiveErrors) {
-          if (directPollingIntervalRef.current) {
-            clearInterval(directPollingIntervalRef.current);
-            directPollingIntervalRef.current = null;
-          }
-          toast.error("Unable to fetch orders. Server may be unavailable.", {
-            duration: 5000,
-            position: "top-right",
-          });
-          return [];
+           // Just reset error count periodically to avoid infinite error logs if needed
+           // or just let it keep trying silently
+           if (consecutiveErrorsRef.current % 10 === 0) {
+             console.log("Polling continuing despite errors... (Auto-retry active)");
+           }
+           // Return empty to indicate failure this time, but polling interval continues
+           return [];
         }
         
         return [];
@@ -205,7 +260,7 @@ const AdminPage = () => {
     // Socket connections are unreliable on serverless platforms
     // Polling ensures we ALWAYS get real-time updates
     const shouldUsePollingAsPrimary = true; // Always use polling for admin
-    const pollingInterval = 5000; // ⚡ 5s polling to reduce server load
+    const pollingInterval = 2000; // ⚡ 2s polling for faster updates
     
     
     // ⚡ Start polling
@@ -218,6 +273,22 @@ const AdminPage = () => {
       // onNewOrder callback
       (newOrder) => {
         if (!newOrder || !newOrder._id) return;
+        
+        // 🔊 Play NEW ORDER notification sound
+        playNewOrderSound();
+        
+        // Show notification toast
+        toast.success(`📦 New Order: ${newOrder.foodName}`, {
+          duration: 5000,
+          position: "top-right",
+          icon: "🆕",
+          style: {
+            background: "#10b981",
+            color: "#fff",
+            fontSize: "16px",
+            fontWeight: "600",
+          },
+        });
         
         // ⚡ Always update state (polling is primary mechanism)
         setOrders((prev) => {
@@ -342,8 +413,8 @@ const AdminPage = () => {
         return;
       }
       
-      // 🔊 Play notification sound for new orders
-      playNotificationSound();
+      // 🔊 Play NEW ORDER notification sound (custom)
+      playNewOrderSound();
       
       // Show notification toast
       toast.success(`📦 New Order: ${newOrder.foodName}`, {
@@ -361,15 +432,16 @@ const AdminPage = () => {
       // ✅ CRITICAL: Always add/update order if it's not completed
       // Use functional update to avoid stale state issues
       if (newOrder.status !== "Completed") {
+        // ⚡ FIX: Handle side effects outside setOrders
+        setHighlightedOrder(newOrder._id);
+        setTimeout(() => setHighlightedOrder(null), 3000);
+
         setOrders((prev) => {
           // Find if order already exists
           const existingIndex = prev.findIndex((o) => o._id === newOrder._id);
           
           if (existingIndex === -1) {
             // New order - add to beginning of array
-            // Highlight the new order
-            setHighlightedOrder(newOrder._id);
-            setTimeout(() => setHighlightedOrder(null), 3000);
             return [newOrder, ...prev];
           } else {
             // Order exists but might be outdated - update it with latest data
@@ -702,14 +774,11 @@ const AdminPage = () => {
         formData.append("sizeType", foodForm.sizeType || "standard");
         
         if (foodForm.sizeType === "half-full") {
-          // Append Half/Full prices
-          formData.append("halfFull[Half]", foodForm.halfFull.Half || "");
-          formData.append("halfFull[Full]", foodForm.halfFull.Full || "");
+          // Append Half/Full prices as JSON string
+          formData.append("halfFull", JSON.stringify(foodForm.halfFull));
         } else {
-          // Append Standard sizes (Small/Medium/Large)
-          formData.append("sizes[Small]", foodForm.sizes.Small || "");
-          formData.append("sizes[Medium]", foodForm.sizes.Medium || "");
-          formData.append("sizes[Large]", foodForm.sizes.Large || "");
+          // Append Standard sizes as JSON string
+          formData.append("sizes", JSON.stringify(foodForm.sizes));
         }
       }
       
@@ -717,10 +786,14 @@ const AdminPage = () => {
 
       let res;
       if (editMode) {
-        res = await axios.put(`${API_BASE}/api/foods/${editId}`, formData);
+        res = await axios.put(`${API_BASE}/api/foods/${editId}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("✅ Food updated successfully!");
       } else {
-        res = await axios.post(`${API_BASE}/api/foods/add`, formData);
+        res = await axios.post(`${API_BASE}/api/foods/add`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         toast.success("✅ Food added successfully!");
       }
 
@@ -928,12 +1001,12 @@ const AdminPage = () => {
         {activeTab === "addFood" && (
           <AddFoodForm
             foodForm={foodForm}
-            handleChange={handleChange}
-            handleImageChange={handleImageChange}
-            handleDragOver={handleDragOver}
-            handleDragLeave={handleDragLeave}
-            handleDrop={handleDrop}
-            handleRemoveImage={handleRemoveImage}
+            onFormChange={handleChange}
+            onImageChange={handleImageChange}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onRemoveImage={handleRemoveImage}
             onSave={saveFood}
             onReset={resetForm}
             editMode={editMode}

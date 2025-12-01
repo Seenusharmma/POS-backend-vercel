@@ -7,7 +7,7 @@ import API_BASE from "../../config/api";
 import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
 import LogoLoader from "../../components/ui/LogoLoader";
 import OrderSlip from "../orders/OrderSlip";
-import { FaReceipt, FaChair, FaPhone } from "react-icons/fa";
+import { FaReceipt, FaChair, FaPhone, FaChevronDown } from "react-icons/fa";
 
 const AdminOrderHistory = () => {
   const [orders, setOrders] = useState([]);
@@ -85,6 +85,17 @@ const AdminOrderHistory = () => {
     };
   }, []);
 
+  // State to track which order groups are expanded
+  const [expandedGroups, setExpandedGroups] = useState({});
+
+  // Toggle expand/collapse for a specific group
+  const toggleGroup = (groupIndex) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupIndex]: !prev[groupIndex]
+    }));
+  };
+
   // Group orders by order session (same table, same date, same user)
   const groupOrdersBySession = (ordersList) => {
     const groups = {};
@@ -128,7 +139,7 @@ const AdminOrderHistory = () => {
           
         </div>
       ) : (
-        <div className="space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
+        <div className="space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5">
           {groupOrdersBySession(orders).map((orderGroup, groupIndex) => {
             const firstOrder = orderGroup[0];
             const totalAmount = orderGroup.reduce((sum, o) => sum + (o.price || 0), 0);
@@ -138,137 +149,162 @@ const AdminOrderHistory = () => {
                 key={`group-${groupIndex}-${firstOrder._id}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white shadow-md hover:shadow-lg transition-all rounded-lg sm:rounded-xl border border-gray-100 p-3 sm:p-4 md:p-5 lg:p-6"
+                className="bg-white shadow-sm hover:shadow-md transition-all rounded-lg border border-gray-100 overflow-hidden"
               >
                 {/* Header Row */}
-                <div className="flex flex-col sm:flex-row justify-between sm:items-start mb-3 sm:mb-4 gap-2">
-                  <div>
-                    <h3 className="font-bold text-base sm:text-lg md:text-xl text-gray-800 mb-1">
-                      Order #{firstOrder._id?.slice(-8).toUpperCase() || "ORDER"}
-                    </h3>
-                    <span className="text-xs sm:text-sm text-gray-500">
-                      {new Date(firstOrder.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm sm:text-base font-semibold text-red-600">
-                      Total: ₹{totalAmount.toFixed(2)}
-                    </span>
+                <div className="bg-gray-50 px-2 py-2 sm:px-4 sm:py-3 border-b border-gray-200">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="font-bold text-xs sm:text-base text-gray-800">
+                          #{firstOrder._id?.slice(-6).toUpperCase() || "ORDER"}
+                        </h3>
+                        <span className="text-[10px] sm:text-xs text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                          {new Date(firstOrder.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-600">
+                        <span>👤 {firstOrder.userName || firstOrder.userEmail || "Guest"}</span>
+                      </div>
+                    </div>
                     <button
-                      onClick={() => handleViewOrderSlip(orderGroup)}
-                      className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors"
+                      onClick={() => toggleGroup(groupIndex)}
+                      className="p-1.5 hover:bg-gray-200 rounded-full transition-all duration-200 flex-shrink-0"
+                      title={expandedGroups[groupIndex] ? "Collapse details" : "Expand details"}
                     >
-                      <FaReceipt /> View Slip
+                      <FaChevronDown 
+                        className={`text-gray-600 text-xs sm:text-sm transition-transform duration-300 ${
+                          expandedGroups[groupIndex] ? "rotate-180" : "rotate-0"
+                        }`}
+                      />
                     </button>
                   </div>
-                </div>
 
-                {/* Order Items */}
-                <div className="space-y-2 mb-3 border-b border-gray-200 pb-3">
-                  {orderGroup.map((order) => (
-                    <div key={order._id} className="flex justify-between items-start text-sm">
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-800">
-                          {order.foodName}
-                          {order.selectedSize && (
-                            <span className="ml-1 text-xs text-orange-600 font-semibold">
-                              ({order.selectedSize})
-                            </span>
-                          )}
-                          {" "}× {order.quantity}
-                        </p>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {order.category} • {order.type}
-                        </p>
-                      </div>
-                      <span className="font-semibold text-gray-700 ml-2">
-                        ₹{Number(order.price).toFixed(2)}
+                  {/* Summary when collapsed */}
+                  {!expandedGroups[groupIndex] && (
+                    <div className="mt-1.5 pt-1.5 border-t border-gray-200 flex justify-between items-center">
+                      <span className="text-[10px] sm:text-xs font-semibold text-gray-600">
+                        {orderGroup.length} item{orderGroup.length > 1 ? 's' : ''}
+                      </span>
+                      <span className="text-xs sm:text-sm font-bold text-gray-800">
+                        ₹{totalAmount.toFixed(2)}
                       </span>
                     </div>
-                  ))}
+                  )}
                 </div>
 
-                {/* Order Summary */}
-                <div className="flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 mb-2">
-                  <div className="flex items-center gap-1">
-                    <span className="text-gray-600">Customer:</span>
-                    <span className="font-medium">{firstOrder.userName || "Guest"}</span>
-                  </div>
-                  <span className="hidden sm:inline">|</span>
-                  <span>
-                    Items: <span className="font-medium">{orderGroup.length}</span>
-                  </span>
-                </div>
+                {/* Expandable Content */}
+                {expandedGroups[groupIndex] && (
+                  <div className="p-2 sm:p-4">
+                    {/* Order Items */}
+                    <div className="space-y-1.5 mb-2 border-b border-gray-200 pb-2">
+                      {orderGroup.map((order) => (
+                        <div key={order._id} className="flex justify-between items-start text-[10px] sm:text-sm">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-800">
+                              {order.foodName}
+                              {order.selectedSize && (
+                                <span className="ml-1 text-[9px] sm:text-xs text-orange-600 font-semibold">
+                                  ({order.selectedSize})
+                                </span>
+                              )}
+                              {" "}× {order.quantity}
+                            </p>
+                            <p className="text-[9px] sm:text-xs text-gray-500 capitalize">
+                              {order.category} • {order.type}
+                            </p>
+                          </div>
+                          <span className="font-semibold text-gray-700 ml-2">
+                            ₹{Number(order.price).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
 
-                {/* Table Badge or Phone Number Display */}
-                {(() => {
-                  const hasTable = firstOrder.tableNumber && typeof firstOrder.tableNumber === 'number' && firstOrder.tableNumber > 0;
-                  const hasContact = firstOrder.contactNumber && typeof firstOrder.contactNumber === 'string' && firstOrder.contactNumber.trim() !== '';
+                    {/* Table Badge or Phone Number Display */}
+                    {(() => {
+                      const hasTable = firstOrder.tableNumber && typeof firstOrder.tableNumber === 'number' && firstOrder.tableNumber > 0;
+                      const hasContact = firstOrder.contactNumber && typeof firstOrder.contactNumber === 'string' && firstOrder.contactNumber.trim() !== '';
                   
-                  // Helper function to get all chair letters
-                  const getChairDisplay = () => {
-                    // Check for multiple tables first
-                    if (firstOrder.tables && firstOrder.tables.length > 0) {
-                      return firstOrder.tables.map(t => {
-                        const letters = t.chairLetters || '';
-                        // Format: "1 a, b"
-                        if (letters) return `${t.tableNumber} ${letters}`;
-                        return `${t.tableNumber}`;
-                      }).join(' & '); // Join with " & "
-                    }
+                      // Helper function to get all chair letters
+                      const getChairDisplay = () => {
+                        // Check for multiple tables first
+                        if (firstOrder.tables && firstOrder.tables.length > 0) {
+                          return firstOrder.tables.map(t => {
+                            const letters = t.chairLetters || '';
+                            // Format: "1 a, b"
+                            if (letters) return `${t.tableNumber} ${letters}`;
+                            return `${t.tableNumber}`;
+                          }).join(' & '); // Join with " & "
+                        }
 
-                    if (firstOrder.chairLetters && typeof firstOrder.chairLetters === 'string' && firstOrder.chairLetters.trim() !== '') {
-                      const letters = firstOrder.chairLetters.trim();
-                      if (letters.includes(' ')) {
-                        return letters;
-                      } else if (letters.length > 1) {
-                        return letters.split('').join(' ');
-                      }
-                      return letters;
-                    }
-                    if (firstOrder.chairIndices && Array.isArray(firstOrder.chairIndices) && firstOrder.chairIndices.length > 0) {
-                      const sortedIndices = [...firstOrder.chairIndices].sort((a, b) => a - b);
-                      return sortedIndices.map(idx => String.fromCharCode(97 + idx)).join(' ');
-                    }
-                    if (firstOrder.chairsBooked > 0) {
-                      return `${firstOrder.chairsBooked} seat${firstOrder.chairsBooked > 1 ? "s" : ""}`;
-                    }
-                    return '';
-                  };
-                  
-                  const chairDisplay = getChairDisplay();
-                  
-                  if (hasTable) {
-                    return (
-                      <div className="mb-2 inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-pink-50 border border-red-300 rounded-lg">
-                        <FaChair className="text-red-600 text-xs sm:text-sm flex-shrink-0" />
-                        <span className="text-xs sm:text-sm font-semibold text-red-700">
-                          {firstOrder.tables && firstOrder.tables.length > 0 
-                            ? `${chairDisplay}`
-                            : `Table ${firstOrder.tableNumber}${chairDisplay ? ` (${chairDisplay})` : ''}`
+                        if (firstOrder.chairLetters && typeof firstOrder.chairLetters === 'string' && firstOrder.chairLetters.trim() !== '') {
+                          const letters = firstOrder.chairLetters.trim();
+                          if (letters.includes(' ')) {
+                            return letters;
+                          } else if (letters.length > 1) {
+                            return letters.split('').join(' ');
                           }
-                        </span>
-                      </div>
-                    );
-                  } else if (hasContact) {
-                    return (
-                      <div className="mb-2 inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-50 border border-blue-300 rounded-lg">
-                        <FaPhone className="text-blue-600 text-xs sm:text-sm flex-shrink-0" />
-                        <span className="text-xs sm:text-sm font-semibold text-blue-700">
-                          📞 {firstOrder.contactNumber} (Delivery/Parcel)
-                        </span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
+                          return letters;
+                        }
+                        if (firstOrder.chairIndices && Array.isArray(firstOrder.chairIndices) && firstOrder.chairIndices.length > 0) {
+                          const sortedIndices = [...firstOrder.chairIndices].sort((a, b) => a - b);
+                          return sortedIndices.map(idx => String.fromCharCode(97 + idx)).join(' ');
+                        }
+                        if (firstOrder.chairsBooked > 0) {
+                          return `${firstOrder.chairsBooked} seat${firstOrder.chairsBooked > 1 ? "s" : ""}`;
+                        }
+                        return '';
+                      };
+                  
+                      const chairDisplay = getChairDisplay();
+                  
+                      if (hasTable) {
+                        return (
+                          <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-1 bg-pink-50 border border-red-300 rounded">
+                            <FaChair className="text-red-600 text-[10px] sm:text-xs flex-shrink-0" />
+                            <span className="text-[10px] sm:text-xs font-semibold text-red-700">
+                              {firstOrder.tables && firstOrder.tables.length > 0 
+                                ? `${chairDisplay}`
+                                : `Table ${firstOrder.tableNumber}${chairDisplay ? ` (${chairDisplay})` : ''}`
+                              }
+                            </span>
+                          </div>
+                        );
+                      } else if (hasContact) {
+                        return (
+                          <div className="mb-2 inline-flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-300 rounded">
+                            <FaPhone className="text-blue-600 text-[10px] sm:text-xs flex-shrink-0" />
+                            <span className="text-[10px] sm:text-xs font-semibold text-blue-700">
+                              📞 {firstOrder.contactNumber}
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
 
-                {/* Status Badge */}
-                <div className="mt-2 sm:mt-3">
-                  <span className="inline-block px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-semibold bg-green-100 text-green-700">
-                    {firstOrder.status}
-                  </span>
-                </div>
+                    {/* Action Buttons */}
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        onClick={() => handleViewOrderSlip(orderGroup)}
+                        className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-semibold transition-colors"
+                      >
+                        <FaReceipt /> View Slip
+                      </button>
+                      <span className="text-xs sm:text-sm font-semibold text-red-600">
+                        Total: ₹{totalAmount.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="mt-2">
+                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold bg-green-100 text-green-700">
+                        {firstOrder.status}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             );
           })}

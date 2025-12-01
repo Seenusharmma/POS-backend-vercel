@@ -177,7 +177,14 @@ app.use(
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "x-admin-request"],
+    allowedHeaders: [
+      "Content-Type", 
+      "Authorization", 
+      "x-admin-request",
+      "Cache-Control",  // Required for polling cache-busting
+      "Pragma",         // Required for polling cache-busting
+      "Expires"         // Required for polling cache-busting
+    ],
   })
 );
 

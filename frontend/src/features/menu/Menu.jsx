@@ -515,7 +515,7 @@ const Menu = () => {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               <div className="flex gap-2 sm:gap-2.5 items-center relative">
-                <AnimatePresence mode="wait">
+                <AnimatePresence>
                   {categories.map((cat, index) => (
                     <motion.button
                       key={cat}
@@ -591,7 +591,7 @@ const Menu = () => {
           <motion.div
             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5"
           >
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               {filteredFoods.map((food, index) => (
                 <motion.div
                   key={food._id}

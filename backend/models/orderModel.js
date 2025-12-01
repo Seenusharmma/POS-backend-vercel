@@ -47,8 +47,8 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Cooking", "Ready", "Served", "Completed"],
-      default: "Pending",
+      enum: ["Order", "Served", "Complete"],
+      default: "Order",
     },
     userId: {
       type: String,
@@ -114,5 +114,13 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true } // ✅ adds createdAt & updatedAt automatically
 );
+
+// ⚡ Indexes for performance
+orderSchema.index({ userEmail: 1 });
+orderSchema.index({ userId: 1 });
+orderSchema.index({ status: 1 });
+orderSchema.index({ tableNumber: 1 });
+orderSchema.index({ createdAt: -1 });
+orderSchema.index({ "tables.tableNumber": 1 });
 
 export default mongoose.model("Order", orderSchema);

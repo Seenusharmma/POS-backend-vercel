@@ -14,12 +14,10 @@ const PushNotificationManager = () => {
     const setupPushNotifications = async () => {
       // Only initialize if user is logged in
       if (!user || !user.email) {
-        console.log('[Push] User not logged in, skipping push notification setup');
         return;
       }
 
       try {
-        console.log('[Push] Initializing push notifications for:', user.email);
 
         // Fetch VAPID public key from backend
         const response = await fetch(`${API_BASE}/api/push/vapid-key`);
@@ -36,24 +34,13 @@ const PushNotificationManager = () => {
           return;
         }
 
-        console.log('[Push] VAPID public key received');
-
         // Initialize push notifications
         const result = await initializePushNotifications(publicKey, user.email);
 
         if (result.success) {
-          console.log('✅ Push notifications enabled successfully');
+          // Successfully enabled
         } else {
           console.warn('⚠️ Push notifications not enabled:', result.reason);
-          
-          // Log specific reasons for debugging
-          if (result.reason === 'permission_denied') {
-            console.log('[Push] User denied notification permission');
-          } else if (result.reason === 'unsupported') {
-            console.log('[Push] Browser does not support push notifications');
-          } else if (result.reason === 'service_worker_failed') {
-            console.log('[Push] Service worker registration failed');
-          }
         }
       } catch (error) {
         console.error('[Push] Error setting up push notifications:', error);

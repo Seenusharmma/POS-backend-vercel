@@ -29,17 +29,6 @@ export const addItemToCart = async (userData, foodItem, quantity = 1) => {
       throw new Error("Food ID is missing");
     }
 
-    // Debug: Log the food item to see what we're working with
-    console.log("🔍 Food item received:", {
-      name: foodItem.name,
-      _id: foodItem._id,
-      price: foodItem.price,
-      priceType: typeof foodItem.price,
-      hasSizes: foodItem.hasSizes,
-      selectedSize: foodItem.selectedSize,
-      sizes: foodItem.sizes,
-    });
-
     // Determine the price
     let itemPrice = 0;
     const hasSizes = foodItem.hasSizes === true || foodItem.hasSizes === "true";
@@ -56,7 +45,6 @@ export const addItemToCart = async (userData, foodItem, quantity = 1) => {
       const explicitPrice = foodItem.price;
       if (explicitPrice !== undefined && explicitPrice !== null && explicitPrice !== "" && Number(explicitPrice) > 0) {
         itemPrice = Number(explicitPrice);
-        console.log("✅ Using explicit price from modal:", itemPrice);
       }
       // Priority 2: Get price from sizes object (for standard sizes) or halfFull (for half-full sizes)
       else {
@@ -73,7 +61,6 @@ export const addItemToCart = async (userData, foodItem, quantity = 1) => {
         
         if (sizePrice !== null && sizePrice !== undefined && Number(sizePrice) > 0) {
           itemPrice = Number(sizePrice);
-          console.log("✅ Using price from size object:", itemPrice);
         } else {
           console.error("❌ Size price is invalid:", sizePrice);
           throw new Error(`Invalid price for ${foodItem.selectedSize} size. Please try again.`);
@@ -88,7 +75,6 @@ export const addItemToCart = async (userData, foodItem, quantity = 1) => {
           console.error("❌ Invalid base price:", basePrice);
           throw new Error("Invalid price for this item. Please contact support.");
         }
-        console.log("✅ Using base price:", itemPrice);
       } else {
         console.error("❌ No price found for food without sizes");
         throw new Error("Price not available for this item. Please contact support.");
@@ -107,8 +93,6 @@ export const addItemToCart = async (userData, foodItem, quantity = 1) => {
       });
       throw new Error(`Invalid price: ${itemPrice}. Please select a size if this item has size options.`);
     }
-    
-    console.log("✅ Final calculated price:", itemPrice);
 
     const payload = {
       userEmail: userData.email,
@@ -127,8 +111,6 @@ export const addItemToCart = async (userData, foodItem, quantity = 1) => {
     if (foodItem.selectedSize && ["Small", "Medium", "Large"].includes(foodItem.selectedSize)) {
       payload.selectedSize = foodItem.selectedSize;
     }
-
-    console.log("📤 Sending cart add request:", payload);
 
     const response = await axios.post(`${API_BASE}/api/cart/add`, payload);
     return response.data.cart || [];
