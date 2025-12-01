@@ -2,15 +2,14 @@ import React, { useEffect, useState, useRef, useMemo, useCallback } from "react"
 import axios from "axios";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
-import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart, FaArrowUp } from "react-icons/fa";
-import { IoSearch } from "react-icons/io5";
+import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart, FaArrowUp, FaMinus, FaPlus } from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import Fuse from "fuse.js";
 import API_BASE from "../../config/api";
 import MenuSkeleton from "../../components/ui/MenuSkeleton";
 import { useFoodFilter, useAppSelector, useAppDispatch } from "../../store/hooks";
-import { addToCartAsync } from "../../store/slices/cartSlice";
+import { addToCartAsync, updateQuantityAsync, removeFromCartAsync } from "../../store/slices/cartSlice";
 import { getSocketConfig, createSocketConnection, isServerlessPlatform } from "../../utils/socketConfig";
 import SizeSelectionModal from "../../components/common/SizeSelectionModal";
 import EnhancedSearchBar from "../../components/search/EnhancedSearchBar";
@@ -335,6 +334,53 @@ const Menu = () => {
     setSelectedFood(null);
   };
 
+  // Helper to get quantity of an item in cart
+  const getItemQuantity = (foodId) => {
+    const item = cart.find(item => item._id === foodId);
+    return item ? item.quantity : 0;
+  };
+
+  const handleIncrement = async (food) => {
+    if (!user) {
+      toast.error("Please login first");
+      return;
+    }
+    const currentQty = getItemQuantity(food._id);
+    try {
+      await dispatch(updateQuantityAsync({
+        userEmail: user.email,
+        foodId: food._id,
+        quantity: currentQty + 1
+      })).unwrap();
+    } catch (error) {
+      console.error("Failed to increment:", error);
+      toast.error("Failed to update quantity");
+    }
+  };
+
+  const handleDecrement = async (food) => {
+    if (!user) return;
+    const currentQty = getItemQuantity(food._id);
+    try {
+      if (currentQty > 1) {
+        await dispatch(updateQuantityAsync({
+          userEmail: user.email,
+          foodId: food._id,
+          quantity: currentQty - 1
+        })).unwrap();
+      } else {
+        await dispatch(removeFromCartAsync({
+          userEmail: user.email,
+          foodId: food._id
+        })).unwrap();
+        toast.success("Item removed from cart");
+      }
+    } catch (error) {
+      console.error("Failed to decrement:", error);
+      toast.error("Failed to update quantity");
+    }
+  };
+
   const addToCart = async (food) => {
     if (!user || !user.email) {
       toast.error("Please login to add items to cart!");
@@ -616,12 +662,42 @@ const Menu = () => {
                         <p className="text-xs text-gray-500 mt-0.5">Select size</p>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleAddClick(food)}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1"
-                    >
-                      <FaShoppingCart className="text-xs sm:text-sm" /> Add
-                    </button>
+                    {/* Show Quantity Controls if item is in cart and has no sizes */
+                    !food.hasSizes && getItemQuantity(food._id) > 0 ? (
+                      <div className="flex items-center bg-orange-100 rounded-full overflow-hidden shadow-sm">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDecrement(food);
+                          }}
+                          className="w-8 h-8 flex items-center justify-center text-orange-600 hover:bg-orange-200 transition-colors"
+                        >
+                          <FaMinus className="text-xs" />
+                        </button>
+                        <span className="w-8 text-center text-sm font-bold text-orange-700">
+                          {getItemQuantity(food._id)}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleIncrement(food);
+                          }}
+                          className="w-8 h-8 flex items-center justify-center text-orange-600 hover:bg-orange-200 transition-colors"
+                        >
+                          <FaPlus className="text-xs" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddClick(food);
+                        }}
+                        className="bg-orange-600 hover:bg-orange-700 text-white px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold flex items-center gap-1 shadow-sm hover:shadow-md transition-all"
+                      >
+                        <FaShoppingCart className="text-xs sm:text-sm" /> Add
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>

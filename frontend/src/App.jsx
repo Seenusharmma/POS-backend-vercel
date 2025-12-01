@@ -1,6 +1,12 @@
 import React, { lazy, Suspense, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { animateScroll as scroll } from "react-scroll";   // Scroll Top
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { animateScroll as scroll } from "react-scroll"; // Scroll Top
 import { Provider } from "react-redux";
 import { store } from "./store/store";
 import { AuthProvider } from "./store/AuthProvider";
@@ -9,7 +15,6 @@ import Home from "./pages/Home";
 import Menu from "./features/menu/Menu";
 import LoginPage from "./pages/LoginPage";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import Footer from "./components/common/Footer";
 import BottomNav from "./components/common/BottomNav";
 import WebUIOverlay from "./components/overlay/WebUIOverlay";
 import PushNotificationManager from "./components/notifications/PushNotificationManager";
@@ -43,7 +48,7 @@ const AppContent = () => {
 
       {/* Push Notification Manager - Initializes notifications for logged-in users */}
       <PushNotificationManager />
-      
+
       <Navbar />
 
       {/* ⚡ Suspense wrapper for lazy loaded routes - no loader for instant feel */}
@@ -102,8 +107,6 @@ const AppContent = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
-
-      {!isLoginPage && <Footer />}
       <BottomNav />
       <WebUIOverlay />
     </>

@@ -51,7 +51,6 @@ const TableSelectionModal = ({
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
           onClick={(e) => {
-            // Close modal when clicking outside
             if (e.target === e.currentTarget) {
               onClose();
             }
@@ -82,14 +81,27 @@ const TableSelectionModal = ({
               <TableSelect
                 selectedTables={selectedTables}
                 onSelectionChange={(tables) => {
-                    setSelectedTables(tables);
-                    if (onChairsSelected) onChairsSelected(tables);
+                  setSelectedTables(tables);
+                  if (onChairsSelected) onChairsSelected(tables);
                 }}
                 availableTables={availableTables}
                 occupiedTables={occupiedTables}
                 compact={true}
               />
             </div>
+
+            {/* ✅ Confirm Button (only when table selected) */}
+            {selectedTables.length > 0 && (
+              <div className="p-3 border-t flex justify-center bg-white">
+                <button
+                  onClick={onClose}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all duration-200"
+                >
+                  Confirm Table
+                </button>
+              </div>
+            )}
+
           </motion.div>
         </div>
       )}
@@ -98,4 +110,3 @@ const TableSelectionModal = ({
 };
 
 export default TableSelectionModal;
-

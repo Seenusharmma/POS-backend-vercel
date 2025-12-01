@@ -12,6 +12,7 @@ import VideoSection from "../features/home/VideoSection";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { addToCartAsync } from "../store/slices/cartSlice";
 import toast from "react-hot-toast";
+import Footer from "../components/common/Footer";
 
 const Home = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -198,6 +199,8 @@ const Home = () => {
 
         {/* Floating Cart Button */}
         <FloatingCartButton cartCount={cart.length} />
+        
+        <Footer />
       </div>
     </div>
   );
