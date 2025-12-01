@@ -27,7 +27,7 @@ const OrderHistory = () => {
       const userOrders = res.data.filter(
         (o) =>
           (o.userEmail === user.email || o.userId === user.uid) &&
-          o.status === "Completed"
+          o.status === "Complete"
       );
       // Sort by creation date (newest first)
       const sortedOrders = userOrders.sort(
@@ -191,7 +191,7 @@ const OrderHistory = () => {
     socket.on("newOrderPlaced", (newOrder) => {
       if (newOrder.userEmail === user.email || newOrder.userId === user.uid) {
         // Update UI immediately if order is completed
-        if (newOrder.status === "Completed") {
+        if (newOrder.status === "Complete") {
           setOrders((prev) => {
             const exists = prev.find((o) => o._id === newOrder._id);
             if (!exists) {
@@ -224,7 +224,7 @@ const OrderHistory = () => {
       }
 
       // ✅ CRITICAL: When order status changes to "Completed", add to history
-      if (updatedOrder.status === "Completed") {
+      if (updatedOrder.status === "Complete") {
         setOrders((prev) => {
           const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
 
@@ -275,7 +275,7 @@ const OrderHistory = () => {
           return res.data.filter(
             (o) =>
               (o.userEmail === user.email || o.userId === user.uid) &&
-              o.status === "Completed"
+              o.status === "Complete"
           );
         } catch (error) {
           console.error("Error fetching completed orders for polling:", error);
@@ -304,8 +304,8 @@ const OrderHistory = () => {
         (updatedOrder, oldOrder) => {
           // When order becomes completed, add it to history immediately
           if (
-            updatedOrder.status === "Completed" &&
-            oldOrder.status !== "Completed"
+            updatedOrder.status === "Complete" &&
+            oldOrder.status !== "Complete"
           ) {
             setOrders((prev) => {
               const existingIndex = prev.findIndex(

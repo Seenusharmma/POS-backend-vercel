@@ -1,5 +1,11 @@
 import React, { lazy, Suspense, useEffect, useState } from "react";
-import {BrowserRouter,Routes,Route,Navigate,useLocation} from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { animateScroll as scroll } from "react-scroll"; // Scroll Top
 import { Provider } from "react-redux";
 import { store } from "./store/store";

@@ -112,7 +112,7 @@ export const pollOrders = (fetchOrders, onNewOrder, onStatusChange, interval = 3
       
       if (!lastOrderIds.has(order._id)) {
         // This is a completely new order
-        if (onNewOrder && order.status !== "Completed") {
+        if (onNewOrder && order.status !== "Complete") {
           onNewOrder(order);
         }
       }
@@ -122,9 +122,9 @@ export const pollOrders = (fetchOrders, onNewOrder, onStatusChange, interval = 3
     lastOrders.forEach(oldOrder => {
       if (!newOrderIds.has(oldOrder._id)) {
         // Order was removed (likely completed)
-        if (oldOrder.status !== "Completed" && onStatusChange) {
+        if (oldOrder.status !== "Complete" && onStatusChange) {
           // Treat as completed
-          onStatusChange({ ...oldOrder, status: "Completed" }, oldOrder);
+          onStatusChange({ ...oldOrder, status: "Complete" }, oldOrder);
         }
       }
     });
@@ -160,7 +160,7 @@ export const pollOrders = (fetchOrders, onNewOrder, onStatusChange, interval = 3
       } else if (!lastOrderIds.has(newOrder._id)) {
         // ✅ Order is brand new (not in previous poll)
         // This handles orders that appear between polls
-        if (onNewOrder && newOrder.status !== "Completed") {
+        if (onNewOrder && newOrder.status !== "Complete") {
           onNewOrder(newOrder);
         }
       }
