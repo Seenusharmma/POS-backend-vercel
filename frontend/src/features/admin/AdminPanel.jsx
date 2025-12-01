@@ -383,7 +383,7 @@ const AdminPanel = () => {
                   <option>Cooking</option>
                   <option>Ready</option>
                   <option>Served</option>
-                  <option>Completed</option>
+                  <option>Complete</option>
                 </select>
               </div>
             ))

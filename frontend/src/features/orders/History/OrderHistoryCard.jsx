@@ -49,7 +49,7 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
   // Get status color
   const getStatusColor = (status) => {
     switch (status) {
-      case "Completed":
+      case "Complete":
         return "bg-green-100 text-green-700";
       case "Paid":
         return "bg-green-100 text-green-700";
