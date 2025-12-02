@@ -142,7 +142,7 @@ const AdminPage = () => {
       ]);
       setFoods(foodsRes.data);
       // Filter out completed orders from active orders view
-      const activeOrders = ordersRes.data.filter((o) => o.status !== "Complete");
+      const activeOrders = ordersRes.data.filter((o) => o.status !== "Completed");
       setOrders(activeOrders);
     } catch {
       toast.error("Failed to load data");
@@ -209,7 +209,7 @@ const AdminPage = () => {
           }
         });
         consecutiveErrorsRef.current = 0; // Reset error count on success
-        const activeOrders = res.data.filter((o) => o.status !== "Complete");
+        const activeOrders = res.data.filter((o) => o.status !== "Completed");
         return activeOrders;
       } catch (error) {
         consecutiveErrorsRef.current += 1;
@@ -294,7 +294,7 @@ const AdminPage = () => {
         setOrders((prev) => {
           const existingIndex = prev.findIndex((o) => o._id === newOrder._id);
           
-          if (newOrder.status !== "Complete") {
+          if (newOrder.status !== "Completed") {
             if (existingIndex === -1) {
               // ⚡ FIX: Move setState outside to avoid React warning
               setTimeout(() => {
@@ -319,7 +319,7 @@ const AdminPage = () => {
       // onStatusChange callback
       (updatedOrder, oldOrder) => {
         if (updatedOrder.status !== oldOrder?.status) {
-          if (updatedOrder.status === "Complete") {
+          if (updatedOrder.status === "Completed") {
             setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
           } else {
             setOrders((prev) =>
@@ -431,7 +431,7 @@ const AdminPage = () => {
       
       // ✅ CRITICAL: Always add/update order if it's not completed
       // Use functional update to avoid stale state issues
-      if (newOrder.status !== "Complete") {
+      if (newOrder.status !== "Completed") {
         // ⚡ FIX: Handle side effects outside setOrders
         setHighlightedOrder(newOrder._id);
         setTimeout(() => setHighlightedOrder(null), 3000);
@@ -494,7 +494,7 @@ const AdminPage = () => {
       );
       
       // If order is completed, remove it from active orders view
-      if (updatedOrder.status === "Complete") {
+      if (updatedOrder.status === "Completed") {
         setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
       } else {
         // Update order status if not completed

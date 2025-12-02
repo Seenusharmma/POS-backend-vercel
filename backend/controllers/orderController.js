@@ -278,7 +278,7 @@ export const updateOrderStatus = async (req, res) => {
     const updateData = {};
     
     if (status) {
-      const validStatuses = ["Order", "Served", "Complete"];
+      const validStatuses = ["Order", "Preparing", "Served", "Completed"];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
@@ -352,8 +352,9 @@ export const updateOrderStatus = async (req, res) => {
         if (order.userEmail) {
           const statusMessages = {
             Order: "📦 Your order has been placed",
+            Preparing: "👨‍🍳 Your order is being prepared",
             Served: "🍽️ Your order has been served",
-            Complete: "🎉 Your order is complete!"
+            Completed: "🎉 Your order is complete!"
           };
           
           await sendPushToUser(
@@ -479,7 +480,7 @@ export const getOccupiedTables = async (req, res) => {
     const occupiedData = await Order.aggregate([
       { 
         $match: { 
-          status: { $ne: "Complete" }, 
+          status: { $ne: "Completed" }, 
           isInRestaurant: true 
         } 
       },

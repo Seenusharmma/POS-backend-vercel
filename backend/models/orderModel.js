@@ -47,7 +47,7 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Order", "Served", "Complete"],
+      enum: ["Order", "Preparing", "Served", "Completed"],
       default: "Order",
     },
     userId: {

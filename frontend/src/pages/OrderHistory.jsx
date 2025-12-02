@@ -27,7 +27,7 @@ const OrderHistory = () => {
       const userOrders = res.data.filter(
         (o) =>
           (o.userEmail === user.email || o.userId === user.uid) &&
-          o.status === "Complete"
+          o.status === "Completed"
       );
       // Sort by creation date (newest first)
       const sortedOrders = userOrders.sort(
@@ -191,7 +191,7 @@ const OrderHistory = () => {
     socket.on("newOrderPlaced", (newOrder) => {
       if (newOrder.userEmail === user.email || newOrder.userId === user.uid) {
         // Update UI immediately if order is completed
-        if (newOrder.status === "Complete") {
+        if (newOrder.status === "Completed") {
           setOrders((prev) => {
             const exists = prev.find((o) => o._id === newOrder._id);
             if (!exists) {
@@ -223,8 +223,8 @@ const OrderHistory = () => {
         return; // Not user's order, ignore
       }
 
-      // ✅ CRITICAL: When order status changes to "Completed", add to history
-      if (updatedOrder.status === "Complete") {
+      // ✅ CRITICAL: When order status changes to "Completedd", add to history
+      if (updatedOrder.status === "Completed") {
         setOrders((prev) => {
           const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
 
@@ -239,7 +239,7 @@ const OrderHistory = () => {
           } else {
             // ✅ NEW: Add new completed order to history with notification
             toast.success(
-              `🎉 Order Completed: ${updatedOrder.foodName}. Added to history!`,
+              `🎉 Order Completedd: ${updatedOrder.foodName}. Added to history!`,
               {
                 duration: 5000,
                 position: "top-center",
@@ -260,7 +260,7 @@ const OrderHistory = () => {
           }
         });
       } else {
-        // ✅ If order status changed FROM Completed, remove it from history
+        // ✅ If order status changed FROM Completedd, remove it from history
         setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
       }
     });
@@ -269,13 +269,13 @@ const OrderHistory = () => {
 
     // ✅ Set up polling for serverless platforms (Vercel)
     if (isServerless) {
-      const fetchCompletedOrdersForPolling = async () => {
+      const fetchCompleteddOrdersForPolling = async () => {
         try {
           const res = await axios.get(`${API_BASE}/api/orders`);
           return res.data.filter(
             (o) =>
               (o.userEmail === user.email || o.userId === user.uid) &&
-              o.status === "Complete"
+              o.status === "Completed"
           );
         } catch (error) {
           console.error("Error fetching completed orders for polling:", error);
@@ -285,7 +285,7 @@ const OrderHistory = () => {
 
       // Start polling for completed orders
       pollingStopRef.current = pollOrders(
-        fetchCompletedOrdersForPolling,
+        fetchCompleteddOrdersForPolling,
         // onNewOrder callback (when a new completed order appears)
         (newOrder) => {
           setOrders((prev) => {
@@ -300,11 +300,11 @@ const OrderHistory = () => {
             return prev;
           });
         },
-        // onStatusChange callback (when order status changes to Completed)
+        // onStatusChange callback (when order status changes to Completedd)
         (updatedOrder, oldOrder) => {
           // When order becomes completed, add it to history immediately
           if (
-            updatedOrder.status === "Complete" &&
+            updatedOrder.status === "Completed" &&
             oldOrder.status !== "Complete"
           ) {
             setOrders((prev) => {

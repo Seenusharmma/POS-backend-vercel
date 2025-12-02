@@ -27,8 +27,9 @@ const GroupedOrderCard = ({
 
   const statusColors = {
     Order: "text-yellow-600 bg-yellow-50 border-yellow-200",
-    Served: "text-green-600 bg-green-50 border-green-200",
-    Complete: "text-gray-600 bg-gray-50 border-gray-200",
+    Preparing: "text-blue-600 bg-blue-50 border-blue-200",
+    Served: "text-purple-600 bg-purple-50 border-purple-200",
+    Completed: "text-green-600 bg-green-50 border-green-200",
   };
 
   // Helper function to get chair letters
@@ -174,8 +175,9 @@ const GroupedOrderCard = ({
                     className={`text-[10px] sm:text-xs font-semibold px-1.5 py-1 rounded border cursor-pointer outline-none focus:ring-1 focus:ring-blue-300 ${statusColors[order.status] || "text-gray-600 border-gray-300"}`}
                   >
                     <option>Order</option>
+                    <option>Preparing</option>
                     <option>Served</option>
-                    <option>Complete</option>
+                    <option>Completed</option>
                   </select>
 
                   {/* Delete Button */}

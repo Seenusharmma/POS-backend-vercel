@@ -48,7 +48,7 @@ const LiveOrderCard = ({ order, upiID, payeeName }) => {
         </span>
       </p>
 
-      {order.status === "Complete" && (
+      {order.status === "Completed" && (
         <PaymentQR
           price={order.price}
           upiLink={upiLink}

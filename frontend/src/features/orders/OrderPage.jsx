@@ -1,29 +1,84 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-import { io } from "socket.io-client";
-// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
-import { updateQuantityAsync, removeFromCartAsync, clearCartAsync } from "../../store/slices/cartSlice";
+import {
+  updateQuantityAsync,
+  removeFromCartAsync,
+  clearCartAsync,
+} from "../../store/slices/cartSlice";
 import { useNavigate } from "react-router-dom";
 import { FaTrashAlt, FaShoppingBag, FaChair } from "react-icons/fa";
 import API_BASE from "../../config/api";
-import { getSocketConfig, isServerlessPlatform, createSocketConnection } from "../../utils/socketConfig";
+import {
+  getSocketConfig,
+  isServerlessPlatform,
+  createSocketConnection,
+} from "../../utils/socketConfig";
 import { pollOrders } from "../../utils/polling";
+
 import PaymentModal from "./PaymentModal";
 import TableSelectionModal from "./Tables/TableSelectionModal";
 
-import orderPlacedSound from "../../assets/sounds/orderplaced.mp3";
-import orderServedSound from "../../assets/sounds/orderserved.mp3";
-import orderCompletedSound from "../../assets/sounds/ordercompleted.mp3";
+import orderPlacedSound from "../../assets/sounds/foodorderd.mp3";
+import orderPreparingSound from "../../assets/sounds/preparing.mp3";
+import orderServedSound from "../../assets/sounds/served.mp3";
+import orderCompletedSound from "../../assets/sounds/completed.mp3";
 import orderDeletedSound from "../../assets/sounds/orderdeleted.mp3";
+
+const STATUS = {
+  ORDER: "Order",
+  PREPARING: "Preparing",
+  SERVED: "Served",
+  COMPLETED: "Completed",
+};
+
+// Normalize backend / legacy statuses to new flow
+const normalizeStatus = (status) => {
+  if (!status) return STATUS.ORDER;
+  const s = status.toLowerCase().trim();
+
+  switch (s) {
+    case "pending":
+    case "order":
+      return STATUS.ORDER;
+
+    case "cooking":
+    case "ready":
+    case "preparing":
+      return STATUS.PREPARING;
+
+    case "served":
+      return STATUS.SERVED;
+
+    case "complete":
+    case "completed":
+      return STATUS.COMPLETED;
+
+    default:
+      return status;
+  }
+};
+
+const isCompletedStatus = (status) => normalizeStatus(status) === STATUS.COMPLETED;
+
+const getStatusColorClass = (status) => {
+  const n = normalizeStatus(status);
+  if (n === STATUS.ORDER) return "text-yellow-600";
+  if (n === STATUS.PREPARING) return "text-blue-600";
+  if (n === STATUS.SERVED) return "text-green-600";
+  if (n === STATUS.COMPLETED) return "text-gray-500";
+  return "text-gray-500";
+};
 
 const OrderPage = () => {
   const { user } = useAppSelector((state) => state.auth);
   const cart = useAppSelector((state) => state.cart.items);
   const cartTotal = useAppSelector((state) => state.cart.total);
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+
   const [orders, setOrders] = useState([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingCartData, setPendingCartData] = useState(null);
@@ -31,32 +86,35 @@ const OrderPage = () => {
   const [selectedTables, setSelectedTables] = useState([]);
   const [showTableModal, setShowTableModal] = useState(false);
   const [contactNumber, setContactNumber] = useState("");
+
   const socketRef = useRef(null);
   const audioRef = useRef(null);
   const successAudioRef = useRef(null);
+  const preparingAudioRef = useRef(null);
   const servedAudioRef = useRef(null);
   const completedAudioRef = useRef(null);
   const deletedAudioRef = useRef(null);
   const pollingStopRef = useRef(null);
-  const navigate = useNavigate();
 
-  // 🔊 Play notification sound
+  // 🔊 Play general notification sound
   const playNotificationSound = () => {
     try {
-      // Create audio element if it doesn't exist
       if (!audioRef.current) {
         audioRef.current = new Audio("/notify.mp3");
-        audioRef.current.volume = 0.5; // Set volume to 50%
+        audioRef.current.volume = 0.5;
       }
-      // Reset and play
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
         console.warn("Could not play notification sound:", error);
         if (error.name === "NotAllowedError") {
-            toast("🔇 Tap here to enable sounds", {
-                icon: "🔊",
-                style: { borderRadius: '10px', background: '#333', color: '#fff' },
-            });
+          toast("🔇 Tap here to enable sounds", {
+            icon: "🔊",
+            style: {
+              borderRadius: "10px",
+              background: "#333",
+              color: "#fff",
+            },
+          });
         }
       });
     } catch (error) {
@@ -64,7 +122,7 @@ const OrderPage = () => {
     }
   };
 
-  // 🔊 Play Order Success Sound
+  // 🔊 Play Order Placed Sound
   const playOrderSuccessSound = () => {
     try {
       if (!successAudioRef.current) {
@@ -72,18 +130,45 @@ const OrderPage = () => {
         successAudioRef.current.volume = 0.6;
       }
       successAudioRef.current.currentTime = 0;
-      successAudioRef.current.play()
-        .catch((err) => {
-            console.warn("❌ Audio play failed:", err);
-            if (err.name === "NotAllowedError") {
-                toast("🔇 Tap here to enable sounds", {
-                    icon: "🔊",
-                    style: { borderRadius: '10px', background: '#333', color: '#fff' },
-                });
-            }
-        });
+      successAudioRef.current.play().catch((err) => {
+        console.warn("❌ Audio play failed:", err);
+        if (err.name === "NotAllowedError") {
+          toast("🔇 Tap here to enable sounds", {
+            icon: "🔊",
+            style: {
+              borderRadius: "10px",
+              background: "#333",
+              color: "#fff",
+            },
+          });
+        }
+      });
     } catch (error) {
       console.warn("❌ Error playing success sound:", error);
+    }
+  };
+
+  // 🔊 Play Order Preparing Sound (YOUR TONE)
+  const playOrderPreparingSound = () => {
+    try {
+      if (preparingAudioRef.current) {
+        preparingAudioRef.current.currentTime = 0;
+        const playPromise = preparingAudioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn("Ref play failed, trying new Audio:", err);
+            new Audio(orderPreparingSound).play().catch((e) =>
+              console.error("Fallback failed:", e)
+            );
+          });
+        }
+      } else {
+        new Audio(orderPreparingSound).play().catch((e) =>
+          console.error("New Audio failed:", e)
+        );
+      }
+    } catch (error) {
+      console.warn("❌ Error playing preparing sound:", error);
     }
   };
 
@@ -95,16 +180,19 @@ const OrderPage = () => {
         servedAudioRef.current.volume = 0.6;
       }
       servedAudioRef.current.currentTime = 0;
-      servedAudioRef.current.play()
-        .catch((err) => {
-            console.warn("❌ Audio play failed:", err);
-            if (err.name === "NotAllowedError") {
-                toast("🔇 Tap here to enable sounds", {
-                    icon: "🔊",
-                    style: { borderRadius: '10px', background: '#333', color: '#fff' },
-                });
-            }
-        });
+      servedAudioRef.current.play().catch((err) => {
+        console.warn("❌ Audio play failed:", err);
+        if (err.name === "NotAllowedError") {
+          toast("🔇 Tap here to enable sounds", {
+            icon: "🔊",
+            style: {
+              borderRadius: "10px",
+              background: "#333",
+              color: "#fff",
+            },
+          });
+        }
+      });
     } catch (error) {
       console.warn("❌ Error playing served sound:", error);
     }
@@ -118,16 +206,19 @@ const OrderPage = () => {
         completedAudioRef.current.volume = 0.6;
       }
       completedAudioRef.current.currentTime = 0;
-      completedAudioRef.current.play()
-        .catch((err) => {
-            console.warn("❌ Audio play failed:", err);
-            if (err.name === "NotAllowedError") {
-                toast("🔇 Tap here to enable sounds", {
-                    icon: "🔊",
-                    style: { borderRadius: '10px', background: '#333', color: '#fff' },
-                });
-            }
-        });
+      completedAudioRef.current.play().catch((err) => {
+        console.warn("❌ Audio play failed:", err);
+        if (err.name === "NotAllowedError") {
+          toast("🔇 Tap here to enable sounds", {
+            icon: "🔊",
+            style: {
+              borderRadius: "10px",
+              background: "#333",
+              color: "#fff",
+            },
+          });
+        }
+      });
     } catch (error) {
       console.warn("❌ Error playing completed sound:", error);
     }
@@ -141,50 +232,107 @@ const OrderPage = () => {
         deletedAudioRef.current.volume = 0.6;
       }
       deletedAudioRef.current.currentTime = 0;
-      deletedAudioRef.current.play()
-        .catch((err) => {
-            console.warn("❌ Audio play failed:", err);
-            if (err.name === "NotAllowedError") {
-                toast("🔇 Tap here to enable sounds", {
-                    icon: "🔊",
-                    style: { borderRadius: '10px', background: '#333', color: '#fff' },
-                });
-            }
-        });
+      deletedAudioRef.current.play().catch((err) => {
+        console.warn("❌ Audio play failed:", err);
+        if (err.name === "NotAllowedError") {
+          toast("🔇 Tap here to enable sounds", {
+            icon: "🔊",
+            style: {
+              borderRadius: "10px",
+              background: "#333",
+              color: "#fff",
+            },
+          });
+        }
+      });
     } catch (error) {
       console.warn("❌ Error playing deleted sound:", error);
     }
   };
+
+  // 🔊 Initialize Audio Objects + Unlock
+  useEffect(() => {
+    audioRef.current = new Audio("/notify.mp3");
+    successAudioRef.current = new Audio(orderPlacedSound);
+    preparingAudioRef.current = new Audio(orderPreparingSound);
+    servedAudioRef.current = new Audio(orderServedSound);
+    completedAudioRef.current = new Audio(orderCompletedSound);
+    deletedAudioRef.current = new Audio(orderDeletedSound);
+
+    audioRef.current.volume = 0.5;
+    successAudioRef.current.volume = 0.6;
+    preparingAudioRef.current.volume = 0.6;
+    servedAudioRef.current.volume = 0.6;
+    completedAudioRef.current.volume = 0.6;
+    deletedAudioRef.current.volume = 0.6;
+
+    const sounds = [
+      { ref: audioRef, name: "Notify" },
+      { ref: successAudioRef, name: "Success" },
+      { ref: preparingAudioRef, name: "Preparing" },
+      { ref: servedAudioRef, name: "Served" },
+      { ref: completedAudioRef, name: "Completed" },
+      { ref: deletedAudioRef, name: "Deleted" },
+    ];
+
+    sounds.forEach(({ ref, name }) => {
+      if (ref.current) {
+        ref.current.addEventListener("error", (e) => {
+          console.error(`❌ Error loading ${name} sound:`, e);
+        });
+        ref.current.preload = "auto";
+      }
+    });
+
+    // 🔓 Proactive Audio Unlock
+    const unlockAudio = () => {
+      const allSounds = [
+        audioRef.current,
+        successAudioRef.current,
+        preparingAudioRef.current,
+        servedAudioRef.current,
+        completedAudioRef.current,
+        deletedAudioRef.current,
+      ];
+
+      allSounds.forEach((s) => {
+        if (s) {
+          const originalVolume = s.volume;
+          s.volume = 0;
+          s
+            .play()
+            .then(() => {
+              s.pause();
+              s.currentTime = 0;
+              s.volume = originalVolume;
+            })
+            .catch((err) => {
+              console.log("Audio unlock attempt:", err.message);
+            });
+        }
+      });
+
+      document.removeEventListener("click", unlockAudio);
+      document.removeEventListener("touchstart", unlockAudio);
+      document.removeEventListener("keydown", unlockAudio);
+    };
+
+    document.addEventListener("click", unlockAudio);
+    document.addEventListener("touchstart", unlockAudio);
+    document.addEventListener("keydown", unlockAudio);
+
+    return () => {
+      document.removeEventListener("click", unlockAudio);
+      document.removeEventListener("touchstart", unlockAudio);
+      document.removeEventListener("keydown", unlockAudio);
+    };
+  }, []);
 
   // 🔔 Request Notification Permission
   useEffect(() => {
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
-
-    // 🔊 Proactive Audio Unlock
-    const unlockAudio = () => {
-        const sounds = [new Audio("/notify.mp3"), new Audio(orderPlacedSound), new Audio(orderServedSound), new Audio(orderCompletedSound), new Audio(orderDeletedSound)];
-        sounds.forEach(s => {
-            s.volume = 0;
-            s.play().catch(() => {}); // Just try to play to unlock
-        });
-        
-        // Remove listeners once unlocked
-        document.removeEventListener('click', unlockAudio);
-        document.removeEventListener('touchstart', unlockAudio);
-        document.removeEventListener('keydown', unlockAudio);
-    };
-
-    document.addEventListener('click', unlockAudio);
-    document.addEventListener('touchstart', unlockAudio);
-    document.addEventListener('keydown', unlockAudio);
-
-    return () => {
-        document.removeEventListener('click', unlockAudio);
-        document.removeEventListener('touchstart', unlockAudio);
-        document.removeEventListener('keydown', unlockAudio);
-    };
   }, []);
 
   // 🔔 Helper to show system notification
@@ -193,7 +341,7 @@ const OrderPage = () => {
       try {
         new Notification(title, {
           body,
-          icon: "/pwa-192x192.png", // Standard PWA icon
+          icon: "/pwa-192x192.png",
           vibrate: [200, 100, 200],
         });
       } catch (e) {
@@ -209,9 +357,10 @@ const OrderPage = () => {
     try {
       const res = await axios.get(`${API_BASE}/api/orders`);
 
-      // Filter user orders and exclude completed orders
       const userOrders = res.data.filter(
-        (o) => (o.userId === user?.uid || o.userEmail === user?.email) && o.status !== "Complete" && o.status !== "Completed"
+        (o) =>
+          (o.userId === user?.uid || o.userEmail === user?.email) &&
+          !isCompletedStatus(o.status)
       );
       setOrders(userOrders);
     } catch {
@@ -220,12 +369,10 @@ const OrderPage = () => {
   }, [user]);
 
   useEffect(() => {
-    // Check if we're on a serverless platform (Vercel, etc.)
     const isServerless = isServerlessPlatform();
-    
+
     if (!socketRef.current) {
       if (isServerless) {
-        // On serverless platforms, create a mock socket (no real connection)
         socketRef.current = {
           on: () => {},
           off: () => {},
@@ -236,61 +383,58 @@ const OrderPage = () => {
           metrics: { quality: "unavailable" },
         };
       } else {
-        // ✅ On regular servers, create optimized socket connection as user
         const socketConfig = getSocketConfig({
           type: "user",
           userId: user?.uid || null,
           autoConnect: true,
         });
-        
+
         socketRef.current = createSocketConnection(API_BASE, socketConfig);
       }
     }
     const socket = socketRef.current;
 
-    // ✅ Track socket connection status for polling fallback
     const socketConnectedRef = { current: false };
-    
-    // Check socket connection status
+
     const checkSocketConnection = () => {
-      if (socket && typeof socket.connected !== 'undefined') {
+      if (socket && typeof socket.connected !== "undefined") {
         socketConnectedRef.current = socket.connected;
       }
     };
-    
-    // Initial check
+
     checkSocketConnection();
-    
-    // ✅ Set up polling as fallback (works on BOTH serverless AND regular servers)
-    // This ensures orders update even if socket connection fails
+
     const fetchUserOrdersForPolling = async () => {
       try {
         const res = await axios.get(`${API_BASE}/api/orders`);
         return res.data.filter(
-          (o) => (o.userId === user?.uid || o.userEmail === user?.email) && o.status !== "Complete" && o.status !== "Completed"
+          (o) =>
+            (o.userId === user?.uid || o.userEmail === user?.email) &&
+            !isCompletedStatus(o.status)
         );
-      } catch (error) {
+      } catch {
         return [];
       }
     };
 
-    // ✅ Start polling ONLY if serverless OR socket is not connected
-    // This prevents "call order again and again" when socket is working
+    // Polling (as fallback / plus) – but avoid double handling if socket is good
     if (isServerless || !socketConnectedRef.current) {
       pollingStopRef.current = pollOrders(
         fetchUserOrdersForPolling,
         // onNewOrder callback
         (newOrder) => {
-          // Double check socket status to avoid race conditions
           if (socketConnectedRef.current) return;
 
-          playOrderSuccessSound(); // Play success sound
+          playOrderSuccessSound();
           toast.success(`📦 Order Placed: ${newOrder.foodName}`, {
             duration: 4000,
             position: "top-center",
           });
-          showSystemNotification("Order Placed 📦", `Your order for ${newOrder.foodName} has been placed!`);
-          
+          showSystemNotification(
+            "Order Placed 📦",
+            `Your order for ${newOrder.foodName} has been placed!`
+          );
+
           setOrders((prev) => {
             const exists = prev.find((o) => o._id === newOrder._id);
             if (!exists) {
@@ -301,126 +445,159 @@ const OrderPage = () => {
         },
         // onStatusChange callback
         (updatedOrder, oldOrder) => {
-          // Double check socket status to avoid race conditions
           if (socketConnectedRef.current) return;
-          
-          // ✅ Validate order belongs to user
           if (!updatedOrder || !updatedOrder._id || !user) return;
-          
-          const isUserOrder = 
-            (updatedOrder.userEmail === user.email) || 
-            (updatedOrder.userId === user.uid);
-          
-            // 🔊 Play notification sound based on status
-            if (updatedOrder.status === "Complete" || updatedOrder.status === "Completed") {
-              playOrderCompletedSound();
-            } else if (updatedOrder.status === "Served") {
-              playOrderServedSound();
-            } else {
-              playNotificationSound();
-            }
 
-            if (updatedOrder.status === "Complete" || updatedOrder.status === "Completed") {
-              setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
-              toast.success(
-                `🎉 Order Completed: ${updatedOrder.foodName}. View it in Order History!`,
-                {
-                  duration: 6000,
-                  position: "top-center",
-                  icon: "✅",
-                  style: {
-                    background: "#10b981",
-                    color: "#fff",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                  },
-                }
-              );
-              showSystemNotification("Order Completed 🎉", `Your order for ${updatedOrder.foodName} is complete!`);
-            } else {
-              // ✅ Update order status for non-completed orders
-              setOrders((prev) => {
-                const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
-                if (existingIndex === -1) {
-                  return [updatedOrder, ...prev];
-                } else {
-                  const updated = [...prev];
-                  updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
-                  return updated;
-                }
-              });
-              
-              const statusMessages = {
-                Pending: "⏳ Order Pending",
-                Cooking: "👨‍🍳 Order is being cooked",
-                Ready: "✅ Order is ready for pickup",
-                Served: "🍽️ Order has been served",
-              };
-              
-              toast.success(
-                `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
-                {
-                  duration: 4000,
-                  position: "top-center",
-                  icon: "📦",
-                  style: {
-                    background: "#3b82f6",
-                    color: "#fff",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                  },
-                }
-              );
-              showSystemNotification(
-                "Order Update 👨‍🍳", 
-                `${statusMessages[updatedOrder.status] || "Status updated"}: ${updatedOrder.foodName}`
-              );
-            }
-          // ✅ Handle payment status changes
-          if (updatedOrder.paymentStatus !== oldOrder?.paymentStatus && updatedOrder.paymentStatus === "Paid") {
-            playNotificationSound();
-            toast.success("💰 Payment Confirmed: Your payment has been confirmed by admin.", {
-              duration: 5000,
-              icon: '✅',
+          const isUserOrder =
+            updatedOrder.userEmail === user.email ||
+            updatedOrder.userId === user.uid;
+          if (!isUserOrder) return;
+
+          const normalized = normalizeStatus(updatedOrder.status);
+
+          // 🔊 Sounds based on normalized status
+          if (normalized === STATUS.COMPLETED) {
+            playOrderCompletedSound();
+          } else if (normalized === STATUS.SERVED) {
+            playOrderServedSound();
+          } else if (normalized === STATUS.PREPARING) {
+            playOrderPreparingSound();
+            toast("👨‍🍳 Order is being prepared!", {
+              icon: "🔊",
+              duration: 3000,
               style: {
-                background: '#10b981',
-                color: '#fff',
-                fontSize: '16px',
-                fontWeight: '600',
+                borderRadius: "10px",
+                background: "#3b82f6",
+                color: "#fff",
               },
-              position: 'top-center',
             });
-            showSystemNotification("Payment Confirmed 💰", "Your payment has been successfully confirmed.");
-            
+          } else {
+            playNotificationSound();
+          }
+
+          if (normalized === STATUS.COMPLETED) {
+            setOrders((prev) =>
+              prev.filter((o) => o._id !== updatedOrder._id)
+            );
+            toast.success(
+              `🎉 Order Completed: ${updatedOrder.foodName}. View it in Order History!`,
+              {
+                duration: 6000,
+                position: "top-center",
+                icon: "✅",
+                style: {
+                  background: "#10b981",
+                  color: "#fff",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                },
+              }
+            );
+            showSystemNotification(
+              "Order Completed 🎉",
+              `Your order for ${updatedOrder.foodName} is complete!`
+            );
+          } else {
+            setOrders((prev) => {
+              const existingIndex = prev.findIndex(
+                (o) => o._id === updatedOrder._id
+              );
+              if (existingIndex === -1) {
+                return [updatedOrder, ...prev];
+              } else {
+                const updated = [...prev];
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  ...updatedOrder,
+                };
+                return updated;
+              }
+            });
+
+            const statusMessages = {
+              [STATUS.ORDER]: "⏳ Order Pending",
+              [STATUS.PREPARING]: "👨‍🍳 Order is being prepared",
+              [STATUS.SERVED]: "🍽️ Order has been served",
+            };
+
+            toast.success(
+              `${
+                statusMessages[normalized] || "Order status updated"
+              }: ${updatedOrder.foodName}`,
+              {
+                duration: 4000,
+                position: "top-center",
+                icon: "📦",
+                style: {
+                  background: "#3b82f6",
+                  color: "#fff",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                },
+              }
+            );
+            showSystemNotification(
+              "Order Update 👨‍🍳",
+              `${
+                statusMessages[normalized] || "Status updated"
+              }: ${updatedOrder.foodName}`
+            );
+          }
+
+          // Payment status changes
+          if (
+            updatedOrder.paymentStatus !== oldOrder?.paymentStatus &&
+            updatedOrder.paymentStatus === "Paid"
+          ) {
+            playNotificationSound();
+            toast.success(
+              "💰 Payment Confirmed: Your payment has been confirmed by admin.",
+              {
+                duration: 5000,
+                icon: "✅",
+                style: {
+                  background: "#10b981",
+                  color: "#fff",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                },
+                position: "top-center",
+              }
+            );
+            showSystemNotification(
+              "Payment Confirmed 💰",
+              "Your payment has been successfully confirmed."
+            );
+
             setOrders((prev) =>
               prev.map((o) =>
-                o._id === updatedOrder._id ? { ...o, paymentStatus: "Paid", paymentMethod: updatedOrder.paymentMethod || "UPI" } : o
+                o._id === updatedOrder._id
+                  ? {
+                      ...o,
+                      paymentStatus: "Paid",
+                      paymentMethod: updatedOrder.paymentMethod || "UPI",
+                    }
+                  : o
               )
             );
           }
         },
-        540 // ⚡ 0.54s polling as requested
+        540
       );
     }
 
-    // Connection event listeners
     socket.on("connect", () => {
       socketConnectedRef.current = true;
       checkSocketConnection();
-      
-      // ✅ CRITICAL: Identify as user after connection to join user room
-      // This ensures user receives orderStatusChanged events
+
       if (socket && typeof socket.emit === "function" && user?.uid) {
-        // Small delay to ensure socket is fully ready
         setTimeout(() => {
           socket.emit("identify", { type: "user", userId: user.uid });
         }, 100);
       }
     });
 
-    // ✅ Listen for identification confirmation
     socket.on("identified", (data) => {
-      // User successfully identified and joined user room
       if (data && data.type === "user") {
         socketConnectedRef.current = true;
       }
@@ -428,45 +605,16 @@ const OrderPage = () => {
 
     socket.on("disconnect", (reason) => {
       if (reason === "io server disconnect") {
-        // Server disconnected the socket, try to reconnect
         socket.connect();
       }
     });
 
-    socket.on("connect_error", (error) => {
-      // Suppress error logging for expected failures - silently handle
-      const errorMessage = error.message || "";
-      const isExpectedError = 
-        errorMessage.includes("websocket") ||
-        errorMessage.includes("closed before the connection is established") ||
-        errorMessage.includes("xhr poll error") ||
-        API_BASE.includes("vercel.app"); // Vercel doesn't support WebSockets
-      
-      // Silently handle expected errors
-    });
-
-    socket.on("reconnect_attempt", () => {
-      // Silently attempt reconnection
-    });
-
-    socket.on("reconnect", (attemptNumber) => {
-      // Silently reconnected
-    });
-
-    socket.on("reconnect_error", (error) => {
-      // Suppress reconnection errors - silently handle
-      const errorMessage = error.message || "";
-      // Silently handle expected errors
-    });
-
-    socket.on("reconnect_failed", () => {
-      console.warn("⚠️ Socket reconnection failed. Falling back to polling or manual refresh.");
-    });
-
-    // Listen for new orders (booking) - Real-time UI update
+    // newOrderPlaced
     socket.on("newOrderPlaced", (newOrder) => {
-      if (user && (newOrder.userEmail === user.email || newOrder.userId === user.uid)) {
-        // Update UI immediately
+      if (
+        user &&
+        (newOrder.userEmail === user.email || newOrder.userId === user.uid)
+      ) {
         setOrders((prev) => {
           const exists = prev.find((o) => o._id === newOrder._id);
           if (!exists) {
@@ -474,49 +622,56 @@ const OrderPage = () => {
           }
           return prev;
         });
-        playOrderSuccessSound(); // Play success sound
+        playOrderSuccessSound();
         toast.success(`📦 Order Placed: ${newOrder.foodName}`, {
           duration: 4000,
           position: "top-center",
         });
-        showSystemNotification("Order Placed 📦", `Your order for ${newOrder.foodName} has been placed!`);
+        showSystemNotification(
+          "Order Placed 📦",
+          `Your order for ${newOrder.foodName} has been placed!`
+        );
       }
-      // Also refresh to ensure consistency
       fetchAllOrders();
     });
 
-    // Listen for status changes - Real-time UI update
+    // orderStatusChanged
     socket.on("orderStatusChanged", (updatedOrder) => {
-      // ✅ CRITICAL: Verify order belongs to current user
-      console.log("🔔 Socket: orderStatusChanged received", updatedOrder);
       if (!user || !updatedOrder || !updatedOrder._id) {
-        console.warn("⚠️ Missing user or order data", { user: !!user, order: updatedOrder });
+        console.warn("⚠️ Missing user or order data");
         return;
       }
+
+      const isUserOrder =
+        updatedOrder.userEmail === user.email ||
+        updatedOrder.userId === user.uid;
+
+      if (!isUserOrder) return;
+
+      const normalized = normalizeStatus(updatedOrder.status);
       
-      const isUserOrder = 
-        (updatedOrder.userEmail === user.email) || 
-        (updatedOrder.userId === user.uid);
-      
-      if (!isUserOrder) {
-        return; // Not user's order, ignore
-      }
-      
-      // 🔊 Play notification sound based on status
-      if (updatedOrder.status === "Complete" || updatedOrder.status === "Completed") {
+      if (normalized === STATUS.COMPLETED) {
         playOrderCompletedSound();
-      } else if (updatedOrder.status === "Served") {
+      } else if (normalized === STATUS.SERVED) {
         playOrderServedSound();
+      } else if (normalized === STATUS.PREPARING) {
+        playOrderPreparingSound();
+        toast("👨‍🍳 Order is being prepared!", {
+          icon: "🔊",
+          duration: 3000,
+          style: {
+            borderRadius: "10px",
+            background: "#3b82f6",
+            color: "#fff",
+          },
+        });
       } else {
         playNotificationSound();
       }
-      
-      // ✅ CRITICAL: Handle Complete status - remove from live orders and notify
-      if (updatedOrder.status === "Complete" || updatedOrder.status === "Completed") {
-        // Remove from live orders list (will appear in history)
+
+      if (normalized === STATUS.COMPLETED) {
         setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
-        
-        // ✅ Show completion notification with history suggestion
+
         toast.success(
           `🎉 Order Completed: ${updatedOrder.foodName}. View it in Order History!`,
           {
@@ -531,33 +686,38 @@ const OrderPage = () => {
             },
           }
         );
-        showSystemNotification("Order Completed 🎉", `Your order for ${updatedOrder.foodName} is complete!`);
+        showSystemNotification(
+          "Order Completed 🎉",
+          `Your order for ${updatedOrder.foodName} is complete!`
+        );
       } else {
-        // ✅ Update order status for non-completed orders
         setOrders((prev) => {
-          const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
-          
+          const existingIndex = prev.findIndex(
+            (o) => o._id === updatedOrder._id
+          );
+
           if (existingIndex === -1) {
-            // Order doesn't exist in current list, add it
             return [updatedOrder, ...prev];
           } else {
-            // Update existing order with latest status
             const updated = [...prev];
-            updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
+            updated[existingIndex] = {
+              ...updated[existingIndex],
+              ...updatedOrder,
+            };
             return updated;
           }
         });
-        
-        // ✅ Show status change notification
+
         const statusMessages = {
-          Pending: "⏳ Order Pending",
-          Cooking: "👨‍🍳 Order is being cooked",
-          Ready: "✅ Order is ready for pickup",
-          Served: "🍽️ Order has been served",
+          [STATUS.ORDER]: "⏳ Order Pending",
+          [STATUS.PREPARING]: "👨‍🍳 Order is being prepared",
+          [STATUS.SERVED]: "🍽️ Order has been served",
         };
-        
+
         toast.success(
-          `${statusMessages[updatedOrder.status] || "Order status updated"}: ${updatedOrder.foodName}`,
+          `${
+            statusMessages[normalized] || "Order status updated"
+          }: ${updatedOrder.foodName}`,
           {
             duration: 4000,
             position: "top-center",
@@ -571,106 +731,108 @@ const OrderPage = () => {
           }
         );
         showSystemNotification(
-          "Order Update 👨‍🍳", 
-          `${statusMessages[updatedOrder.status] || "Status updated"}: ${updatedOrder.foodName}`
+          "Order Update 👨‍🍳",
+          `${
+            statusMessages[normalized] || "Status updated"
+          }: ${updatedOrder.foodName}`
         );
       }
     });
-    
-    // Listen for payment success - Real-time UI update
+
+    // paymentSuccess
     socket.on("paymentSuccess", (orderData) => {
-      // Check if this order belongs to the current user
-      if (user && orderData && (orderData.userId === user.uid || orderData.userEmail === user.email)) {
-        // Update UI immediately
+      if (
+        user &&
+        orderData &&
+        (orderData.userId === user.uid || orderData.userEmail === user.email)
+      ) {
         setOrders((prev) =>
           prev.map((o) =>
             o._id === orderData._id ? { ...o, paymentStatus: "Paid" } : o
           )
         );
-        toast.success("💰 Payment Done! Your payment has been confirmed by admin.", {
-          duration: 5000,
-          icon: '✅',
-          style: {
-            background: '#10b981',
-            color: '#fff',
-            fontSize: '16px',
-            fontWeight: '600',
-          },
-          position: 'top-center',
-        });
-        showSystemNotification("Payment Confirmed 💰", "Your payment has been successfully confirmed.");
+        toast.success(
+          "💰 Payment Done! Your payment has been confirmed by admin.",
+          {
+            duration: 5000,
+            icon: "✅",
+            style: {
+              background: "#10b981",
+              color: "#fff",
+              fontSize: "16px",
+              fontWeight: "600",
+            },
+            position: "top-center",
+          }
+        );
+        showSystemNotification(
+          "Payment Confirmed 💰",
+          "Your payment has been successfully confirmed."
+        );
       }
-      // Also refresh to ensure consistency
       fetchAllOrders();
     });
 
-    // Listen for order deletion - Real-time UI update
+    // orderDeleted
     socket.on("orderDeleted", (deletedOrderId) => {
-      // Check if this order belongs to the current user
       const deletedOrder = orders.find((o) => o._id === deletedOrderId);
-      
-      if (deletedOrder && user && (deletedOrder.userId === user.uid || deletedOrder.userEmail === user.email)) {
-        // Play deletion sound
+
+      if (
+        deletedOrder &&
+        user &&
+        (deletedOrder.userId === user.uid ||
+          deletedOrder.userEmail === user.email)
+      ) {
         playOrderDeletedSound();
-        
-        // Remove from UI
+
         setOrders((prev) => prev.filter((o) => o._id !== deletedOrderId));
-        
-        // Show notification
-        toast.error(`🗑️ Order Deleted: ${deletedOrder.foodName} has been removed by admin.`, {
-          duration: 5000,
-          icon: '❌',
-          style: {
-            background: '#ef4444',
-            color: '#fff',
-            fontSize: '16px',
-            fontWeight: '600',
-          },
-          position: 'top-center',
-        });
-        showSystemNotification("Order Deleted 🗑️", `Your order for ${deletedOrder.foodName} has been removed.`);
+
+        toast.error(
+          `🗑️ Order Deleted: ${deletedOrder.foodName} has been removed by admin.`,
+          {
+            duration: 5000,
+            icon: "❌",
+            style: {
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: "16px",
+              fontWeight: "600",
+            },
+            position: "top-center",
+          }
+        );
+        showSystemNotification(
+          "Order Deleted 🗑️",
+          `Your order for ${deletedOrder.foodName} has been removed.`
+        );
       }
-      
-      // Also refresh to ensure consistency
+
       fetchAllOrders();
     });
 
     return () => {
-      // Clean up all event listeners
       socket.off("connect");
+      socket.off("identified");
       socket.off("disconnect");
-      socket.off("connect_error");
-      socket.off("reconnect_attempt");
-      socket.off("reconnect");
-      socket.off("reconnect_error");
-      socket.off("reconnect_failed");
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
       socket.off("paymentSuccess");
       socket.off("orderDeleted");
-      
-      // Stop polling if it's running
+
       if (pollingStopRef.current) {
         pollingStopRef.current();
         pollingStopRef.current = null;
       }
-      
-      // Don't disconnect on cleanup - let it stay connected for other components
-      // if (socket.disconnect) {
-      //   socket.disconnect();
-      // }
     };
-  }, [fetchAllOrders, user]);
+  }, [fetchAllOrders, user, orders]);
 
   useEffect(() => {
     fetchAllOrders();
   }, [fetchAllOrders]);
 
-
   /* ===========================
-      🛒 CART LOGIC (Redux + Backend Sync)
+      🛒 CART LOGIC
   ============================ */
-  // Calculate total (no GST)
   const total = cartTotal;
 
   const updateQuantity = async (id, newQty) => {
@@ -714,7 +876,7 @@ const OrderPage = () => {
   };
 
   /* ===========================
-      🧾 SUBMIT ORDER (Show Payment First)
+      🧾 SUBMIT ORDER / PAYMENT
   ============================ */
   const handleSubmit = () => {
     const isDineIn = orderType === "dine-in";
@@ -722,20 +884,17 @@ const OrderPage = () => {
     if (!user) return toast.error("Please login first!");
     if (cart.length === 0) return toast.error("Your cart is empty!");
 
-    // ✅ Dine-in validation: require table selection
     if (isDineIn) {
       if (selectedTables.length === 0) {
         toast.error("Please select a table for Dine-in orders");
         return;
       }
     } else {
-      // ✅ Parcel / Delivery validation: require phone number
       if (!contactNumber.trim()) {
         toast.error("Please enter your phone number for parcel/delivery orders");
         return;
       }
 
-      // Validate phone number format (basic validation)
       const phoneRegex = /^[0-9]{10}$/;
       if (!phoneRegex.test(contactNumber.trim())) {
         toast.error("Please enter a valid 10-digit phone number");
@@ -743,7 +902,6 @@ const OrderPage = () => {
       }
     }
 
-    // Store cart data for payment modal (include table selection and phone number)
     setPendingCartData({
       cart,
       user,
@@ -751,12 +909,10 @@ const OrderPage = () => {
       contactNumber: !isDineIn ? contactNumber.trim() : "",
     });
 
-    // Show payment modal FIRST (before creating orders)
     setShowPaymentModal(true);
   };
 
   const handlePaymentComplete = async () => {
-    // Clear cart from backend and reset after payment is completed
     if (user && user.email) {
       try {
         await dispatch(clearCartAsync(user.email)).unwrap();
@@ -769,16 +925,13 @@ const OrderPage = () => {
     fetchAllOrders();
   };
 
-
   /* ===========================
       🧭 UI
   ============================ */
 
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8f3] to-white py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6 lg:px-10 mt-10 pb-20">
       <Toaster />
-
 
       {/* ===== CART SECTION ===== */}
       {cart.length === 0 ? (
@@ -787,7 +940,9 @@ const OrderPage = () => {
           animate={{ opacity: 1 }}
           className="text-center text-gray-500 mt-12 sm:mt-20"
         >
-          <p className="text-base sm:text-lg md:text-xl">Your cart is empty 🍽️</p>
+          <p className="text-base sm:text-lg md:text-xl">
+            Your cart is empty 🍽️
+          </p>
           <button
             onClick={() => navigate("/menu")}
             className="mt-4 bg-red-600 hover:bg-red-700 text-white px-5 sm:px-6 py-2 rounded-full font-semibold text-sm sm:text-base"
@@ -839,7 +994,9 @@ const OrderPage = () => {
                     >
                       −
                     </button>
-                    <span className="text-gray-700 font-semibold text-sm sm:text-base w-8 text-center">{item.quantity}</span>
+                    <span className="text-gray-700 font-semibold text-sm sm:text-base w-8 text-center">
+                      {item.quantity}
+                    </span>
                     <button
                       onClick={() => updateQuantity(item._id, item.quantity + 1)}
                       className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center bg-gray-200 rounded-full font-bold text-base sm:text-lg hover:bg-gray-300 transition"
@@ -860,11 +1017,15 @@ const OrderPage = () => {
 
           {/* 💳 Bill Summary */}
           <div className="bg-white shadow-lg rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:sticky lg:top-10 h-fit">
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Bill Summary</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">
+              Bill Summary
+            </h3>
 
             {/* Order Type Selection */}
             <div className="mb-4 pb-4 border-b border-gray-200">
-              <p className="text-sm font-semibold text-gray-700 mb-2">Order Type</p>
+              <p className="text-sm font-semibold text-gray-700 mb-2">
+                Order Type
+              </p>
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
@@ -884,7 +1045,6 @@ const OrderPage = () => {
                   type="button"
                   onClick={() => {
                     setOrderType("parcel");
-                    // Clear table selection when switching to parcel
                     setSelectedTables([]);
                   }}
                   className={`px-3 py-1.5 rounded-full border-2 text-xs sm:text-sm font-semibold transition-all ${
@@ -917,7 +1077,9 @@ const OrderPage = () => {
                     <FaChair className="text-sm" />
                     <span className="font-medium">
                       {selectedTables.length > 0
-                        ? `${selectedTables.length} Table${selectedTables.length > 1 ? 's' : ''} Selected`
+                        ? `${selectedTables.length} Table${
+                            selectedTables.length > 1 ? "s" : ""
+                          } Selected`
                         : "Select Table"}
                     </span>
                   </button>
@@ -952,8 +1114,7 @@ const OrderPage = () => {
                   type="tel"
                   value={contactNumber}
                   onChange={(e) => {
-                    // Only allow numbers and limit to 10 digits
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    const value = e.target.value.replace(/\D/g, "").slice(0, 10);
                     setContactNumber(value);
                   }}
                   placeholder="Enter 10-digit phone number"
@@ -986,9 +1147,12 @@ const OrderPage = () => {
       {/* ===== LIVE ORDERS SECTION ===== */}
       {orders.length > 0 && (
         <div className="mt-8 sm:mt-12 md:mt-16 max-w-6xl mx-auto">
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-5 text-gray-800 px-2">Your Live Orders</h2>
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-5 text-gray-800 px-2">
+            Your Live Orders
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {orders.map((order) => {
+              const nStatus = normalizeStatus(order.status);
               return (
                 <div
                   key={order._id}
@@ -1016,22 +1180,13 @@ const OrderPage = () => {
                   <p className="mt-1 text-xs sm:text-sm">
                     Status:{" "}
                     <span
-                      className={`font-semibold ${
-                        order.status === "Pending"
-                          ? "text-yellow-600"
-                          : order.status === "Cooking"
-                          ? "text-blue-600"
-                          : order.status === "Ready"
-                          ? "text-purple-600"
-                          : order.status === "Served"
-                          ? "text-green-600"
-                          : "text-gray-500"
-                      }`}
+                      className={`font-semibold ${getStatusColorClass(
+                        order.status
+                      )}`}
                     >
-                      {order.status}
+                      {nStatus}
                     </span>
                   </p>
-
                 </div>
               );
             })}
@@ -1064,10 +1219,7 @@ const OrderPage = () => {
         selectedTables={selectedTables}
         setSelectedTables={setSelectedTables}
         availableTables={[]}
-        onChairsSelected={(tables) => {
-            // Optional: You can do additional logic here if needed
-            // But state is already updated via setSelectedTables
-        }}
+        onChairsSelected={() => {}}
       />
     </div>
   );
