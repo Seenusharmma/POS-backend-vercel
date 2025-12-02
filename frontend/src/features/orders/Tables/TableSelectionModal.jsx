@@ -92,10 +92,10 @@ const TableSelectionModal = ({
 
             {/* ✅ Confirm Button (only when table selected) */}
             {selectedTables.length > 0 && (
-              <div className="p-3 border-t flex justify-center bg-white">
+              <div className="p-2 border-t flex justify-center bg-white">
                 <button
                   onClick={onClose}
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all duration-200"
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-4 py-2 rounded-xl shadow-md transition-all duration-200"
                 >
                   Confirm Table
                 </button>
