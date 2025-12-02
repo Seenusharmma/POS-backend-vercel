@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { FaEdit, FaTrash, FaCheck, FaTimes } from "react-icons/fa";
 import API_BASE from "../../../config/api";
 
 /**
@@ -9,26 +10,24 @@ import API_BASE from "../../../config/api";
 const FoodCard = ({ food, onEdit, onDelete, onToggleAvailability }) => {
   return (
     <motion.div
-      whileHover={{ y: -3, scale: 1.01 }}
+      whileHover={{ y: -5 }}
       className="
         bg-white 
-        rounded-xl 
-        shadow-md 
-        hover:shadow-lg 
+        rounded-2xl 
+        shadow-sm 
+        hover:shadow-xl 
         transition-all 
         duration-300 
         overflow-hidden 
         border 
         border-gray-100
+        group
+        flex flex-col
+        h-full
       "
     >
       {/* Image Section */}
-      <div className="relative 
-                      h-32        /* mobile height */
-                      sm:h-40     /* bigger tablets */
-                      md:h-44 
-                      overflow-hidden 
-                      bg-gray-50">
+      <div className="relative h-48 overflow-hidden bg-gray-100">
         <img
           src={
             food.image && food.image.startsWith("http")
@@ -38,7 +37,7 @@ const FoodCard = ({ food, onEdit, onDelete, onToggleAvailability }) => {
               : "https://placehold.co/400x300/f3f4f6/9ca3af?text=No+Image"
           }
           alt={food.name}
-          className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           onError={(e) => {
             e.target.src =
               "https://placehold.co/400x300/f3f4f6/9ca3af?text=No+Image";
@@ -46,160 +45,138 @@ const FoodCard = ({ food, onEdit, onDelete, onToggleAvailability }) => {
         />
 
         {/* Veg/Non-Veg Badge */}
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-3 right-3 z-10">
           <div
-            className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shadow-md ${
+            className={`w-6 h-6 rounded-md flex items-center justify-center shadow-lg border-2 border-white ${
               food.type === "Veg"
-                ? "bg-green-600"
+                ? "bg-green-50"
                 : food.type === "Non-Veg"
-                ? "bg-red-600"
-                : "bg-gray-500"
+                ? "bg-red-50"
+                : "bg-gray-50"
             }`}
           >
-            <div className="w-2 h-2 rounded-full bg-white"></div>
+            <div className={`w-2.5 h-2.5 rounded-full ${
+               food.type === "Veg" ? "bg-green-600" : 
+               food.type === "Non-Veg" ? "bg-red-600" : "bg-gray-500"
+            }`}></div>
           </div>
         </div>
 
         {/* Out of Stock Overlay */}
         {!food.available && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <span className="bg-white/90 text-gray-800 px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-20">
+            <span className="bg-white/90 text-gray-900 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg transform -rotate-3 border border-gray-200">
               Out of Stock
             </span>
           </div>
         )}
+        
+        {/* Quick Actions Overlay (Visible on Hover) */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+           <button
+              onClick={() => onEdit(food)}
+              className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-orange-500 hover:bg-orange-500 hover:text-white transition-all shadow-lg transform hover:scale-110"
+              title="Edit"
+           >
+              <FaEdit />
+           </button>
+           <button
+              onClick={() => onDelete(food._id)}
+              className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg transform hover:scale-110"
+              title="Delete"
+           >
+              <FaTrash />
+           </button>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="p-2.5 sm:p-4">
-        {/* Food name */}
-        <h3 className="font-bold 
-                      text-sm sm:text-lg 
-                      text-gray-900 
-                      mb-1 
-                      line-clamp-2
-                      min-h-[2rem] sm:min-h-[2.8rem]">
-          {food.name}
-        </h3>
-
-        {/* Category */}
-        <span className="text-[11px] sm:text-xs text-gray-500 font-medium">
-          {food.category}
-        </span>
+      <div className="p-5 flex flex-col flex-grow">
+        <div className="flex justify-between items-start mb-2">
+            <div>
+                <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider bg-orange-50 px-2 py-0.5 rounded-md mb-2 inline-block">
+                  {food.category}
+                </span>
+                <h3 className="font-bold text-lg text-gray-800 leading-tight line-clamp-2 min-h-[3rem]">
+                  {food.name}
+                </h3>
+            </div>
+        </div>
 
         {/* Price Section */}
-        <div className="flex items-start justify-between pt-2 mt-1 border-t border-gray-100">
-
-          {/* Price details */}
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] text-gray-400 mb-0.5">Price</p>
-
+        <div className="mt-auto pt-4 border-t border-gray-50">
             {food.hasSizes ? (
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {/* Half & Full */}
                 {food.sizeType === "half-full" && food.halfFull ? (
-                  <div className="space-y-0.5">
+                  <div className="flex justify-between text-sm">
                     {food.halfFull.Half && (
-                      <p className="text-xs sm:text-sm text-gray-700">
-                        <span className="font-semibold">Half:</span> ₹
-                        {Number(food.halfFull.Half).toFixed(0)}
-                      </p>
+                      <div className="flex items-center gap-1">
+                         <span className="text-gray-500 text-xs font-medium">Half</span>
+                         <span className="font-bold text-gray-800">₹{Number(food.halfFull.Half).toFixed(0)}</span>
+                      </div>
                     )}
                     {food.halfFull.Full && (
-                      <p className="text-xs sm:text-sm text-gray-700">
-                        <span className="font-semibold">Full:</span> ₹
-                        {Number(food.halfFull.Full).toFixed(0)}
-                      </p>
+                      <div className="flex items-center gap-1">
+                         <span className="text-gray-500 text-xs font-medium">Full</span>
+                         <span className="font-bold text-gray-800">₹{Number(food.halfFull.Full).toFixed(0)}</span>
+                      </div>
                     )}
                   </div>
                 ) : (
                   /* Standard size (S/M/L) */
-                  <div className="space-y-0.5">
+                  <div className="flex flex-wrap gap-2 text-xs">
                     {food.sizes?.Small && (
-                      <p className="text-xs sm:text-sm text-gray-700">
-                        <span className="font-semibold">Small:</span> ₹
-                        {Number(food.sizes.Small).toFixed(0)}
-                      </p>
+                       <span className="bg-gray-50 px-2 py-1 rounded text-gray-600 font-medium border border-gray-100">
+                          S: <span className="text-gray-900 font-bold">₹{Number(food.sizes.Small).toFixed(0)}</span>
+                       </span>
                     )}
                     {food.sizes?.Medium && (
-                      <p className="text-xs sm:text-sm text-gray-700">
-                        <span className="font-semibold">Medium:</span> ₹
-                        {Number(food.sizes.Medium).toFixed(0)}
-                      </p>
+                       <span className="bg-gray-50 px-2 py-1 rounded text-gray-600 font-medium border border-gray-100">
+                          M: <span className="text-gray-900 font-bold">₹{Number(food.sizes.Medium).toFixed(0)}</span>
+                       </span>
                     )}
                     {food.sizes?.Large && (
-                      <p className="text-xs sm:text-sm text-gray-700">
-                        <span className="font-semibold">Large:</span> ₹
-                        {Number(food.sizes.Large).toFixed(0)}
-                      </p>
+                       <span className="bg-gray-50 px-2 py-1 rounded text-gray-600 font-medium border border-gray-100">
+                          L: <span className="text-gray-900 font-bold">₹{Number(food.sizes.Large).toFixed(0)}</span>
+                       </span>
                     )}
                   </div>
                 )}
               </div>
             ) : (
               /* Simple price */
-              <p className="font-bold text-base sm:text-xl text-gray-900">
-                ₹{Number(food.price || 0).toFixed(0)}
-              </p>
+              <div className="flex items-baseline gap-1">
+                 <span className="text-sm text-gray-400 font-medium">Price:</span>
+                 <span className="font-bold text-xl text-gray-900">
+                   ₹{Number(food.price || 0).toFixed(0)}
+                 </span>
+              </div>
             )}
-          </div>
-
-          {/* Buttons */}
-          <div className="flex items-center gap-1 sm:gap-2">
-
-            {/* Edit Btn */}
-            <button
-              onClick={() => onEdit(food)}
-              className="
-                bg-orange-500 hover:bg-orange-600 text-white 
-                px-2 sm:px-3 
-                py-1.5 sm:py-1.5
-                rounded-md 
-                text-[10px] sm:text-xs 
-                font-semibold 
-                shadow-sm hover:shadow-md
-              "
-            >
-              Edit
-            </button>
-
-            {/* Delete Btn */}
-            <button
-              onClick={() => onDelete(food._id)}
-              className="
-                bg-red-500 hover:bg-red-600 text-white 
-                px-2 sm:px-3 
-                py-1.5 sm:py-1.5
-                rounded-md 
-                text-[10px] sm:text-xs 
-                font-semibold 
-                shadow-sm hover:shadow-md
-              "
-            >
-              Delete
-            </button>
-
-          </div>
         </div>
-
-        {/* Availability Button */}
+        
+        {/* Availability Toggle (Mobile friendly) */}
         <button
           onClick={() => onToggleAvailability(food._id, !food.available)}
           className={`
-            w-full mt-2 
-            py-1.5 sm:py-2 
-            rounded-md 
-            font-semibold 
-            text-[11px] sm:text-xs
+            w-full mt-4 
+            py-2.5 
+            rounded-xl 
+            font-bold 
+            text-xs
+            uppercase
+            tracking-wide
             transition-all
+            flex items-center justify-center gap-2
             ${
               food.available
                 ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300"
+                : "bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-300"
             }
           `}
         >
-          {food.available ? "✓ Available" : "✗ Out of Stock"}
+          {food.available ? <FaCheck /> : <FaTimes />}
+          {food.available ? "Available" : "Unavailable"}
         </button>
       </div>
     </motion.div>

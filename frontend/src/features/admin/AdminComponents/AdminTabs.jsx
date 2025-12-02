@@ -1,5 +1,14 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { 
+  FaClipboardList, 
+  FaHistory, 
+  FaUtensils, 
+  FaPlus, 
+  FaChartLine, 
+  FaGift,
+  FaUserShield 
+} from "react-icons/fa";
 
 /**
  * Admin Tabs Navigation Component
@@ -10,44 +19,66 @@ import { motion } from "framer-motion";
  */
 const AdminTabs = ({ activeTab, onTabChange, isSuperAdmin = false }) => {
   const baseTabs = [
-    { id: "orders", label: "🧾 Orders", shortLabel: "🧾" },
-    { id: "history", label: "📜 History", shortLabel: "📜" },
-    { id: "foods", label: "🍽️ Food List", shortLabel: "🍽️" },
-    { id: "addFood", label: "➕ Add Food", shortLabel: "➕" },
-    { id: "sales", label: "💰 Total Sales", shortLabel: "💰" },
-    { id: "offers", label: "🎁 Offers", shortLabel: "🎁" },
+    { id: "orders", label: "Orders", icon: FaClipboardList, color: "from-blue-500 to-blue-600" },
+    { id: "history", label: "History", icon: FaHistory, color: "from-purple-500 to-purple-600" },
+    { id: "foods", label: "Food List", icon: FaUtensils, color: "from-orange-500 to-orange-600" },
+    { id: "addFood", label: "Add Food", icon: FaPlus, color: "from-green-500 to-green-600" },
+    { id: "sales", label: "Total Sales", icon: FaChartLine, color: "from-red-500 to-red-600" },
+    { id: "offers", label: "Offers", icon: FaGift, color: "from-pink-500 to-pink-600" },
   ];
 
   // Only show Admins tab for super admin
   const tabs = isSuperAdmin
-    ? [...baseTabs, { id: "admins", label: "👥 Admins", shortLabel: "👥" }]
+    ? [...baseTabs, { id: "admins", label: "Admins", icon: FaUserShield, color: "from-indigo-500 to-indigo-600" }]
     : baseTabs;
 
   return (
-    <div className="flex justify-center mb-4 sm:mb-6 md:mb-8 border-b border-gray-200 overflow-x-auto scrollbar-hide">
-      <div className="flex gap-1 sm:gap-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            className={`relative px-3 sm:px-4 md:px-6 py-2 sm:py-3 text-xs sm:text-sm md:text-base font-semibold transition-all whitespace-nowrap ${
-              activeTab === tab.id
-                ? "text-red-600"
-                : "text-gray-500 hover:text-red-400"
-            }`}
+    <>
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+      <div className="mb-8 px-2 sm:px-4">
+        <div className="bg-white rounded-2xl shadow-lg p-2 sm:p-3 border border-gray-100">
+          <div 
+            className="hide-scrollbar flex gap-2 overflow-x-auto pb-1"
+            style={{
+              scrollbarWidth: 'none', /* Firefox */
+              msOverflowStyle: 'none', /* IE and Edge */
+            }}
           >
-            <span className="hidden sm:inline">{tab.label}</span>
-            <span className="sm:hidden">{tab.shortLabel}</span>
-            {activeTab === tab.id && (
-              <motion.div
-                layoutId="underline"
-                className="absolute bottom-0 left-0 right-0 h-[3px] bg-red-600 rounded-full"
-              />
-            )}
-          </button>
-        ))}
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              
+              return (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => onTabChange(tab.id)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`
+                    relative flex items-center gap-2
+                    px-3 sm:px-6 py-2.5 sm:py-3
+                    rounded-xl font-semibold text-xs sm:text-base
+                    transition-all duration-300 whitespace-nowrap
+                    ${
+                      isActive
+                        ? `bg-gradient-to-r ${tab.color} text-white shadow-lg`
+                        : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                    }
+                  `}
+                >
+                  <Icon className={`text-base sm:text-xl ${isActive ? "" : "text-gray-400"}`} />
+                  <span>{tab.label}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

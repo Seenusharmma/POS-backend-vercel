@@ -5,8 +5,10 @@ import toast, { Toaster } from "react-hot-toast";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -244,11 +246,11 @@ const TotalSales = () => {
 
   const chartData = getChartData();
 
-  // ================================
+ // ================================
   // 🧭 UI
   // ================================
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto bg-gradient-to-br from-gray-50 via-white to-gray-50 min-h-screen">
+    <div className="p-3 sm:p-6 max-w-7xl mx-auto min-h-screen">
       <Toaster />
       
       {/* Header Section */}
@@ -256,19 +258,19 @@ const TotalSales = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-8"
+        className="mb-6"
       >
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-            Sales Analytics Dashboard
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 gap-2">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+            Sales Analytics
           </h1>
-          <div className="hidden sm:flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
-            <FaArrowUp className="text-green-500" />
-            <span className="text-sm font-semibold text-gray-700">Live Data</span>
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg shadow-sm border border-gray-200">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs sm:text-sm font-semibold text-gray-700">Live Data</span>
           </div>
         </div>
-        <p className="text-gray-500 text-sm sm:text-base">
-          Comprehensive sales insights and performance metrics
+        <p className="text-gray-500 text-xs sm:text-sm">
+          Monitor your sales performance and revenue insights
         </p>
       </motion.div>
 
@@ -277,130 +279,129 @@ const TotalSales = () => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 sm:p-6 mb-6"
+        className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 mb-6"
       >
         <div className="flex items-center gap-2 mb-4">
-          <FaCalendarAlt className="text-orange-500 text-xl" />
-          <h3 className="text-lg font-bold text-gray-800">
-            Filter Sales Data
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-50 rounded-lg flex items-center justify-center">
+            <FaCalendarAlt className="text-orange-500 text-base sm:text-lg" />
+          </div>
+          <h3 className="text-base sm:text-lg font-bold text-gray-800">
+            Filter Period
           </h3>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
-          {/* Filter Buttons */}
-          <div className="flex flex-wrap gap-2 sm:gap-3">
-            <button
-              onClick={() => {
-                setDateFilter("today");
-                setSelectedDate("");
-              }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm sm:text-base transition-all shadow-sm ${
-                dateFilter === "today"
-                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md scale-105"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm"
-              }`}
-            >
-              <FaCalendarDay />
-              Today
-            </button>
-            <button
-              onClick={() => {
-                setDateFilter("backDate");
-                if (!selectedDate) {
-                  const yesterday = new Date(today);
-                  yesterday.setDate(today.getDate() - 1);
-                  setSelectedDate(yesterday.toISOString().split("T")[0]);
-                }
-              }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm sm:text-base transition-all shadow-sm ${
-                dateFilter === "backDate"
-                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md scale-105"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm"
-              }`}
-            >
-              <FaCalendarAlt />
-              Back Date
-            </button>
-            <button
-              onClick={() => {
-                setDateFilter("365days");
-                setSelectedDate("");
-              }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm sm:text-base transition-all shadow-sm ${
-                dateFilter === "365days"
-                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md scale-105"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-sm"
-              }`}
-            >
-              <FaChartLine />
-              Past 365 Days
-            </button>
+
+        {/* Filter Buttons */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
+          <button
+            onClick={() => {
+              setDateFilter("today");
+              setSelectedDate("");
+            }}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-3 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all ${
+              dateFilter === "today"
+                ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md"
+                : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200"
+            }`}
+          >
+            <FaCalendarDay className="text-base sm:text-lg" />
+            <span>Today</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              setDateFilter("backDate");
+              if (!selectedDate) {
+                const yesterday = new Date(today);
+                yesterday.setDate(today.getDate() - 1);
+                setSelectedDate(yesterday.toISOString().split("T")[0]);
+              }
+            }}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-3 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all ${
+              dateFilter === "backDate"
+                ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md"
+                : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200"
+            }`}
+          >
+            <FaCalendarAlt className="text-base sm:text-lg" />
+            <span className="text-center">Custom</span>
+          </button>
+         
+          <button
+            onClick={() => {
+              setDateFilter("365days");
+              setSelectedDate("");
+            }}
+            className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-3 sm:py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition-all ${
+              dateFilter === "365days"
+                ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md"
+                : "bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200"
+            }`}
+          >
+            <FaChartLine className="text-base sm:text-lg" />
+            <span className="text-center">365 Days</span>
+          </button>
+        </div>
+
+        {/* Date Picker (shown when backDate is selected) */}
+        {dateFilter === "backDate" && (
+          <div className="mb-4 p-3 bg-orange-50 rounded-xl border border-orange-100">
+            <label className="block text-xs sm:text-sm font-bold text-gray-700 mb-2">
+              Select Date:
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              max={today.toISOString().split("T")[0]}
+              className="w-full px-3 py-2.5 border-2 border-orange-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+            />
           </div>
+        )}
 
-          {/* Date Picker (shown when backDate is selected) */}
-          {dateFilter === "backDate" && (
-            <div className="flex items-center gap-2">
-              <label className="text-sm sm:text-base font-medium text-gray-700">
-                Select Date:
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                max={today.toISOString().split("T")[0]}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-          )}
-
-          {/* Display Selected Date Range */}
-          <div className="ml-auto text-sm sm:text-base text-gray-600 font-medium">
+        {/* Selected Date Display */}
+        <div className="p-3 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
+            <span className="font-bold">Period:</span>
             {dateFilter === "today" && (
-              <span>
-                📅 {today.toLocaleDateString("en-IN", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
+              <span className="font-semibold">
+                {today.toLocaleDateString("en-IN", {
                   day: "numeric",
+                  month: "short",
+                  year: "numeric",
                 })}
               </span>
             )}
             {dateFilter === "backDate" && selectedDate && (
-              <span>
-                📆 {new Date(selectedDate).toLocaleDateString("en-IN", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
+              <span className="font-semibold">
+                {new Date(selectedDate).toLocaleDateString("en-IN", {
                   day: "numeric",
+                  month: "short",
+                  year: "numeric",
                 })}
               </span>
             )}
             {dateFilter === "365days" && (
-              <span>
-                📊 Last 365 Days ({" "}
-                {new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN")}{" "}
-                to {today.toLocaleDateString("en-IN")})
+              <span className="font-semibold">
+                {new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}{" "}
+                - {today.toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
               </span>
             )}
           </div>
         </div>
 
         {/* Summary for filtered data */}
-        <div className="mt-5 pt-5 border-t border-gray-200 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg p-4">
-          <div className="flex flex-wrap gap-6 text-sm sm:text-base">
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex flex-wrap gap-4 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span className="text-gray-700">
-                <span className="font-bold text-gray-900">Orders:</span>{" "}
-                <span className="font-semibold text-blue-600">{orderCount}</span>
+              <span className="text-gray-600">
+                Orders: <span className="font-bold text-gray-900">{orderCount}</span>
               </span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-gray-700">
-                <span className="font-bold text-gray-900">Total Sales:</span>{" "}
-                <span className="font-bold text-green-600 text-lg">
-                  ₹{totalSales.toLocaleString("en-IN")}
-                </span>
+              <span className="text-gray-600">
+                Revenue: <span className="font-bold text-green-600 text-sm sm:text-base">₹{totalSales.toLocaleString("en-IN")}</span>
               </span>
             </div>
           </div>
@@ -477,11 +478,11 @@ const TotalSales = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 mb-8"
+        className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 lg:p-8 mb-8"
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-2">
           <div>
-            <h3 className="text-xl font-bold text-gray-800 mb-1">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-1">
               {dateFilter === "today"
                 ? "Today's Sales Performance"
                 : dateFilter === "backDate"
@@ -490,7 +491,7 @@ const TotalSales = () => {
                 ? "Annual Sales Trend"
                 : "Weekly Sales Performance"}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500">
               {dateFilter === "today" || dateFilter === "backDate"
                 ? "Hourly breakdown"
                 : dateFilter === "365days"
@@ -498,17 +499,17 @@ const TotalSales = () => {
                 : "Daily breakdown"}
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-orange-50 to-red-50 px-4 py-2 rounded-lg">
+          <div className="flex items-center gap-2 bg-gradient-to-r from-orange-50 to-red-50 px-3 sm:px-4 py-2 rounded-lg">
             <FaChartLine className="text-orange-500" />
-            <span className="text-sm font-semibold text-gray-700">Analytics</span>
+            <span className="text-xs sm:text-sm font-semibold text-gray-700">Trend Analysis</span>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
             <defs>
               <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f97316" stopOpacity={0.9}/>
-                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.7}/>
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.8}/>
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -517,30 +518,32 @@ const TotalSales = () => {
               angle={dateFilter === "365days" ? -45 : 0}
               textAnchor={dateFilter === "365days" ? "end" : "middle"}
               height={dateFilter === "365days" ? 80 : 30}
-              tick={{ fill: '#6b7280', fontSize: 12 }}
+              tick={{ fill: '#6b7280', fontSize: 11 }}
             />
             <YAxis 
-              tick={{ fill: '#6b7280', fontSize: 12 }}
+              tick={{ fill: '#6b7280', fontSize: 11 }}
               tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}k`}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'white',
                 border: '1px solid #e5e7eb',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
               }}
               formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Sales"]}
               labelStyle={{ color: '#374151', fontWeight: 'bold' }}
             />
-            <Bar 
+            <Area 
+              type="monotone"
               dataKey="sales" 
-              fill="url(#colorSales)" 
-              radius={[8, 8, 0, 0]}
               stroke="#f97316"
-              strokeWidth={1}
+              strokeWidth={3}
+              fill="url(#colorSales)"
+              dot={{ fill: '#ef4444', r: 4 }}
+              activeDot={{ r: 6, fill: '#dc2626' }}
             />
-          </BarChart>
+          </AreaChart>
         </ResponsiveContainer>
       </motion.div>
 
