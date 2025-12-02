@@ -1,7 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import GroupedOrderCard from "./GroupedOrderCard";
-import { FaClipboardList, FaChevronDown, FaChevronUp, FaUser } from "react-icons/fa";
+import { FaClipboardList, FaChevronDown} from "react-icons/fa";
 
 /**
  * Orders Section Component
@@ -31,15 +31,15 @@ const OrdersSection = ({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         transition={{ duration: 0.4 }}
-        className="bg-white shadow-xl rounded-2xl p-8 sm:p-12 text-center border border-gray-100"
+        className="bg-white shadow-lg rounded-2xl p-6 sm:p-10 text-center border border-gray-100"
       >
-        <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
-          <FaClipboardList className="text-4xl text-orange-400" />
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+          <FaClipboardList className="text-3xl sm:text-4xl text-orange-400" />
         </div>
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
           No Active Orders
         </h3>
-        <p className="text-gray-500 max-w-md mx-auto">
+        <p className="text-sm sm:text-base text-gray-500 max-w-md mx-auto">
           New orders will appear here automatically. Sit back and relax!
         </p>
       </motion.div>
@@ -53,21 +53,21 @@ const OrdersSection = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.4 }}
-      className="space-y-6"
+      className="space-y-4"
     >
-      <div className="flex items-center gap-3 px-1">
-        <div className="p-2 bg-orange-100 rounded-lg">
-           <FaClipboardList className="text-orange-600 text-xl" />
+      <div className="flex items-center gap-2 sm:gap-3 px-0.5">
+        <div className="p-1.5 sm:p-2 bg-orange-100 rounded-lg">
+           <FaClipboardList className="text-orange-600 text-base sm:text-xl" />
         </div>
-        <h3 className="text-2xl font-bold text-gray-800">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-800">
           Active Orders
         </h3>
-        <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold">
+        <span className="bg-orange-100 text-orange-700 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-bold">
           {Object.keys(groupedOrders).length}
         </span>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {Object.values(groupedOrders).map((userGroup, idx) => {
           // Group orders by date (YYYY-MM-DD)
           const dateGroupedOrders = {};
@@ -113,35 +113,35 @@ const OrdersSection = ({
                 onClick={() => toggleUser(userKey)}
                 className={`
                   flex justify-between items-center 
-                  p-4 sm:p-5
+                  p-3 sm:p-4
                   cursor-pointer 
                   transition-colors
                   ${isExpanded ? 'bg-orange-50/50' : 'bg-white hover:bg-gray-50'}
                 `}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                   <div className={`
-                    w-12 h-12
-                    rounded-full 
+                    w-10 h-10 sm:w-12 sm:h-12
+                    rounded-full flex-shrink-0
                     flex items-center justify-center 
-                    text-lg font-bold shadow-sm
+                    text-base sm:text-lg font-bold shadow-sm
                     transition-colors duration-300
                     ${isExpanded ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}
                   `}>
                     {(userGroup.userName || "G").charAt(0).toUpperCase()}
                   </div>
                   
-                  <div>
-                    <h4 className={`text-lg font-bold transition-colors ${isExpanded ? 'text-orange-900' : 'text-gray-800'}`}>
+                  <div className="min-w-0 flex-1">
+                    <h4 className={`text-sm sm:text-base font-bold transition-colors truncate ${isExpanded ? 'text-orange-900' : 'text-gray-800'}`}>
                       {userGroup.userName || userGroup.userEmail || "Guest User"}
                     </h4>
-                    <div className="flex items-center gap-3 text-sm text-gray-500 mt-0.5">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                    <div className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-500 mt-0.5">
+                      <span className="flex items-center gap-1">
+                        <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-gray-300"></span>
                         {totalItems} items
                       </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-gray-300"></span>
                         ₹{totalPrice.toFixed(0)}
                       </span>
                     </div>
@@ -149,10 +149,10 @@ const OrdersSection = ({
                 </div>
                 
                 <div className={`
-                  w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300
+                  w-7 h-7 sm:w-8 sm:h-8 rounded-full flex-shrink-0 flex items-center justify-center transition-all duration-300
                   ${isExpanded ? 'bg-orange-200 text-orange-700 rotate-180' : 'bg-gray-100 text-gray-400'}
                 `}>
-                  <FaChevronDown />
+                  <FaChevronDown className="text-xs sm:text-sm" />
                 </div>
               </div>
 
@@ -166,7 +166,7 @@ const OrdersSection = ({
                     transition={{ duration: 0.3 }}
                     className="border-t border-orange-100 bg-white"
                   >
-                    <div className="p-3 sm:p-5 space-y-4 bg-gray-50/30">
+                    <div className="p-2 sm:p-4 space-y-3 sm:space-y-4 bg-gray-50/30">
                       {sortedDateKeys.map((dateKey) => (
                         <GroupedOrderCard
                           key={dateKey}
@@ -190,4 +190,3 @@ const OrdersSection = ({
 };
 
 export default OrdersSection;
-

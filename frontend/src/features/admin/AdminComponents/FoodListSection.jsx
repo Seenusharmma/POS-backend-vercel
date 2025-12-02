@@ -59,12 +59,15 @@ const FoodListSection = ({
       <div
         className="
           grid
-          grid-cols-1            /* Mobile: 1 col */
-          min-[480px]:grid-cols-2 /* Small tablets: 2 cols */
+          grid-cols-2            /* Mobile: 2 cols */
+          sm:grid-cols-3         /* Small screens: 3 cols */
           md:grid-cols-3         /* Tablets: 3 cols */
           lg:grid-cols-4         /* Laptops: 4 cols */
           xl:grid-cols-5         /* Desktops: 5 cols */
-          gap-6
+          2xl:grid-cols-6        /* Large desktops: 6 cols */
+          gap-2                  /* Mobile: tight spacing */
+          sm:gap-3               /* Small screens */
+          md:gap-4               /* Medium screens */
         "
       >
         {filteredFoods.map((food, idx) => (
