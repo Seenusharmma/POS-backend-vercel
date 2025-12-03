@@ -128,63 +128,64 @@ const FoodCard = ({ food, onEdit, onDelete, onToggleAvailability }) => {
           </p>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2">
-            {/* Mobile: Show all buttons */}
-            <div className="sm:hidden flex gap-1.5">
+          <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+            {/* Mobile: Compact buttons optimized for small screens */}
+            <div className="sm:hidden flex gap-1">
               <button
                 onClick={() => onEdit(food)}
-                className="flex-1 px-2 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1"
+                className="flex-1 px-1.5 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-md font-semibold text-[10px] transition-all flex items-center justify-center gap-0.5"
               >
-                <FaEdit className="text-xs" />
+                <FaEdit className="text-[10px]" />
                 <span>Edit</span>
               </button>
               <button
                 onClick={() => onToggleAvailability(food._id)}
-                className={`px-2 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1 ${
+                className={`px-1.5 py-1 rounded-md font-semibold text-[10px] transition-all flex items-center justify-center gap-0.5 ${
                   food.available
-                    ? "bg-red-50 hover:bg-red-100 text-red-600"
-                    : "bg-green-50 hover:bg-green-100 text-green-600"
+                    ? "bg-green-500 hover:bg-green-600 text-white"
+                    : "bg-gray-400 hover:bg-gray-500 text-white"
                 }`}
               >
                 {food.available ? (
                   <>
-                    <FaTimes className="text-xs" />
-                    <span>Hide</span>
+                    <FaCheck className="text-[10px]" />
+                    <span>Stock</span>
                   </>
                 ) : (
                   <>
-                    <FaCheck className="text-xs" />
-                    <span>Show</span>
+                    <FaTimes className="text-[10px]" />
+                    <span>Out</span>
                   </>
                 )}
               </button>
               <button
                 onClick={() => onDelete(food._id)}
-                className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-semibold text-xs transition-all"
+                className="px-1.5 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md font-semibold text-[10px] transition-all"
                 title="Delete"
               >
-                <FaTrash className="text-xs" />
+                <FaTrash className="text-[10px]" />
               </button>
             </div>
 
-            {/* Desktop: Toggle availability button */}
+            {/* Desktop: Larger, more detailed button */}
             <button
               onClick={() => onToggleAvailability(food._id)}
-              className={`hidden sm:flex w-full px-3 py-2 rounded-lg font-semibold text-sm transition-all items-center justify-center gap-2 ${
+              className={`hidden sm:flex w-full px-4 py-2.5 rounded-lg font-semibold text-sm transition-all items-center justify-center gap-2 shadow-sm ${
                 food.available
-                  ? "bg-green-50 hover:bg-green-100 text-green-700 border border-green-200"
-                  : "bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200"
+                  ? "bg-green-500 hover:bg-green-600 text-white"
+                  : "bg-gray-400 hover:bg-gray-500 text-white"
               }`}
+              title={`Click to mark as ${food.available ? 'Out of Stock' : 'Available'}`}
             >
               {food.available ? (
                 <>
-                  <FaCheck />
+                  <FaCheck className="text-base" />
                   <span>Available</span>
                 </>
               ) : (
                 <>
-                  <FaTimes />
-                  <span>Unavailable</span>
+                  <FaTimes className="text-base" />
+                  <span>Out of Stock</span>
                 </>
               )}
             </button>

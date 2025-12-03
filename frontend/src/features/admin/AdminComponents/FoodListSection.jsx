@@ -2,10 +2,13 @@ import React from "react";
 import { motion } from "framer-motion";
 import FoodCard from "./FoodCard";
 import { FaUtensils } from "react-icons/fa";
+import EnhancedSearchBar from "../../../components/search/EnhancedSearchBar";
 
 const FoodListSection = ({
   foods,
   filteredFoods,
+  searchQuery,
+  setSearchQuery,
   onEdit,
   onDelete,
   onToggleAvailability,
@@ -42,6 +45,16 @@ const FoodListSection = ({
       transition={{ duration: 0.4 }}
       className="space-y-6"
     >
+      {/* Search Bar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <EnhancedSearchBar
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          foods={foods}
+          placeholder="Search food by name, category, or type..."
+        />
+      </div>
+
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
            <div className="p-2 bg-orange-100 rounded-lg">

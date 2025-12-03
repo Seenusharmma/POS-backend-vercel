@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { updateProfile } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth } from "../services/firebase";
 import toast from "react-hot-toast";
 
 const UsernameModal = ({ isOpen, onClose, user }) => {
@@ -38,7 +38,6 @@ const UsernameModal = ({ isOpen, onClose, user }) => {
         onClose();
       }, 300);
     } catch (error) {
-      console.error("Error updating profile:", error);
       toast.error("Failed to save username. Please try again.");
     } finally {
       setLoading(false);
@@ -106,7 +105,7 @@ const UsernameModal = ({ isOpen, onClose, user }) => {
                   </p>
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                  <div className="flex gap-3 pt-2">
                   <motion.button
                     type="button"
                     whileTap={{ scale: 0.95 }}
@@ -135,4 +134,3 @@ const UsernameModal = ({ isOpen, onClose, user }) => {
 };
 
 export default UsernameModal;
-

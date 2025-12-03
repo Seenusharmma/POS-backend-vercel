@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { signOut } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { auth } from '../../services/firebase';
 
 const initialState = {
   user: null,
@@ -33,4 +33,3 @@ export const logoutUser = () => async (dispatch) => {
 };
 
 export default authSlice.reducer;
-

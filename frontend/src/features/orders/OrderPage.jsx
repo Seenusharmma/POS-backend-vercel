@@ -105,7 +105,6 @@ const OrderPage = () => {
       }
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch((error) => {
-        console.warn("Could not play notification sound:", error);
         if (error.name === "NotAllowedError") {
           toast("🔇 Tap here to enable sounds", {
             icon: "🔊",
@@ -118,7 +117,7 @@ const OrderPage = () => {
         }
       });
     } catch (error) {
-      console.warn("Error playing notification sound:", error);
+      // Audio playback error - non-critical
     }
   };
 
@@ -131,7 +130,6 @@ const OrderPage = () => {
       }
       successAudioRef.current.currentTime = 0;
       successAudioRef.current.play().catch((err) => {
-        console.warn("❌ Audio play failed:", err);
         if (err.name === "NotAllowedError") {
           toast("🔇 Tap here to enable sounds", {
             icon: "🔊",
@@ -144,7 +142,7 @@ const OrderPage = () => {
         }
       });
     } catch (error) {
-      console.warn("❌ Error playing success sound:", error);
+      // Audio playback error - non-critical
     }
   };
 
@@ -155,20 +153,15 @@ const OrderPage = () => {
         preparingAudioRef.current.currentTime = 0;
         const playPromise = preparingAudioRef.current.play();
         if (playPromise !== undefined) {
-          playPromise.catch((err) => {
-            console.warn("Ref play failed, trying new Audio:", err);
-            new Audio(orderPreparingSound).play().catch((e) =>
-              console.error("Fallback failed:", e)
-            );
+          playPromise.catch(() => {
+            new Audio(orderPreparingSound).play().catch(() => {});
           });
         }
       } else {
-        new Audio(orderPreparingSound).play().catch((e) =>
-          console.error("New Audio failed:", e)
-        );
+        new Audio(orderPreparingSound).play().catch(() => {});
       }
     } catch (error) {
-      console.warn("❌ Error playing preparing sound:", error);
+      // Audio playback error - non-critical
     }
   };
 
@@ -181,7 +174,6 @@ const OrderPage = () => {
       }
       servedAudioRef.current.currentTime = 0;
       servedAudioRef.current.play().catch((err) => {
-        console.warn("❌ Audio play failed:", err);
         if (err.name === "NotAllowedError") {
           toast("🔇 Tap here to enable sounds", {
             icon: "🔊",
@@ -194,7 +186,7 @@ const OrderPage = () => {
         }
       });
     } catch (error) {
-      console.warn("❌ Error playing served sound:", error);
+      // Audio playback error - non-critical
     }
   };
 
@@ -207,7 +199,6 @@ const OrderPage = () => {
       }
       completedAudioRef.current.currentTime = 0;
       completedAudioRef.current.play().catch((err) => {
-        console.warn("❌ Audio play failed:", err);
         if (err.name === "NotAllowedError") {
           toast("🔇 Tap here to enable sounds", {
             icon: "🔊",
@@ -220,7 +211,7 @@ const OrderPage = () => {
         }
       });
     } catch (error) {
-      console.warn("❌ Error playing completed sound:", error);
+      // Audio playback error - non-critical
     }
   };
 
@@ -233,7 +224,6 @@ const OrderPage = () => {
       }
       deletedAudioRef.current.currentTime = 0;
       deletedAudioRef.current.play().catch((err) => {
-        console.warn("❌ Audio play failed:", err);
         if (err.name === "NotAllowedError") {
           toast("🔇 Tap here to enable sounds", {
             icon: "🔊",
@@ -246,7 +236,7 @@ const OrderPage = () => {
         }
       });
     } catch (error) {
-      console.warn("❌ Error playing deleted sound:", error);
+      // Audio playback error - non-critical
     }
   };
 
@@ -275,11 +265,8 @@ const OrderPage = () => {
       { ref: deletedAudioRef, name: "Deleted" },
     ];
 
-    sounds.forEach(({ ref, name }) => {
+    sounds.forEach(({ ref }) => {
       if (ref.current) {
-        ref.current.addEventListener("error", (e) => {
-          console.error(`❌ Error loading ${name} sound:`, e);
-        });
         ref.current.preload = "auto";
       }
     });
@@ -306,9 +293,7 @@ const OrderPage = () => {
               s.currentTime = 0;
               s.volume = originalVolume;
             })
-            .catch((err) => {
-              console.log("Audio unlock attempt:", err.message);
-            });
+            .catch(() => {});
         }
       });
 
@@ -345,7 +330,7 @@ const OrderPage = () => {
           vibrate: [200, 100, 200],
         });
       } catch (e) {
-        console.warn("System notification failed:", e);
+        // System notification error - non-critical
       }
     }
   };
@@ -638,7 +623,6 @@ const OrderPage = () => {
     // orderStatusChanged
     socket.on("orderStatusChanged", (updatedOrder) => {
       if (!user || !updatedOrder || !updatedOrder._id) {
-        console.warn("⚠️ Missing user or order data");
         return;
       }
 
@@ -833,7 +817,7 @@ const OrderPage = () => {
   /* ===========================
       🛒 CART LOGIC
   ============================ */
-  const total = cartTotal;
+
 
   const updateQuantity = async (id, newQty) => {
     if (!user || !user.email) {
@@ -850,7 +834,6 @@ const OrderPage = () => {
         })
       ).unwrap();
     } catch (error) {
-      console.error("Error updating cart:", error);
       toast.error("Failed to update cart. Please try again.");
     }
   };
@@ -870,7 +853,6 @@ const OrderPage = () => {
       ).unwrap();
       toast.success("Item removed from cart 🗑️");
     } catch (error) {
-      console.error("Error removing from cart:", error);
       toast.error("Failed to remove item. Please try again.");
     }
   };
@@ -917,7 +899,7 @@ const OrderPage = () => {
       try {
         await dispatch(clearCartAsync(user.email)).unwrap();
       } catch (error) {
-        console.error("Error clearing cart:", error);
+        // Error clearing cart - non-critical
       }
     }
     setShowPaymentModal(false);
@@ -1129,7 +1111,7 @@ const OrderPage = () => {
 
             <div className="border-t border-gray-200 mt-3 pt-3 flex justify-between font-bold text-gray-800 text-base sm:text-lg">
               <span>Total</span>
-              <span>₹{total.toFixed(2)}</span>
+              <span>₹{cartTotal.toFixed(2)}</span>
             </div>
 
             <motion.button
@@ -1203,7 +1185,7 @@ const OrderPage = () => {
             setPendingCartData(null);
           }}
           cartData={pendingCartData.cart}
-          totalAmount={total}
+          totalAmount={cartTotal}
           user={pendingCartData.user}
           socketRef={socketRef}
           onPaymentComplete={handlePaymentComplete}

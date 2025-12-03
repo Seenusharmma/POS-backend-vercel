@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import { io } from "socket.io-client";
 import toast, { Toaster } from "react-hot-toast";
@@ -13,6 +13,8 @@ import TotalSales from "./TotalSales";
 import AdminOrderHistory from "./AdminOrderHistory";
 import { useFoodFilter, useAppSelector } from "../../store/hooks";
 import { checkAdminStatus } from "../../services/adminApi";
+import EnhancedSearchBar from "../../components/search/EnhancedSearchBar";
+import Fuse from "fuse.js";
 import {
   AdminTabs,
   OrdersSection,
@@ -27,6 +29,8 @@ const AdminPage = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [foods, setFoods] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredFoods, setFilteredFoods] = useState([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [foodForm, setFoodForm] = useState({
     name: "",
@@ -164,6 +168,48 @@ const AdminPage = () => {
     };
     checkSuperAdmin();
   }, [user]);
+
+  // 🔍 Initialize Fuse.js for fuzzy search
+  const fuse = useMemo(() => {
+    if (!foods || foods.length === 0) return null;
+    
+    return new Fuse(foods, {
+      keys: [
+        { name: "name", weight: 0.7 }, // Name is most important
+        { name: "category", weight: 0.2 }, // Category is secondary
+        { name: "type", weight: 0.1 }, // Type is least important
+      ],
+      threshold: 0.4, // 0.0 = perfect match, 1.0 = match anything
+      includeScore: true,
+      minMatchCharLength: 2,
+      ignoreLocation: true,
+      findAllMatches: false,
+      useExtendedSearch: false,
+      shouldSort: true,
+    });
+  }, [foods]);
+
+  // 🧠 Filter foods based on search query and global filter
+  useEffect(() => {
+    let updated = [];
+    
+    const queryToSearch = searchQuery.trim();
+    
+    // If there's a search query, search first
+    if (queryToSearch && fuse) {
+      const searchResults = fuse.search(queryToSearch, { limit: 100 });
+      const searchResultItems = searchResults.map((result) => result.item);
+      updated = [...searchResultItems];
+    } else {
+      // No search query, start with all foods
+      updated = [...foods];
+    }
+    
+    // Apply global Veg/Non-Veg filter
+    updated = applyGlobalFilter(updated);
+    
+    setFilteredFoods(updated);
+  }, [searchQuery, foods, applyGlobalFilter, fuse]);
 
   useEffect(() => {
     // Check if we're on a serverless platform (Vercel, etc.)
@@ -868,9 +914,19 @@ const AdminPage = () => {
     }
   };
 
-  const toggleAvailability = async (id, available) => {
+
+  const toggleAvailability = async (id) => {
     try {
-      const res = await axios.put(`${API_BASE}/api/foods/${id}`, { available });
+      // Find the current food to toggle its availability state
+      const currentFood = foods.find(f => f._id === id);
+      if (!currentFood) {
+        toast.error("Food item not found");
+        return;
+      }
+      
+      const newAvailability = !currentFood.available;
+      
+      const res = await axios.put(`${API_BASE}/api/foods/${id}`, { available: newAvailability });
       const updatedFood = res.data.food || res.data;
       setFoods((prev) =>
         prev.map((f) =>
@@ -992,7 +1048,10 @@ const AdminPage = () => {
         )}
         {activeTab === "foods" && (
           <FoodListSection
-            filteredFoods={applyGlobalFilter(foods)}
+            filteredFoods={filteredFoods.length > 0 ? filteredFoods : foods}
+            foods={foods}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
             onEdit={editFood}
             onDelete={deleteFood}
             onToggleAvailability={toggleAvailability}

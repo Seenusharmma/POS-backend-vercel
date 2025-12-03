@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth } from '../services/firebase';
 import { useAppDispatch } from './hooks';
 import { setUser, setLoading } from './slices/authSlice';
 import { loadCart } from './slices/cartSlice';
@@ -29,7 +29,6 @@ export const AuthProvider = ({ children }) => {
         try {
           await dispatch(loadCart(userData.email)).unwrap();
         } catch (error) {
-          console.warn("Failed to load cart:", error);
           // Continue silently if cart loading fails (first time user might not have a cart)
         }
       }
@@ -40,4 +39,3 @@ export const AuthProvider = ({ children }) => {
 
   return <>{children}</>;
 };
-
