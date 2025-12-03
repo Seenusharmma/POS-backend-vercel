@@ -244,11 +244,18 @@ const OfferZone = ({ isMobile = false }) => {
       </div>
 
       {/* Phone Number - Bottom Right - Responsive */}
-      <div className="absolute bottom-1.5 sm:bottom-2 right-2 sm:right-3 flex items-center gap-1 sm:gap-1.5 text-white/90 text-[9px] sm:text-[10px] md:text-xs font-medium z-20">
-        <FaPhone className="text-blue-300 text-[9px] sm:text-[10px] md:text-xs" />
-        <span className="hidden sm:inline">123-456-7890</span>
-        <span className="sm:hidden">Call</span>
-      </div>
+      {/* Phone Number - Click to Call */}
+<a
+  href="tel:+919876543210"
+  className="absolute bottom-2 right-3 flex items-center gap-1 
+             text-white/90 text-[10px] font-medium z-20 cursor-pointer 
+             active:scale-95 transition"
+>
+  <FaPhone className="text-blue-300 text-[12px]" />
+  <span className="hidden sm:inline">+91 9876543210</span>
+  <span className="sm:hidden">Call</span>
+</a>
+
     </div>
   );
 };

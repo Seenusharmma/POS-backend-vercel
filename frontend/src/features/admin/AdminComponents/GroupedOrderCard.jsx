@@ -116,9 +116,13 @@ const GroupedOrderCard = ({
                     <FaPhone className="text-blue-500 text-xs" />
                     <div className="flex flex-col leading-none">
                         <span className="text-[9px] sm:text-[10px] text-blue-400 font-bold uppercase">Contact</span>
-                        <span className="text-xs sm:text-sm font-bold text-blue-700">
+                        <a 
+                          href={`tel:${firstOrder.contactNumber}`}
+                          className="text-xs sm:text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {firstOrder.contactNumber}
-                        </span>
+                        </a>
                     </div>
                   </div>
                 );
@@ -168,9 +172,13 @@ const GroupedOrderCard = ({
                 return (
                   <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 border border-blue-100 rounded text-xs">
                     <FaPhone className="text-blue-500 text-xs" />
-                    <span className="font-bold text-blue-700">
+                    <a 
+                      href={`tel:${firstOrder.contactNumber}`}
+                      className="font-bold text-blue-700 hover:text-blue-900 hover:underline cursor-pointer transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {firstOrder.contactNumber}
-                    </span>
+                    </a>
                   </div>
                 );
               }
