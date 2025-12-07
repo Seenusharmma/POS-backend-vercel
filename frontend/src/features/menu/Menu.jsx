@@ -37,14 +37,40 @@ const Menu = () => {
   // Debounce search query for faster response (150ms delay)
   const debouncedQuery = useDebounce(searchQuery, 150);
 
-  // 🥗 Fetch foods
+  // 🥗 Fetch foods with caching for faster loading
   useEffect(() => {
     const fetchFoods = async () => {
       try {
+        // Check if we have cached data
+        const cachedData = localStorage.getItem('menuFoodsCache');
+        const cacheTimestamp = localStorage.getItem('menuFoodsCacheTime');
+        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        
+        // If cache exists and is fresh, use it immediately
+        if (cachedData && cacheTimestamp) {
+          const cacheAge = Date.now() - parseInt(cacheTimestamp);
+          if (cacheAge < CACHE_DURATION) {
+            const cached = JSON.parse(cachedData);
+            setFoods(cached);
+            setFilteredFoods(cached);
+            setLoading(false);
+            // Still fetch fresh data in background
+          }
+        }
+        
+        // Fetch fresh data from API
         const res = await axios.get(`${API_BASE}/api/foods`);
         setFoods(res.data);
         setFilteredFoods(res.data);
-        setTimeout(() => setLoading(false), 800);
+        
+        // Update cache
+        localStorage.setItem('menuFoodsCache', JSON.stringify(res.data));
+        localStorage.setItem('menuFoodsCacheTime', Date.now().toString());
+        
+        // Only show loading if we didn't use cache
+        if (!cachedData) {
+          setTimeout(() => setLoading(false), 800);
+        }
       } catch (err) {
         console.error("Error fetching menu:", err);
         setLoading(false);
@@ -256,6 +282,18 @@ const Menu = () => {
         // Suppress expected errors - silently handle
       });
     }
+
+    // Listen for food updates and invalidate cache
+    socket.on("foodUpdated", (updatedFood) => {
+      // Invalidate cache so next load gets fresh data
+      localStorage.removeItem('menuFoodsCache');
+      localStorage.removeItem('menuFoodsCacheTime');
+      
+      // Update local state immediately
+      setFoods((prev) => 
+        prev.map((f) => f._id === updatedFood._id ? updatedFood : f)
+      );
+    });
 
     // Listen for new orders (booking) - Real-time notification
     socket.on("newOrderPlaced", (newOrder) => {

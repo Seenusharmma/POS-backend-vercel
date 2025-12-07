@@ -135,7 +135,7 @@ const Footer = () => {
                 className="flex items-center gap-3 text-gray-600 hover:text-orange-600 transition-colors duration-200 group"
               >
                 <HiOutlineMail className="text-xl text-orange-500 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                <span className="text-sm sm:text-base">info@foodfantasy.com</span>
+                <span className="text-sm sm:text-base">foodfantasy049@gmail.com</span>
               </a>
             </div>
           </motion.div>
@@ -166,11 +166,11 @@ const Footer = () => {
               <div className="space-y-1.5 text-sm sm:text-base">
                 <div className="flex justify-between text-gray-600">
                   <span>Mon - Fri</span>
-                  <span className="font-medium text-gray-900">9:00 AM - 10:00 PM</span>
+                  <span className="font-medium text-gray-900">9:00 AM - 11:00 PM</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Sat - Sun</span>
-                  <span className="font-medium text-gray-900">9:00 AM - 10:00 PM</span>
+                  <span className="font-medium text-gray-900">9:00 AM - 11:00 PM</span>
                 </div>
               </div>
             </div>
