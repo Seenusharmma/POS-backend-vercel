@@ -8,11 +8,11 @@ import NonVegCard from "../features/home/NonVegCard";
 import OfferZone from "../features/home/OfferZone";
 import MenuSlider from "../features/home/MenuSlider";
 import FloatingCartButton from "../features/home/FloatingCartButton";
-import VideoSection from "../features/home/VideoSection";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { addToCartAsync } from "../store/slices/cartSlice";
 import toast from "react-hot-toast";
 import Footer from "../components/common/Footer";
+import CafePinterestGrid from "../components/CafePinterestGrid";
 
 const Home = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -195,7 +195,7 @@ const Home = () => {
             </div>
           </div>
         </div>
-        <VideoSection />
+        <CafePinterestGrid />
 
         {/* Floating Cart Button */}
         <FloatingCartButton cartCount={cart.length} />
