@@ -7,9 +7,9 @@ import API_BASE from "../../../config/api";
 
 /**
  * TABLE OPTIONS CONFIGURATION:
- * - Total Tables: 40 tables (numbered 1-40)
+ * - Total Tables: 11 tables (numbered 1-11)
  * - Chairs per Table: 4 chairs per table
- * - Table Numbering: Tables are numbered from 1 to 40
+ * - Table Numbering: Tables are numbered from 1 to 11
  * - Chair Indices: Each table has 4 chairs indexed 0-3 (top row: 0,1 | bottom row: 2,3)
  * - Delivery Orders: Use tableNumber = 0 for delivery/takeaway orders (not dine-in)
  * - Table Selection: Users can select multiple chairs at the same table
@@ -50,16 +50,16 @@ const TableSelect = ({
         }
 
         const res = await axios.get(`${API_BASE}/api/orders`);
-        // TABLE OPTIONS: Filter active orders (tables 1-40, delivery uses 0)
+        // TABLE OPTIONS: Filter active orders (tables 1-11, delivery uses 0)
         const activeOrders = res.data.filter(
           (o) => o.status !== "Completed" && o.status !== "Served"
         );
 
-        // TABLE OPTIONS: Group by table and calculate booked chairs (tables 1-40, chairs 0-3)
+        // TABLE OPTIONS: Group by table and calculate booked chairs (tables 1-11, chairs 0-3)
         // Count chairs booked per table from active orders
         const tableBookings = {};
         activeOrders.forEach((order) => {
-          // TABLE OPTIONS: Process table number (1-40 for dine-in, 0 for delivery)
+          // TABLE OPTIONS: Process table number (1-11 for dine-in, 0 for delivery)
           const tableNum = order.tableNumber;
           if (!tableBookings[tableNum]) {
             tableBookings[tableNum] = {
@@ -84,8 +84,8 @@ const TableSelect = ({
         });
 
         // TABLE OPTIONS: Create table data with 4 chairs each
-        // Total of 40 tables (numbered 1-40), each with 4 chairs (indices 0-3)
-        const tablesData = Array.from({ length: 40 }, (_, i) => {
+        // Total of 11 tables (numbered 1-11), each with 4 chairs (indices 0-3)
+        const tablesData = Array.from({ length: 11 }, (_, i) => {
           const tableNum = i + 1;
           const booking = tableBookings[tableNum];
           const bookedIndices = booking?.chairIndices || [];
@@ -150,7 +150,7 @@ const TableSelect = ({
     setSelectedChairs({});
   };
 
-  // TABLE OPTIONS: Get chair state (available/selected/booked) for chairs 0-3 at tables 1-40
+  // TABLE OPTIONS: Get chair state (available/selected/booked) for chairs 0-3 at tables 1-11
   const getChairState = (tableNum, chairIndex) => {
     const table = tables.find((t) => t.tableNumber === tableNum);
     if (!table) return "available";
@@ -174,7 +174,7 @@ const TableSelect = ({
     return "available";
   };
 
-  // TABLE OPTIONS: Get count of selected chairs (1-4) for the current table (1-40)
+  // TABLE OPTIONS: Get count of selected chairs (1-4) for the current table (1-11)
   const getSelectedChairsCount = (tableNum) => {
     if (!tableNum) {
         // Total selected chairs across all tables

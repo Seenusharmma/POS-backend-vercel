@@ -1,8 +1,8 @@
 /**
  * TABLE OPTIONS CONFIGURATION:
- * - Total Tables: 40 tables (numbered 1-40)
+ * - Total Tables: 11 tables (numbered 1-11)
  * - Chairs per Table: 4 chairs per table
- * - Table Numbering: Tables are numbered from 1 to 40
+ * - Table Numbering: Tables are numbered from 1 to 11
  * - Chair Indices: Each table has 4 chairs indexed 0-3 (top row: 0,1 | bottom row: 2,3)
  * - Delivery Orders: Use tableNumber = 0 for delivery/takeaway orders (not dine-in)
  * - Table Selection: Users can select multiple chairs at the same table
