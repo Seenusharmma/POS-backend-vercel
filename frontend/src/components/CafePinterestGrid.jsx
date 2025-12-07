@@ -27,7 +27,7 @@ const itemVariants = {
 const CafePinterestGrid = () => {
   return (
     <div className="min-h-screen w-full bg-white px-2 pt-4 pb-8">
-      <div className="w-full max-w-5xl mx-auto">
+      <div className="w-full max-w-5xl mx-auto font-[Poppins]">
         Click Your Snapshot📷
         {/* Header */}
         <h1 className="text-orange-500 text-xl font-bold text-gray-900 px-1 mb-4">
