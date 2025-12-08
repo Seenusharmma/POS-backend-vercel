@@ -16,9 +16,9 @@ const getApiBase = () => {
     return 'http://localhost:8000';
   }
   
-  // Production: use relative path (assuming Vercel rewrites or same-domain hosting)
-  // Or fallback to a default if needed, but relative is safest for Vercel rewrites
-  return '';
+  // Production: use deployed backend URL
+  // Update this to match your actual Vercel backend deployment URL
+  return 'https://pos-backend-vercel.vercel.app';
 };
 
 const API_BASE = getApiBase();
