@@ -35,6 +35,23 @@ router.get("/vapid-key", (req, res) => {
 ------------------------------------------------------------ */
 router.post("/subscribe", async (req, res) => {
   try {
+    // Ensure database connection (for serverless)
+    const { connectDB } = await import("../config/db.js");
+    const mongoose = await import("mongoose");
+    
+    if (mongoose.default.connection.readyState !== 1) {
+      console.log("🔄 Establishing database connection for push subscription...");
+      await connectDB();
+      
+      // Verify connection is ready
+      if (mongoose.default.connection.readyState !== 1) {
+        return res.status(503).json({ 
+          error: "Database connection unavailable", 
+          details: "Please try again later" 
+        });
+      }
+    }
+
     const { subscription, userEmail } = req.body;
 
     if (!subscription || !userEmail) {
@@ -68,7 +85,7 @@ router.post("/subscribe", async (req, res) => {
     console.error("❌ Error saving subscription:", error);
     res.status(500).json({
       error: "Failed to save subscription",
-      details: error.message,
+      details: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
