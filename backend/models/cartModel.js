@@ -5,7 +5,7 @@ const cartSchema = new mongoose.Schema(
     userEmail: {
       type: String,
       required: true,
-      index: true, // For faster queries
+      // Removed 'index: true' - unique index defined below
     },
     userId: {
       type: String,

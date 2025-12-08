@@ -28,10 +28,15 @@ const foodSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// ⚡ Indexes for performance
+// ⚡ Indexes for performance (optimized for 1000+ users)
 foodSchema.index({ category: 1 });
 foodSchema.index({ type: 1 });
 foodSchema.index({ available: 1 });
 foodSchema.index({ createdAt: -1 });
+
+// ⚡ Compound indexes for menu filtering
+foodSchema.index({ category: 1, type: 1 });     // Filter by category + veg/non-veg
+foodSchema.index({ category: 1, available: 1 }); // Available items per category
+foodSchema.index({ available: 1, createdAt: -1 }); // Latest available items
 
 export default mongoose.model("Food", foodSchema);

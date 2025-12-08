@@ -8,7 +8,7 @@ const adminSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
+      // Removed 'index: true' - unique index defined below
     },
     isSuperAdmin: {
       type: Boolean,
