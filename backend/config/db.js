@@ -28,13 +28,13 @@ export const connectDB = async () => {
     const options = {
       // ⚡ Optimized for 1000+ concurrent users
       maxPoolSize: 50,              // Increased from 10 - handles 250-1000 req/s
-      minPoolSize: 5,               // Increased from 1 - keeps connections ready
-      maxIdleTimeMS: 30000,         // Close idle connections after 30s
+      minPoolSize: 10,              // Increased from 5 - keeps more connections ready and reduces reconnections
+      maxIdleTimeMS: 60000,         // Increased from 30s to 60s - keeps idle connections alive longer
       waitQueueTimeoutMS: 10000,    // Max wait time for available connection
       
       // ⚡ Performance tuning
       serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,       // Increased from 15000 for long queries
+      socketTimeoutMS: 60000,       // Increased from 45000 to 60000 for long queries and stability
       connectTimeoutMS: 10000,      // Connection establishment timeout
       
       // ⚡ Reliability
@@ -45,7 +45,12 @@ export const connectDB = async () => {
       // ⚡ Network optimization
       family: 4,                    // IPv4 for better compatibility
       compressors: ['zlib'],        // Compress data transfer
-      zlibCompressionLevel: 6       // Balance between speed and compression
+      zlibCompressionLevel: 6,      // Balance between speed and compression
+      
+      // ⚡ Connection stability
+      heartbeatFrequencyMS: 10000,  // Monitor connections every 10s to keep them alive
+      keepAlive: true,              // Enable TCP keep-alive
+      keepAliveInitialDelay: 300000 // 5 minutes - prevent idle connection timeout
     };
 
     globalCache.primary.promise = mongoose.connect(uri, options)

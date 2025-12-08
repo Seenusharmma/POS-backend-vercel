@@ -84,7 +84,9 @@ const OrdersSection = ({
             }
             dateGroupedOrders[dateKey].push(order);
             totalItems += 1;
-            totalPrice += (order.price * order.quantity);
+            // FIX: Database stores total price (price * quantity already calculated)
+            // So we just add the price directly, not multiply by quantity again
+            totalPrice += Number(order.price) || 0;
           });
 
           // Sort date groups by most recent first

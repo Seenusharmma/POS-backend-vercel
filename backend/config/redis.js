@@ -17,12 +17,16 @@ const redisConfig = {
       console.warn("⚠️ App will continue without Redis caching. Please start Redis server to enable caching.");
       return null; // Return null to stop retrying
     }
-    const delay = Math.min(times * 50, 2000);
+    // Increased delay for better stability
+    const delay = Math.min(times * 100, 3000); // Increased from 50ms to 100ms, max 3s instead of 2s
     return delay;
   },
   maxRetriesPerRequest: 3,
   enableReadyCheck: true,
   lazyConnect: true,
+  enableOfflineQueue: false, // Don't queue commands when disconnected - fail fast instead
+  connectTimeout: 10000,     // 10s connection timeout
+  keepAlive: 30000,          // Send keep-alive packets every 30s
 };
 
 // Create Redis client

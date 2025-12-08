@@ -136,7 +136,7 @@ const GroupedOrderCard = ({
                <div className="text-right">
                   <span className="text-[10px] text-gray-400 block">Total</span>
                   <span className="text-sm sm:text-base font-bold text-gray-800">
-                    ₹{orders.reduce((sum, o) => sum + (o.price * o.quantity), 0)}
+                    ₹{orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0)}
                   </span>
                </div>
             )}
@@ -210,7 +210,7 @@ const GroupedOrderCard = ({
                              {order.foodName}
                            </h4>
                            <span className="font-bold text-gray-900 sm:hidden ml-2 flex-shrink-0">
-                             ₹{order.price * order.quantity}
+                             ₹{Number(order.price) || 0}
                            </span>
                         </div>
                         
@@ -233,8 +233,8 @@ const GroupedOrderCard = ({
                           <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-700 font-medium">
                              Qty: {order.quantity}
                           </span>
-                          <span className="text-gray-400">×</span>
-                          <span>₹{order.price}</span>
+                          <span className="text-gray-400">|</span>
+                          <span>Total: ₹{Number(order.price) || 0}</span>
                         </div>
                       </div>
 
@@ -262,7 +262,7 @@ const GroupedOrderCard = ({
                         </div>
 
                         <span className="font-bold text-gray-900 hidden sm:block min-w-[60px] text-right">
-                             ₹{order.price * order.quantity}
+                             ₹{Number(order.price) || 0}
                         </span>
 
                         {/* Delete Button */}
@@ -288,7 +288,7 @@ const GroupedOrderCard = ({
               <div className="flex items-center gap-2">
                  <span className="text-xs sm:text-sm text-gray-500">Total:</span>
                  <span className="text-lg sm:text-xl font-bold text-gray-800">
-                   ₹{orders.reduce((sum, o) => sum + (o.price * o.quantity), 0)}
+                   ₹{orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0)}
                  </span>
               </div>
             </div>
