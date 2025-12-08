@@ -1,6 +1,6 @@
 // src/components/CafePinterestGrid.jsx
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import img1 from "../assets/bloom.jpg";
 import img2 from "../assets/center.jpg";
@@ -25,11 +25,13 @@ const itemVariants = {
 };
 
 const CafePinterestGrid = () => {
+  const [viewImage, setViewImage] = useState(null);
+
   return (
     <div className="min-h-screen w-full bg-white px-2 pt-4 pb-8">
       <div className="w-full max-w-5xl mx-auto font-[Poppins]">
         Click Your Snapshot📷
-        {/* Header */}
+
         <h1 className="text-orange-500 text-xl font-bold text-gray-900 px-1 mb-4">
           Food Fantasy
         </h1>
@@ -40,27 +42,28 @@ const CafePinterestGrid = () => {
           initial="hidden"
           animate="show"
           className="
-            columns-2        /* ✔ 2 columns on mobile like Pinterest */
-            sm:columns-2     
+            columns-2
+            sm:columns-2
             lg:columns-3
             xl:columns-4
-            gap-2            /* ✔ smaller gap for tight Pinterest style */
+            gap-2
           "
         >
           {images.map((src, index) => (
             <motion.div
               key={index}
               variants={itemVariants}
+              onClick={() => setViewImage(src)}
               className="
                 mb-2
-                rounded-lg               /* ✔ Pinterest smaller radius */
+                rounded-lg
                 overflow-hidden
                 bg-white
-                shadow                  /* ✔ soft Pinterest-like shadow */
+                shadow
                 border border-gray-200
                 cursor-pointer
                 transition-all
-                hover:scale-[1.02]      /* ✔ slight hover on desktop */
+                hover:scale-[1.02]
               "
             >
               <img
@@ -73,6 +76,37 @@ const CafePinterestGrid = () => {
           ))}
         </motion.div>
 
+        {/* =======================
+           FULLSCREEN IMAGE VIEWER
+        ======================== */}
+        <AnimatePresence>
+          {viewImage && (
+            <motion.div
+              className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewImage(null)}
+            >
+              {/* Close Button */}
+              <button
+                className="absolute top-5 right-5 text-white text-3xl font-bold"
+                onClick={() => setViewImage(null)}
+              >
+                ✕
+              </button>
+
+              <motion.img
+                src={viewImage}
+                alt="Preview"
+                className="max-w-full max-h-[90vh] rounded-lg"
+                initial={{ scale: 0.7 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.7 }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

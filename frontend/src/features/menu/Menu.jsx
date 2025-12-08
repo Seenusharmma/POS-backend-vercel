@@ -36,48 +36,61 @@ const Menu = () => {
   
   // Debounce search query for faster response (150ms delay)
   const debouncedQuery = useDebounce(searchQuery, 150);
+  
+  // Track if initial fetch is done
+  const hasFetchedRef = useRef(false);
 
-  // 🥗 Fetch foods with caching for faster loading
+  // 🥗 Fetch foods with intelligent caching
   useEffect(() => {
-    const fetchFoods = async () => {
+    const fetchFoods = async (useCache = true) => {
       try {
-        // Check if we have cached data
+        // Check if we have cached data and should use it
         const cachedData = localStorage.getItem('menuFoodsCache');
         const cacheTimestamp = localStorage.getItem('menuFoodsCacheTime');
-        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes (reduced from 5 for fresher data)
         
-        // If cache exists and is fresh, use it immediately
-        if (cachedData && cacheTimestamp) {
+        // Show cached data immediately for instant display, but always fetch fresh
+        if (cachedData && cacheTimestamp && useCache) {
           const cacheAge = Date.now() - parseInt(cacheTimestamp);
           if (cacheAge < CACHE_DURATION) {
             const cached = JSON.parse(cachedData);
             setFoods(cached);
             setFilteredFoods(cached);
             setLoading(false);
-            // Still fetch fresh data in background
+            console.log('📦 Using cached menu data');
           }
         }
         
-        // Fetch fresh data from API
+        // Always fetch fresh data from API (either in background or foreground)
+        console.log('🔄 Fetching fresh menu data from server...');
         const res = await axios.get(`${API_BASE}/api/foods`);
+        
+        // Update state with fresh data
         setFoods(res.data);
         setFilteredFoods(res.data);
         
-        // Update cache
+        // Update cache with fresh data
         localStorage.setItem('menuFoodsCache', JSON.stringify(res.data));
         localStorage.setItem('menuFoodsCacheTime', Date.now().toString());
         
-        // Only show loading if we didn't use cache
-        if (!cachedData) {
-          setTimeout(() => setLoading(false), 800);
-        }
+        console.log(`✅ Menu data updated (${res.data.length} items)`);
+        setLoading(false);
+        hasFetchedRef.current = true;
       } catch (err) {
         console.error("Error fetching menu:", err);
         setLoading(false);
       }
     };
-    fetchFoods();
-  }, []);
+    
+    // On mount: show cache immediately, then fetch fresh data
+    fetchFoods(true);
+    
+    // Cleanup function
+    return () => {
+      // Reset fetch flag when component unmounts
+      hasFetchedRef.current = false;
+    };
+  }, []); // Empty dependency array - runs on mount/unmount only
 
   // 🏷️ Dynamic categories
   const categories = ["All", ...new Set(foods.map((f) => f.category))];
@@ -329,6 +342,7 @@ const Menu = () => {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("connect_error");
+      socket.off("foodUpdated");
       socket.off("newOrderPlaced");
       socket.off("orderStatusChanged");
     };
