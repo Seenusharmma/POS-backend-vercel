@@ -26,15 +26,15 @@ export const connectDB = async () => {
     console.log("🔗 Connecting to PRIMARY MongoDB...");
 
     const options = {
-      // ⚡ Optimized for 1000+ concurrent users
-      maxPoolSize: 50,              // Increased from 10 - handles 250-1000 req/s
-      minPoolSize: 10,              // Increased from 5 - keeps more connections ready and reduces reconnections
-      maxIdleTimeMS: 60000,         // Increased from 30s to 60s - keeps idle connections alive longer
+      // ⚡ Optimized for serverless and local development
+      maxPoolSize: 10,              // Reduced for serverless - Vercel function limits
+      minPoolSize: 2,               // Minimal connections for serverless
+      maxIdleTimeMS: 60000,         // Keep idle connections for 60s
       waitQueueTimeoutMS: 10000,    // Max wait time for available connection
       
       // ⚡ Performance tuning
       serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 60000,       // Increased from 45000 to 60000 for long queries and stability
+      socketTimeoutMS: 60000,       // 60s for long queries
       connectTimeoutMS: 10000,      // Connection establishment timeout
       
       // ⚡ Reliability
@@ -45,12 +45,7 @@ export const connectDB = async () => {
       // ⚡ Network optimization
       family: 4,                    // IPv4 for better compatibility
       compressors: ['zlib'],        // Compress data transfer
-      zlibCompressionLevel: 6,      // Balance between speed and compression
-      
-      // ⚡ Connection stability
-      heartbeatFrequencyMS: 10000,  // Monitor connections every 10s to keep them alive
-      keepAlive: true,              // Enable TCP keep-alive
-      keepAliveInitialDelay: 300000 // 5 minutes - prevent idle connection timeout
+      zlibCompressionLevel: 6       // Balance between speed and compression
     };
 
     globalCache.primary.promise = mongoose.connect(uri, options)
