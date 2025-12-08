@@ -310,14 +310,17 @@ const TableSelect = ({
             const selectedCount = selectedChairs[table.tableNumber]?.length || 0;
 
             return (
-              <div
+              <motion.div
                 key={table.tableNumber}
-                className={`relative bg-white ${compact ? 'rounded-md p-1 sm:p-1.5' : 'rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6'} border-2 transition-all duration-200 cursor-pointer w-full hover:translate-y-[-2px] ${
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.01, duration: 0.2 }}
+                whileHover={{ scale: 1.05, y: -3 }}
+                className={`relative bg-white ${compact ? 'rounded-md p-1 sm:p-1.5' : 'rounded-lg sm:rounded-xl lg:rounded-2xl p-2 sm:p-3 md:p-4 lg:p-5 xl:p-6'} border-2 transition-all duration-300 cursor-pointer w-full ${
                   isTableSelected
                     ? "border-red-500 shadow-2xl ring-2 lg:ring-4 ring-red-200 scale-105"
                     : "border-gray-200 hover:border-gray-300 hover:shadow-xl"
                 }`}
-                style={{ willChange: 'transform' }}
               >
                 {/* Table Number Badge */}
                 <div className={`text-center ${compact ? 'mb-0.5 sm:mb-1' : 'mb-1.5 sm:mb-2 md:mb-3 lg:mb-4'}`}>
@@ -339,14 +342,16 @@ const TableSelect = ({
                     {[0, 1].map((chairIndex) => {
                       const state = getChairState(table.tableNumber, chairIndex);
                       return (
-                        <button
+                        <motion.button
                           key={chairIndex}
                           type="button"
+                          whileHover={{ scale: 1.15, y: -2 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() =>
                             handleChairClick(table.tableNumber, chairIndex)
                           }
                           disabled={state === "booked"}
-                          className={`chair-button w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 rounded-md sm:rounded-lg lg:rounded-xl flex items-center justify-center transition-all duration-150 flex-shrink-0 ${
+                          className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 rounded-md sm:rounded-lg lg:rounded-xl flex items-center justify-center transition-all duration-200 flex-shrink-0 ${
                             state === "selected"
                               ? "bg-gradient-to-br from-red-500 to-red-600 text-white border-2 border-red-700 shadow-xl ring-1 sm:ring-2 lg:ring-2 ring-red-300"
                               : state === "booked"
@@ -360,14 +365,13 @@ const TableSelect = ({
                               ? "Click to deselect"
                               : "Click to select"
                           }
-                          style={{ willChange: 'transform' }}
                         >
                           {state === "selected" ? (
                             <FaCheckCircle className="text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg" />
                           ) : (
                             <FaChair className="text-[8px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base" />
                           )}
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -392,14 +396,16 @@ const TableSelect = ({
                     {[2, 3].map((chairIndex) => {
                       const state = getChairState(table.tableNumber, chairIndex);
                       return (
-                        <button
+                        <motion.button
                           key={chairIndex}
                           type="button"
+                          whileHover={{ scale: 1.15, y: -2 }}
+                          whileTap={{ scale: 0.95 }}
                           onClick={() =>
                             handleChairClick(table.tableNumber, chairIndex)
                           }
                           disabled={state === "booked"}
-                          className={`chair-button w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 rounded-md sm:rounded-lg lg:rounded-xl flex items-center justify-center transition-all duration-150 flex-shrink-0 ${
+                          className={`w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 rounded-md sm:rounded-lg lg:rounded-xl flex items-center justify-center transition-all duration-200 flex-shrink-0 ${
                             state === "selected"
                               ? "bg-gradient-to-br from-red-500 to-red-600 text-white border-2 border-red-700 shadow-xl ring-1 sm:ring-2 lg:ring-2 ring-red-300"
                               : state === "booked"
@@ -413,14 +419,13 @@ const TableSelect = ({
                               ? "Click to deselect"
                               : "Click to select"
                           }
-                          style={{ willChange: 'transform' }}
                         >
                           {state === "selected" ? (
                             <FaCheckCircle className="text-[10px] sm:text-xs md:text-sm lg:text-base xl:text-lg" />
                           ) : (
                             <FaChair className="text-[8px] sm:text-[10px] md:text-xs lg:text-sm xl:text-base" />
                           )}
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -455,7 +460,7 @@ const TableSelect = ({
                     </motion.div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -526,13 +531,6 @@ const TableSelect = ({
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: #94a3b8;
-        }
-        /* Optimized chair button animations using CSS */
-        .chair-button:not(:disabled):hover {
-          transform: scale(1.1) translateY(-2px);
-        }
-        .chair-button:not(:disabled):active {
-          transform: scale(0.95);
         }
       `}</style>
     </div>
