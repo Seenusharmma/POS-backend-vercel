@@ -355,7 +355,37 @@ if (!isVercel && io) {
     socket.on("disconnect", (reason) => {
       connectedClients.delete(socket.id);
     });
+
+    // ✅ Connection health check
+    const healthCheckInterval = setInterval(() => {
+      if (!socket.connected) {
+        clearInterval(healthCheckInterval);
+        return;
+      }
+      
+      // Check for stale connections (no activity for 5 minutes)
+      const idleTime = Date.now() - clientInfo.lastActivity;
+      if (idleTime > 300000) { // 5 minutes
+        socket.disconnect(true);
+        clearInterval(healthCheckInterval);
+      }
+    }, 60000); // Check every minute
+
+    // Cleanup interval on disconnect
+    socket.once("disconnect", () => {
+      clearInterval(healthCheckInterval);
+    });
   });
+
+  // ✅ Server-level monitoring (silent - stats tracked but not logged)
+  setInterval(() => {
+    // Stats tracked but not logged to reduce console noise
+    // const stats = {
+    //   connected: connectedClients.size,
+    //   admins: Array.from(connectedClients.values()).filter(c => c.type === "admin").length,
+    //   users: Array.from(connectedClients.values()).filter(c => c.type === "user" || !c.type).length,
+    // };
+  }, 300000); // Monitor every 5 minutes
 }
 
 // ✅ Health Check Route

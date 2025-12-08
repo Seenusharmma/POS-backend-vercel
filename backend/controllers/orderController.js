@@ -15,29 +15,39 @@ export const getOrders = async (req, res) => {
       return res.status(200).json(cachedOrders);
     }
 
-    // Ensure database connection (for serverless)
-    if (mongoose.connection.readyState !== 1) {
-      console.log('🔄 Establishing database connection for getOrders...');
+    // Ensure database connection (for serverless) with retry logic
+    let retries = 0;
+    const maxRetries = 3;
+    
+    while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
+      console.log(`🔄 Establishing database connection for getOrders... (Attempt ${retries + 1}/${maxRetries})`);
       
-      const startTime = Date.now();
-      await connectDB();
+      const connectionResult = await connectDB();
       
-      // Wait for connection to establish (increased for cold starts)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait a bit for connection to be fully established
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      const connectionTime = Date.now() - startTime;
-      
-      // Verify connection is ready
-      if (mongoose.connection.readyState !== 1) {
-        console.error("❌ Database not connected after ${connectionTime}ms. ReadyState:", mongoose.connection.readyState);
-        return res.status(503).json({ 
-          success: false,
-          message: "Database connection unavailable. Please try again later.",
-          error: process.env.NODE_ENV === "development" ? `ReadyState: ${mongoose.connection.readyState}` : undefined
-        });
+      if (mongoose.connection.readyState === 1) {
+        console.log("✅ Database connection established for getOrders");
+        break;
       }
       
-      console.log(`✅ Database connected in ${connectionTime}ms`);
+      retries++;
+      
+      if (retries < maxRetries) {
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+      }
+    }
+
+    // Verify connection is ready before querying
+    if (mongoose.connection.readyState !== 1) {
+      console.error("❌ Database not connected after retries. ReadyState:", mongoose.connection.readyState);
+      return res.status(503).json({ 
+        success: false,
+        message: "Database connection unavailable. Please try again later.",
+        error: process.env.NODE_ENV === "development" ? `ReadyState: ${mongoose.connection.readyState}` : undefined
+      });
     }
 
     // Query orders with timeout protection

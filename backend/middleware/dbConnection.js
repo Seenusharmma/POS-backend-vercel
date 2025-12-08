@@ -13,22 +13,28 @@ export const ensureDBConnection = async (req, res, next) => {
       return next();
     }
 
-    // Single connection attempt with timeout suitable for cold starts
-    console.log('🔄 Establishing database connection...');
-    
-    const startTime = Date.now();
-    await connectDB();
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Increased for cold starts
-    
-    const connectionTime = Date.now() - startTime;
-    
-    if (mongoose.connection.readyState === 1) {
-      console.log(`✅ Database connection established in ${connectionTime}ms`);
-      return next();
+    // Attempt connection with retries
+    let retries = 0;
+    const maxRetries = 3;
+
+    while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
+      console.log(`🔄 Establishing database connection... (Attempt ${retries + 1}/${maxRetries})`);
+      
+      await connectDB();
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for connection
+      
+      if (mongoose.connection.readyState === 1) {
+        console.log('✅ Database connection established');
+        return next();
+      }
+      
+      retries++;
+      if (retries < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+      }
     }
 
-    // Connection failed - fast-fail for serverless
-    console.error(`❌ Connection failed after ${connectionTime}ms. ReadyState: ${mongoose.connection.readyState}`);
+    // Connection failed after retries
     return res.status(503).json({
       success: false,
       message: 'Database connection unavailable. Please try again later.'

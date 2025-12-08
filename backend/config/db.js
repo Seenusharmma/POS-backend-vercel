@@ -52,17 +52,37 @@ export const connectDB = async () => {
       .then((mongoose) => {
         console.log("✅ PRIMARY MongoDB Connected");
         
-        // ⚡ Monitor critical connection events only
+        // ⚡ Monitor connection pool for performance tracking
         const connection = mongoose.connection;
         
-        // Track only critical connection events (errors and closures)
-        connection.on('error', (err) => {
-          console.error(`❌ MongoDB connection error: ${err.message}`);
+        // Track connection pool events
+        connection.on('connectionCreated', ({ connectionId }) => {
+          console.log(`🔗 New connection created: ${connectionId}`);
         });
         
-        connection.on('disconnected', () => {
-          console.warn('⚠️ MongoDB disconnected');
+        connection.on('connectionClosed', ({ connectionId }) => {
+          console.log(`🔌 Connection closed: ${connectionId}`);
         });
+        
+        connection.on('connectionCheckedOut', ({ connectionId }) => {
+          // Only log in development to avoid spam
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`📤 Connection checked out: ${connectionId}`);
+          }
+        });
+        
+        // Log pool stats every 5 minutes in production
+        if (process.env.NODE_ENV !== 'development') {
+          setInterval(() => {
+            const poolStats = {
+              maxPoolSize: options.maxPoolSize,
+              minPoolSize: options.minPoolSize,
+              serverStatus: connection.readyState,
+              // Connection count would require additional monitoring
+            };
+            console.log('📊 MongoDB Pool Stats:', poolStats);
+          }, 300000); // 5 minutes
+        }
         
         return mongoose.connection;
       })
