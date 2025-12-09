@@ -172,18 +172,6 @@ const MapLocationPicker = ({ onLocationSelect, initialLocation = null }) => {
       },
       (error) => {
         // Silently handle errors - don't show error toast for auto-location
-        // User can still manually select location
-        setIsAutoLocating(false);
-        setHasAutoLocated(true); // Mark as attempted so we don't try again
-        toast.dismiss(loadingToast);
-        
-        // Only log to console for debugging
-        console.log("Auto-location failed (user may have denied permission):", error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 8000, // Shorter timeout for auto-location
-        maximumAge: 60000, // Accept cached location up to 1 minute old
       }
     );
   }, [initialLocation, hasAutoLocated, handleLocationSelect]);

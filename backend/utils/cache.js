@@ -1,12 +1,17 @@
-import { getRedisClient, isRedisAvailable } from "../config/redis.js";
+/**
+ * Simple In-Memory Cache (No Redis Required)
+ * Uses JavaScript Map for caching
+ */
+
+// In-memory cache storage
+const cache = new Map();
 
 // Cache TTL (Time To Live) in seconds
-// ⚡ Optimized for better performance - longer TTL for stable data
 const CACHE_TTL = {
-  FOODS: 1800, // 30 minutes (food menu rarely changes)
-  ORDERS: 60, // 1 minute (orders change frequently)
-  CART: 600, // 10 minutes (increased from 5)
-  ADMIN: 600, // 10 minutes (increased from 5)
+  FOODS: 1800, // 30 minutes
+  ORDERS: 60, // 1 minute
+  CART: 600, // 10 minutes
+  ADMIN: 600, // 10 minutes
 };
 
 // Cache key prefixes
@@ -27,18 +32,19 @@ const CACHE_KEYS = {
  */
 export const getCache = async (key) => {
   try {
-    if (!isRedisAvailable()) {
+    const item = cache.get(key);
+    
+    if (!item) {
       return null;
     }
-
-    const client = getRedisClient();
-    const data = await client.get(key);
-
-    if (data) {
-      return JSON.parse(data);
+    
+    // Check if cache expired
+    if (Date.now() > item.expiresAt) {
+      cache.delete(key);
+      return null;
     }
-
-    return null;
+    
+    return item.data;
   } catch (error) {
     console.error(`❌ Error getting cache for key ${key}:`, error.message);
     return null;
@@ -54,12 +60,10 @@ export const getCache = async (key) => {
  */
 export const setCache = async (key, data, ttl = 300) => {
   try {
-    if (!isRedisAvailable()) {
-      return false;
-    }
-
-    const client = getRedisClient();
-    await client.setex(key, ttl, JSON.stringify(data));
+    cache.set(key, {
+      data,
+      expiresAt: Date.now() + (ttl * 1000),
+    });
     return true;
   } catch (error) {
     console.error(`❌ Error setting cache for key ${key}:`, error.message);
@@ -74,23 +78,21 @@ export const setCache = async (key, data, ttl = 300) => {
  */
 export const deleteCache = async (key) => {
   try {
-    if (!isRedisAvailable()) {
-      return false;
-    }
-
-    const client = getRedisClient();
-
     // Check if key contains wildcard
     if (key.includes("*")) {
-      // Delete all keys matching pattern
-      const keys = await client.keys(key);
-      if (keys.length > 0) {
-        await client.del(...keys);
+      // Delete allkeys matching pattern
+      const pattern = key.replace(/\*/g, '.*');
+      const regex = new RegExp(pattern);
+      
+      for (const [cacheKey] of cache) {
+        if (regex.test(cacheKey)) {
+          cache.delete(cacheKey);
+        }
       }
     } else {
-      await client.del(key);
+      cache.delete(key);
     }
-
+    
     return true;
   } catch (error) {
     console.error(`❌ Error deleting cache for key ${key}:`, error.message);
@@ -99,58 +101,58 @@ export const deleteCache = async (key) => {
 };
 
 /**
- * Cache middleware for GET requests
- * @param {string} cacheKey - Cache key
- * @param {number} ttl - Time to live in seconds
- * @returns {Function} - Express middleware
- */
-export const cacheMiddleware = (cacheKey, ttl = 300) => {
-  return async (req, res, next) => {
-    try {
-      // Only cache GET requests
-      if (req.method !== "GET") {
-        return next();
-      }
-
-      // Try to get from cache
-      const cachedData = await getCache(cacheKey);
-
-      if (cachedData !== null) {
-        console.log(`✅ Cache HIT for key: ${cacheKey}`);
-        return res.status(200).json(cachedData);
-      }
-
-      // Cache miss - continue to controller
-      console.log(`❌ Cache MISS for key: ${cacheKey}`);
-      next();
-    } catch (error) {
-      console.error("❌ Cache middleware error:", error);
-      next();
-    }
-  };
-};
-
-/**
  * Invalidate cache after data modification
  * @param {string|string[]} keys - Cache key(s) to invalidate
  */
 export const invalidateCache = async (keys) => {
   try {
-    if (!isRedisAvailable()) {
-      return;
-    }
-
     const keysArray = Array.isArray(keys) ? keys : [keys];
-
+    
     for (const key of keysArray) {
       await deleteCache(key);
-      console.log(`🗑️ Cache invalidated: ${key}`);
+      if (process.env.NODE_ENV !== 'production') {
+        // Cache invalidated
+      }
     }
   } catch (error) {
     console.error("❌ Error invalidating cache:", error);
   }
 };
 
+/**
+ * Clear all cache
+ */
+export const clearAllCache = () => {
+  cache.clear();
+  // All cache cleared
+};
+
+/**
+ * Get cache stats
+ */
+export const getCacheStats = () => {
+  return {
+    size: cache.size,
+    keys: Array.from(cache.keys()),
+  };
+};
+
+// Auto-cleanup expired cache every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  
+  for (const [key, item] of cache) {
+    if (now > item.expiresAt) {
+      cache.delete(key);
+      cleaned++;
+    }
+  }
+  
+  if (cleaned > 0 && process.env.NODE_ENV !== 'production') {
+    // Cleaned expired cache entries
+  }
+}, 5 * 60 * 1000); // Every 5 minutes
+
 // Export cache keys and TTL for use in controllers
 export { CACHE_KEYS, CACHE_TTL };
-

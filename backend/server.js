@@ -5,7 +5,6 @@ import express from "express";
 import cors from "cors";
 import compression from "compression"; // ⚡ Response compression for faster transfers
 import { connectDB } from "./config/db.js";
-import { connectRedis } from "./config/redis.js";
 import foodRoutes from "./routes/foodRoute.js";
 import orderRoutes from "./routes/orderRoute.js";
 import cartRoutes from "./routes/cartRoute.js";
@@ -90,7 +89,9 @@ if (!isVercel) {
   
   // ✅ Configure Socket.IO connection events with enhanced monitoring
   io.engine.on("connection_error", (err) => {
-    console.error("❌ Socket.IO connection error:", err.req.url, err.code, err.message, err.context);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error("❌ Socket.IO connection error:", err.req.url, err.code, err.message, err.context);
+    }
   });
 } else {
   // ✅ Vercel: Socket.IO won't work with WebSockets in serverless
@@ -99,39 +100,21 @@ if (!isVercel) {
     on: () => {},
     emit: () => {},
   };
-  console.log("⚠️ Running on Vercel - Socket.IO WebSocket features disabled");
+  // Socket.IO disabled on Vercel serverless
 }
 
 // ✅ MongoDB Connection (non-blocking for serverless)
 // On Vercel, connections are established per request, so we don't block startup
-// ✅ Initialize Redis connection
-if (!isVercel) {
-  connectRedis()
-    .then((result) => {
-      if (result) {
-        console.log("✅ Redis connected successfully");
-      } else {
-        console.warn("⚠️ Redis connection unavailable, app will continue without caching");
-      }
-    })
-    .catch((err) => {
-      console.warn("⚠️ Redis connection failed, app will continue without caching:", err.message);
-    });
-}
-
 if (!isVercel) {
   // Local development: Connect immediately with retry logic
   connectDB(0, 3) // Start with 0 retries, max 3 retries
     .then((result) => {
       if (result) {
-        console.log("✅ MongoDB connected successfully");
+        if (process.env.NODE_ENV !== 'production') {
+          console.log("✅ MongoDB connected successfully");
+        }
       } else {
         console.warn("⚠️ MongoDB connection returned null, will retry on first request");
-        console.warn("💡 Troubleshooting tips:");
-        console.warn("   1. Check if MongoDB Atlas cluster is running (not paused)");
-        console.warn("   2. Verify IP address is whitelisted in MongoDB Atlas Network Access");
-        console.warn("   3. Check your internet connection");
-        console.warn("   4. Verify MONGODB_URI is correct in .env file");
       }
     })
     .catch((err) => {
@@ -140,7 +123,7 @@ if (!isVercel) {
     });
 } else {
   // Vercel: Connection will be established on first request (faster cold starts)
-  console.log("⚠️ Running on Vercel - MongoDB connection will be established per request");
+  // MongoDB connection will be established per request on Vercel
   // Note: Pre-connection removed for faster cold starts - each request will connect as needed
 }
 
@@ -422,6 +405,8 @@ if (!isVercel && server) {
   const WORKER_ID = process.env.WORKER_ID || cluster?.worker?.id || 'single';
   
   server.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}${WORKER_ID !== 'single' ? ` (Worker ${WORKER_ID})` : ''}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ Server running on port ${PORT}${WORKER_ID !== 'single' ? ` (Worker ${WORKER_ID})` : ''}`);
+    }
   });
 }

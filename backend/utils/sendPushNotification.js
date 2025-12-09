@@ -47,13 +47,13 @@ export const sendPushToUser = async (userEmail, title, body, options = {}) => {
 
     try {
       await webpush.sendNotification(subscriptionDoc.subscription, payload);
-      console.log(`✅ Push notification sent to: ${userEmail}`);
+      // Push notification sent successfully
       return { success: true };
     } catch (error) {
       // If subscription is invalid, remove it
       if (error.statusCode === 410 || error.statusCode === 404) {
         await Subscription.deleteOne({ userEmail });
-        console.log(`🗑️ Removed invalid subscription for: ${userEmail}`);
+        // Removed invalid subscription
         return { success: false, error: "Subscription expired", removed: true };
       }
       throw error;
@@ -135,7 +135,7 @@ export const sendPushToAll = async (title, body, options = {}) => {
         .catch(err => console.error("❌ Error removing invalid subscriptions:", err));
     }
 
-    console.log(`✅ Push notification sent: ${sent} successful, ${failed} failed`);
+    // Push notifications sent
     return { success: true, sent, failed, total: subscriptions.length };
   } catch (error) {
     console.error("Error sending push notifications:", error);
@@ -151,7 +151,7 @@ export const sendPushToAll = async (title, body, options = {}) => {
  */
 export const sendPushToAdmins = async (title, body, options = {}) => {
   try {
-    console.log("🔔 Starting sendPushToAdmins...");
+    // Starting admin push notifications
     if (!vapidPublicKey || !vapidPrivateKey) {
       console.warn("⚠️ VAPID keys not configured. Push notifications disabled.");
       return { success: false, error: "VAPID keys not configured" };
@@ -161,7 +161,7 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
     const admins = await Admin.find({}, "email");
     
     if (!admins.length) {
-      console.log("⚠️ No admins found in Admin collection.");
+      // No admins found
       return { success: true, sent: 0, message: "No admins found" };
     }
     const adminEmails = admins.map(admin => admin.email);
@@ -173,7 +173,7 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
     });
     
     if (subscriptions.length === 0) {
-      console.log("⚠️ No active push subscriptions found for any admin.");
+      // No active subscriptions
       return { success: true, sent: 0, message: "No admin subscriptions found" };
     }
 
@@ -207,7 +207,7 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
     results.forEach(result => {
       if (result.status === 'fulfilled') {
         sent++;
-        console.log(`✅ Sent to admin: ${result.value.email}`);
+        // Sent to admin
       } else {
         failed++;
         const error = result.reason;
@@ -225,7 +225,7 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
         .catch(err => console.error("❌ Error removing invalid admin subscriptions:", err));
     }
 
-    console.log(`✅ Admin Push Result: ${sent} sent, ${failed} failed`);
+    // Admin push result
     return { success: true, sent, failed, total: subscriptions.length };
   } catch (error) {
     console.error("❌ Error sending admin push notifications:", error);

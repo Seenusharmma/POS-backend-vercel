@@ -8,12 +8,13 @@ import { sendPushToUser, sendPushToAdmins } from "../utils/sendPushNotification.
 // 📦 Get all orders
 export const getOrders = async (req, res) => {
   try {
-    // Try to get from cache first
-    const cachedOrders = await getCache(CACHE_KEYS.ORDERS);
-    if (cachedOrders !== null) {
-      console.log("✅ Serving orders from cache");
-      return res.status(200).json(cachedOrders);
-    }
+    // ⚡ DISABLED CACHING FOR REALTIME UPDATES
+    // Cache was preventing immediate order updates
+    // const cachedOrders = await getCache(CACHE_KEYS.ORDERS);
+    // if (cachedOrders !== null) {
+    //   console.log("✅ Serving orders from cache");
+    //   return res.status(200).json(cachedOrders);
+    // }
 
     // Ensure database connection (for serverless) with retry logic
     let retries = 0;
@@ -58,9 +59,9 @@ export const getOrders = async (req, res) => {
       )
     ]);
     
-    // Cache the result
-    await setCache(CACHE_KEYS.ORDERS, orders, CACHE_TTL.ORDERS);
-    console.log(`✅ Orders cached for ${CACHE_TTL.ORDERS} seconds`);
+    // ⚡ DISABLED CACHING - cache writes removed for realtime updates
+    // await setCache(CACHE_KEYS.ORDERS, orders, CACHE_TTL.ORDERS);
+    // console.log(`✅ Orders cached for ${CACHE_TTL.ORDERS} seconds`);
     
     console.log(`✅ Fetched ${orders.length} orders successfully`);
     res.status(200).json(orders);

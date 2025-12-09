@@ -57,12 +57,12 @@ const Menu = () => {
             setFoods(cached);
             setFilteredFoods(cached);
             setLoading(false);
-            console.log('📦 Using cached menu data');
+            // Using cached menu data
           }
         }
         
         // Always fetch fresh data from API (either in background or foreground)
-        console.log('🔄 Fetching fresh menu data from server...');
+        // Fetching fresh menu data from server
         const res = await axios.get(`${API_BASE}/api/foods`);
         
         // Update state with fresh data
@@ -73,7 +73,7 @@ const Menu = () => {
         localStorage.setItem('menuFoodsCache', JSON.stringify(res.data));
         localStorage.setItem('menuFoodsCacheTime', Date.now().toString());
         
-        console.log(`✅ Menu data updated (${res.data.length} items)`);
+        // Menu data updated
         setLoading(false);
         hasFetchedRef.current = true;
       } catch (err) {

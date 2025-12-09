@@ -274,17 +274,6 @@ const AdminPage = () => {
         }
         
         // ⚡ Circuit breaker: Log warning but DO NOT stop polling
-        // We want continuous auto-refresh attempts even after failures
-        if (consecutiveErrorsRef.current >= maxConsecutiveErrors) {
-           // Just reset error count periodically to avoid infinite error logs if needed
-           // or just let it keep trying silently
-           if (consecutiveErrorsRef.current % 10 === 0) {
-             console.log("Polling continuing despite errors... (Auto-retry active)");
-           }
-           // Return empty to indicate failure this time, but polling interval continues
-           return [];
-        }
-        
         return [];
       }
     };

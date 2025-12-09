@@ -21,7 +21,7 @@ export class SocketNotificationStrategy {
         this.io.to(`user:${order.userId}`).emit('newOrderPlaced', order);
       }
       
-      console.log('📦 Socket: New order notification sent');
+      // Socket: New order notification sent
     } catch (error) {
       console.error('Socket notification error:', error.message);
     }
@@ -44,7 +44,7 @@ export class SocketNotificationStrategy {
       // Also broadcast to all users (they filter by email)
       this.io.to('users').emit('orderStatusChanged', order);
       
-      console.log(`🔄 Socket: Status change notification sent for order ${order._id}`);
+      // Socket: Status change notification sent
     } catch (error) {
       console.error('Socket notification error:', error.message);
     }
@@ -64,7 +64,7 @@ export class SocketNotificationStrategy {
       
       this.io.to('users').emit('paymentSuccess', order);
       
-      console.log(`💰 Socket: Payment success notification sent for order ${order._id}`);
+      // Socket: Payment success notification sent
     } catch (error) {
       console.error('Socket notification error:', error.message);
     }
@@ -77,7 +77,7 @@ export class SocketNotificationStrategy {
 
     try {
       this.io.emit('orderDeleted', orderId);
-      console.log(`🗑️ Socket: Order deleted notification sent for ${orderId}`);
+      // Socket: Order deleted notification sent
     } catch (error) {
       console.error('Socket notification error:', error.message);
     }

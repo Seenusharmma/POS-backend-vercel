@@ -23,7 +23,7 @@
         },
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "*"
+          "value": "https://foodfantasy-live.vercel.app"
         },
         {
           "key": "Access-Control-Allow-Methods",

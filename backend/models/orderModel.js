@@ -12,7 +12,8 @@ const orderSchema = new mongoose.Schema(
     },
     tableNumber: {
       type: Number,
-      required: true,
+      required: false, // Not required when using tables array
+      default: 0, // 0 = delivery/takeaway
     },
     foodName: {
       type: String,
@@ -114,6 +115,26 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true } // ✅ adds createdAt & updatedAt automatically
 );
+
+// ⚡ Pre-save middleware to normalize table data
+orderSchema.pre('save', function(next) {
+  // If using multi-table structure, ensure it's populated correctly
+  if (this.tables && this.tables.length > 0) {
+    // Use the first table as the primary tableNumber if not set
+    if (!this.tableNumber || this.tableNumber === 0) {
+      this.tableNumber = this.tables[0].tableNumber;
+    }
+  } else if (this.tableNumber && this.tableNumber > 0) {
+    // If using single table structure, populate tables array for consistency
+    this.tables = [{
+      tableNumber: this.tableNumber,
+      chairIndices: this.chairIndices || [],
+      chairLetters: this.chairLetters || ''
+    }];
+  }
+  next();
+});
+
 
 // ⚡ Indexes for performance (optimized for 1000+ users)
 orderSchema.index({ userEmail: 1 });
