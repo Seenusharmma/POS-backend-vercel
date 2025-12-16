@@ -18,6 +18,8 @@ import ProtectedRoute from "./components/layout/ProtectedRoute";
 import BottomNav from "./components/common/BottomNav";
 import WebUIOverlay from "./components/overlay/WebUIOverlay";
 import PushNotificationManager from "./components/notifications/PushNotificationManager";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+import PageLoader from "./components/common/PageLoader";
 
 // Lazy imports
 const OrderPage = lazy(() => import("./features/orders/OrderPage"));
@@ -53,7 +55,7 @@ const AppContent = () => {
       <PushNotificationManager />
       <Navbar />
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/menu" element={<Menu />} />
@@ -120,7 +122,9 @@ const App = () => (
   <Provider store={store}>
     <AuthProvider>
       <BrowserRouter>
+      <ErrorBoundary>
         <AppContent />
+      </ErrorBoundary>
       </BrowserRouter>
     </AuthProvider>
   </Provider>

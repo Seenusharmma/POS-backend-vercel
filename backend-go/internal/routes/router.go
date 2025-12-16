@@ -77,7 +77,10 @@ func SetupRoutes(app *fiber.App) {
 	admin := api.Group("/admin")
 	admin.Post("/login", handlers.AdminLogin)
 	admin.Post("/register", handlers.AdminRegister)
-	admin.Get("/check", handlers.CheckAdminStatus) // New route
+	admin.Get("/check", handlers.CheckAdminStatus)
+	admin.Get("/all", handlers.GetAllAdmins)      // Super Admin only
+	admin.Post("/add", handlers.AddAdmin)         // Super Admin only
+	admin.Delete("/remove", handlers.RemoveAdmin) // Super Admin only
 
 	// --- Cart ---
 	cart := api.Group("/cart")

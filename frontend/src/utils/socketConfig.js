@@ -16,7 +16,7 @@ import { io } from "socket.io-client";
 
 // ⚡ Cache serverless check result (only check once)
 let _isServerlessCache = null;
-const SERVERLESS_CHECK_KEYS = ["vercel.app", "netlify.app", "serverless"];
+const SERVERLESS_CHECK_KEYS = ["serverless"];
 
 /**
  * ⚡ Optimized serverless platform detection (memoized)
@@ -28,8 +28,10 @@ export const isServerlessPlatform = () => {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const apiUrl = String(API_BASE || '');
   
+  // Only disable sockets if the BACKEND is serverless (e.g. Vercel Functions)
+  // We should NOT disable if just the frontend is on Vercel
   _isServerlessCache = SERVERLESS_CHECK_KEYS.some(
-    key => apiUrl.includes(key) || hostname.includes(key)
+    key => apiUrl.includes(key) && !apiUrl.includes("onrender.com") && !apiUrl.includes("herokuapp.com")
   );
   
   return _isServerlessCache;
