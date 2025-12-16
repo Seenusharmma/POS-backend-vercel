@@ -30,7 +30,6 @@ WORKDIR /root/
 
 # Copy binary from builder
 COPY --from=builder /app/main .
-COPY --from=builder /app/.env .env
 
 # Expose port (Render sets PORT env var, but 8080 is our default)
 EXPOSE 8080
