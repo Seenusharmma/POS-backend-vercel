@@ -16,17 +16,9 @@ export const getFoods = async (req, res) => {
       return res.status(200).json(cachedFoods);
     }
 
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for getFoods...");
       await connectDB();
-      
-      if (mongoose.connection.readyState !== 1) {
-        return res.status(503).json({ 
-          success: false,
-          message: "Database connection unavailable. Please try again later." 
-        });
-      }
     }
 
     // Fetch from database
@@ -62,17 +54,9 @@ export const getFoods = async (req, res) => {
 ================================ */
 export const addFood = async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for addFood...");
       await connectDB();
-      
-      if (mongoose.connection.readyState !== 1) {
-        return res.status(503).json({ 
-          success: false,
-          message: "Database connection unavailable. Please try again later." 
-        });
-      }
     }
 
     const { name, category, type, price, available, hasSizes, sizeType, sizes, halfFull } = req.body;
@@ -167,17 +151,9 @@ export const addFood = async (req, res) => {
 ================================ */
 export const updateFood = async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for updateFood...");
       await connectDB();
-      
-      if (mongoose.connection.readyState !== 1) {
-        return res.status(503).json({ 
-          success: false,
-          message: "Database connection unavailable. Please try again later." 
-        });
-      }
     }
 
     const { id } = req.params;
@@ -271,17 +247,9 @@ export const updateFood = async (req, res) => {
 ================================ */
 export const deleteFood = async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for deleteFood...");
       await connectDB();
-      
-      if (mongoose.connection.readyState !== 1) {
-        return res.status(503).json({ 
-          success: false,
-          message: "Database connection unavailable. Please try again later." 
-        });
-      }
     }
 
     const { id } = req.params;

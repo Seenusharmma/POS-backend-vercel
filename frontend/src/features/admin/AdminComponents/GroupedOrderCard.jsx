@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaChair, FaPhone, FaClock, FaTrashAlt, FaChevronDown, FaUtensils, FaCheckCircle, FaHourglassHalf, FaConciergeBell } from "react-icons/fa";
+import { FaChair, FaPhone, FaClock, FaTrashAlt, FaChevronDown, FaUtensils, FaCheckCircle, FaHourglassHalf, FaConciergeBell, FaUser } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 /**
@@ -86,6 +86,15 @@ const GroupedOrderCard = ({
                <div className="flex items-center gap-1 sm:gap-2 text-gray-700 font-semibold text-xs sm:text-sm">
                   <FaClock className="text-orange-500 text-xs sm:text-sm flex-shrink-0" />
                   <span className="truncate">{orderDate} • {orderTime}</span>
+               </div>
+            </div>
+
+            {/* 👤 User Name Badge */}
+            <div className="flex flex-col min-w-0">
+               <span className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wide">Customer</span>
+               <div className="flex items-center gap-1 sm:gap-2 text-gray-700 font-semibold text-xs sm:text-sm">
+                  <FaUser className="text-blue-500 text-xs sm:text-sm flex-shrink-0" />
+                  <span className="truncate max-w-[100px] sm:max-w-xs">{userName || "Guest"}</span>
                </div>
             </div>
 

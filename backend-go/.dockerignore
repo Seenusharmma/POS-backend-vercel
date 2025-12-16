@@ -1,0 +1,24 @@
+# Version control
+.git
+.gitignore
+
+# Build artifacts
+main
+*.exe
+*.dll
+*.so
+
+# IDE settings
+.vscode
+.idea
+
+# Local env (sensitive)
+# Note: You usually want to ignore .env for production and set env vars in Render dashboard
+# But for simplicity in some setups, people copy it. 
+# Best practice: Ignore .env and set vars in Render.
+.env
+.env.local
+
+# Docker
+Dockerfile
+.dockerignore

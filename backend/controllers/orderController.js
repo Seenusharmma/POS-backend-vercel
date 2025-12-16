@@ -16,39 +16,9 @@ export const getOrders = async (req, res) => {
     //   return res.status(200).json(cachedOrders);
     // }
 
-    // Ensure database connection (for serverless) with retry logic
-    let retries = 0;
-    const maxRetries = 3;
-    
-    while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
-      console.log(`🔄 Establishing database connection for getOrders... (Attempt ${retries + 1}/${maxRetries})`);
-      
-      const connectionResult = await connectDB();
-      
-      // Wait a bit for connection to be fully established
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      if (mongoose.connection.readyState === 1) {
-        console.log("✅ Database connection established for getOrders");
-        break;
-      }
-      
-      retries++;
-      
-      if (retries < maxRetries) {
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
-      }
-    }
-
-    // Verify connection is ready before querying
+    // ✅ Ensure database connection (centralized logic handles retries)
     if (mongoose.connection.readyState !== 1) {
-      console.error("❌ Database not connected after retries. ReadyState:", mongoose.connection.readyState);
-      return res.status(503).json({ 
-        success: false,
-        message: "Database connection unavailable. Please try again later.",
-        error: process.env.NODE_ENV === "development" ? `ReadyState: ${mongoose.connection.readyState}` : undefined
-      });
+      await connectDB();
     }
 
     // Query orders with timeout protection
@@ -91,7 +61,7 @@ export const getOrders = async (req, res) => {
 // ➕ Create single order
 export const createOrder = async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
       await connectDB();
     }
@@ -182,9 +152,8 @@ export const createOrder = async (req, res) => {
 // ➕ Create multiple orders (used in multi-food checkout)
 export const createMultipleOrders = async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for createMultipleOrders...");
       await connectDB();
     }
 
@@ -266,9 +235,8 @@ export const createMultipleOrders = async (req, res) => {
 // 🔄 Update order status (Admin)
 export const updateOrderStatus = async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for updateOrderStatus...");
       await connectDB();
     }
 
@@ -408,9 +376,8 @@ export const updateOrderStatus = async (req, res) => {
 // ❌ Delete order (User can only delete completed, Admin can delete any)
 export const deleteOrder = async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for deleteOrder...");
       await connectDB();
     }
 
@@ -468,7 +435,7 @@ export const deleteOrder = async (req, res) => {
 // 🔒 Get Occupied Tables
 export const getOccupiedTables = async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
       await connectDB();
     }

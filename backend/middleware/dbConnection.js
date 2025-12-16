@@ -4,47 +4,64 @@ import { connectDB } from '../config/db.js';
 /**
  * Database Connection Middleware
  * Ensures database is connected before processing requests
- * Extracted for SRP
+ * Leverages centralized connection logic from db.js
  */
 export const ensureDBConnection = async (req, res, next) => {
   try {
-    // Check if already connected
+    // ✅ Check if already connected - fast path
     if (mongoose.connection.readyState === 1) {
       return next();
     }
 
-    // Attempt connection with retries
-    let retries = 0;
-    const maxRetries = 3;
-
-    while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
-      console.log(`🔄 Establishing database connection... (Attempt ${retries + 1}/${maxRetries})`);
-      
-      await connectDB();
-      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for connection
-      
-      if (mongoose.connection.readyState === 1) {
-        console.log('✅ Database connection established');
-        return next();
+    // ✅ If connecting, wait briefly
+    if (mongoose.connection.readyState === 2) {
+      // Wait up to 5 seconds for current connection attempt
+      let waitTime = 0;
+      while (mongoose.connection.readyState === 2 && waitTime < 5000) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        waitTime += 100;
       }
       
-      retries++;
-      if (retries < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+      if (mongoose.connection.readyState === 1) {
+        return next();
       }
     }
 
-    // Connection failed after retries
+    // ✅ Attempt to establish connection using centralized logic
+    console.log('🔄 Middleware: Ensuring database connection...');
+    await connectDB();
+    
+    // ✅ Verify connection is ready
+    if (mongoose.connection.readyState === 1) {
+      console.log('✅ Middleware: Database connection established');
+      return next();
+    }
+
+    // ✅ Connection failed
+    const states = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+    console.error(`❌ Middleware: Database connection failed. State: ${states[mongoose.connection.readyState]}`);
+    
     return res.status(503).json({
       success: false,
-      message: 'Database connection unavailable. Please try again later.'
+      message: 'Database connection unavailable. Please try again later.',
+      ...(process.env.NODE_ENV === 'development' && {
+        debug: {
+          state: states[mongoose.connection.readyState],
+          readyState: mongoose.connection.readyState
+        }
+      })
     });
 
   } catch (error) {
-    console.error('❌ Database connection error:', error.message);
+    console.error('❌ Middleware: Database connection error:', error.message);
+    
     return res.status(503).json({
       success: false,
-      message: 'Database connection failed'
+      message: 'Database connection failed. Please try again later.',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: error.message
+      })
     });
   }
 };
+

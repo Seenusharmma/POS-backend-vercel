@@ -15,43 +15,10 @@ const upload = multer({ storage });
 ================================ */
 router.get("/", async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     const { connectDB } = await import("../config/db.js");
-    
-    // Check connection state and connect if needed (with retry)
-    let retries = 0;
-    const maxRetries = 2;
-    
-    while (mongoose.connection.readyState !== 1 && retries < maxRetries) {
-      console.log(`🔄 Establishing database connection... (Attempt ${retries + 1}/${maxRetries})`);
-      const connectionResult = await connectDB();
-      
-      // Wait a bit before checking connection state
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      if (mongoose.connection.readyState === 1) {
-        console.log("✅ Database connection established");
-        break;
-      }
-      
-      retries++;
-      
-      if (retries >= maxRetries) {
-        console.error("❌ Database connection failed after retries");
-        return res.status(503).json({ 
-          success: false, 
-          message: "Database connection unavailable. Please try again later." 
-        });
-      }
-    }
-
-    // Verify connection is ready before querying
     if (mongoose.connection.readyState !== 1) {
-      console.error("❌ Database not connected. ReadyState:", mongoose.connection.readyState);
-      return res.status(503).json({ 
-        success: false, 
-        message: "Database connection unavailable. Please try again later." 
-      });
+      await connectDB();
     }
 
     // Query foods
@@ -102,18 +69,10 @@ router.get("/:id", async (req, res) => {
       });
     }
 
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     const { connectDB } = await import("../config/db.js");
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for get single food...");
       await connectDB();
-      
-      if (mongoose.connection.readyState !== 1) {
-        return res.status(503).json({ 
-          success: false, 
-          message: "Database connection unavailable. Please try again later." 
-        });
-      }
     }
 
     const food = await Food.findById(id);
@@ -154,10 +113,9 @@ router.get("/:id", async (req, res) => {
 ================================ */
 router.post("/add", upload.single("image"), async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     const { connectDB } = await import("../config/db.js");
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for add food...");
       await connectDB();
     }
 
@@ -340,10 +298,9 @@ router.post("/add", upload.single("image"), async (req, res) => {
 ================================ */
 router.put("/:id", upload.single("image"), async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     const { connectDB } = await import("../config/db.js");
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for update food...");
       await connectDB();
     }
 
@@ -466,10 +423,9 @@ router.put("/:id", upload.single("image"), async (req, res) => {
 ================================ */
 router.delete("/:id", async (req, res) => {
   try {
-    // Ensure database connection (for serverless)
+    // ✅ Ensure database connection
     const { connectDB } = await import("../config/db.js");
     if (mongoose.connection.readyState !== 1) {
-      console.log("🔄 Establishing database connection for delete food...");
       await connectDB();
     }
 
