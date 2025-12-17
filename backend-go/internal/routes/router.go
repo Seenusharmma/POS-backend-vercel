@@ -97,7 +97,11 @@ func SetupRoutes(app *fiber.App) {
 
 	// --- Offers ---
 	offers := api.Group("/offers")
-	offers.Get("/active", handlers.GetActiveOffers) // New route
+	offers.Get("/", handlers.GetOffers)             // Admin view
+	offers.Get("/active", handlers.GetActiveOffers) // User view (active only)
+	offers.Post("/", handlers.CreateOffer)          // Admin create
+	offers.Put("/:id", handlers.UpdateOffer)        // Admin update
+	offers.Delete("/:id", handlers.DeleteOffer)     // Admin delete
 
 	// Health Check
 	app.Get("/health", func(c *fiber.Ctx) error {

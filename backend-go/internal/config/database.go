@@ -69,17 +69,11 @@ func connectMongoDB() error {
 	log.Println("🔗 Connecting to MongoDB...")
 
 	// MongoDB connection options - optimized for performance
+	// MongoDB connection options - simplified for stability
 	clientOptions := options.Client().ApplyURI(AppConfig.MongoURI).
-		SetMaxPoolSize(100).                 // Increased pool size for high concurrency
-		SetMinPoolSize(10).                  // Maintain minimum connections
-		SetMaxConnIdleTime(5 * time.Minute). // Keep connections alive longer
 		SetServerSelectionTimeout(10 * time.Second).
-		SetSocketTimeout(2 * time.Minute). // For long-running queries
 		SetConnectTimeout(15 * time.Second).
-		SetHeartbeatInterval(10 * time.Second).
-		SetCompressors([]string{"zlib"}). // Enable compression
-		SetRetryWrites(true).
-		SetRetryReads(true)
+		SetRetryWrites(true)
 
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

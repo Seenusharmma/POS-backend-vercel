@@ -42,7 +42,7 @@ func InitCloudinary() error {
 
 // UploadImage uploads an image to Cloudinary
 func (s *CloudinaryService) UploadImage(file interface{}, folder string) (string, error) {
-	if s.client == nil {
+	if s == nil || s.client == nil {
 		return "", fmt.Errorf("cloudinary not initialized")
 	}
 
@@ -61,7 +61,7 @@ func (s *CloudinaryService) UploadImage(file interface{}, folder string) (string
 
 // DeleteImage deletes an image from Cloudinary
 func (s *CloudinaryService) DeleteImage(publicID string) error {
-	if s.client == nil {
+	if s == nil || s.client == nil {
 		return fmt.Errorf("cloudinary not initialized")
 	}
 

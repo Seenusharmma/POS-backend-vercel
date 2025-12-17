@@ -64,7 +64,7 @@ router.post("/subscribe", async (req, res) => {
     const platform = "web-push";
 
     const result = await Subscription.findOneAndUpdate(
-      { userEmail, platform },
+      { userEmail },
       {
         userEmail,
         platform,
@@ -82,6 +82,33 @@ router.post("/subscribe", async (req, res) => {
     res.json({ success: true, message: "Subscription saved", subscription: result });
 
   } catch (error) {
+    // ⚡ Handle Race Condition (Duplicate Key Error)
+    // Check code 11000 or string message (Mongoose sometimes wraps it)
+    if (error.code === 11000 || (error.message && (error.message.includes('duplicate key') || error.message.includes('E11000')))) {
+      console.warn("⚠️ Race condition detected for push subscription. Retrying update...");
+      try {
+        const retryResult = await Subscription.findOneAndUpdate(
+            { userEmail },
+            {
+              userEmail,
+              platform,
+              subscription,
+              updatedAt: new Date(),
+            },
+            {
+              upsert: true,
+              new: true,
+              setDefaultsOnInsert: true,
+            }
+          );
+          console.log("✅ Subscription saved (retry successful):", userEmail);
+          return res.json({ success: true, message: "Subscription saved", subscription: retryResult });
+      } catch (retryError) {
+        console.error("❌ Retry failed:", retryError);
+        // Fallthrough to 500
+      }
+    }
+
     console.error("❌ Error saving subscription:", error);
     res.status(500).json({
       error: "Failed to save subscription",

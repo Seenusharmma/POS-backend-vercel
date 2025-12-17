@@ -7,8 +7,6 @@ import {
   FaShare,
   FaCheckCircle,
   FaClock,
-  FaStore,
-  FaHome,
   FaMapMarkerAlt,
 } from "react-icons/fa";
 import toast from "react-hot-toast";
@@ -22,7 +20,8 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
   const orderId = firstOrder._id?.slice(-8).toUpperCase() || "ORDER";
 
   // Handle share
-  const handleShare = async () => {
+  const handleShare = async (e) => {
+    e.stopPropagation();
     const shareText = `Order #${orderId} from FoodFantasy\nTotal: ₹${totalAmount.toFixed(2)}\nDate: ${orderDate.toLocaleDateString()}`;
 
     if (navigator.share) {
@@ -34,258 +33,173 @@ const OrderHistoryCard = ({ orderGroup, onViewSlip }) => {
         toast.success("Order shared!");
       } catch (error) {
         if (error.name !== "AbortError") {
-          // Fallback to clipboard
           navigator.clipboard.writeText(shareText);
-          toast.success("Order details copied to clipboard!");
+          toast.success("Copied to clipboard!");
         }
       }
     } else {
-      // Fallback to clipboard
       navigator.clipboard.writeText(shareText);
-      toast.success("Order details copied to clipboard!");
+      toast.success("Copied to clipboard!");
     }
   };
 
-  // Get status color and info
-  const getStatusInfo = (status) => {
+  // Status Colors
+  const getStatusColor = (status) => {
     switch (status) {
-      case "Order":
-        return { color: "bg-yellow-100 text-yellow-700", icon: "📝" };
-      case "Preparing":
-        return { color: "bg-blue-100 text-blue-700", icon: "👨‍🍳" };
-      case "Served":
-        return { color: "bg-purple-100 text-purple-700", icon: "🍽️" };
-      case "Completed":
-        return { color: "bg-green-100 text-green-700", icon: "✅" };
-      case "Paid":
-        return { color: "bg-green-100 text-green-700", icon: "💰" };
-      default:
-        return { color: "bg-gray-100 text-gray-600", icon: "📦" };
+      case "Order": return "bg-amber-100 text-amber-700 border-amber-200";
+      case "Preparing": return "bg-blue-100 text-blue-700 border-blue-200";
+      case "Served": return "bg-purple-100 text-purple-700 border-purple-200";
+      case "Completed": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      default: return "bg-gray-100 text-gray-600 border-gray-200";
     }
   };
 
-  // Get current step index for progress indicator
-  const getStatusStep = (status) => {
-    const steps = ["Order", "Preparing", "Served", "Completed"];
-    return steps.indexOf(status);
-  };
-
-  // Status progress steps
-  const statusSteps = [
-    { label: "Order", icon: "📝", color: "yellow" },
+const statusSteps = [
+    { label: "Ordered", icon: "📝", color: "amber" },
     { label: "Preparing", icon: "👨‍🍳", color: "blue" },
     { label: "Served", icon: "🍽️", color: "purple" },
-    { label: "Completed", icon: "✅", color: "green" },
+    { label: "Completed", icon: "✅", color: "emerald" },
   ];
 
-  const currentStep = getStatusStep(firstOrder.status);
-  const statusInfo = getStatusInfo(firstOrder.status);
+  const getStatusStep = (status) => {
+      const map = { "Order": 0, "Preparing": 1, "Served": 2, "Completed": 3 };
+      return map[status] || 0;
+  };
 
+  const currentStep = getStatusStep(firstOrder.status);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-100 overflow-hidden"
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 group"
     >
-      {/* Card Header */}
-      <div className="p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-bold text-base sm:text-lg text-gray-800">
-                Order #{orderId}
-              </h3>
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 ${statusInfo.color}`}
-              >
-                <span>{statusInfo.icon}</span>
-                {firstOrder.status}
-              </span>
+      {/* Card Header (clickable to expand) */}
+      <div 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="p-5 cursor-pointer relative"
+      >
+        <div className="flex justify-between items-start mb-4">
+            <div>
+                <div className="flex items-center gap-3 mb-1">
+                    <span className="font-mono text-gray-500 text-xs uppercase tracking-wider">#{orderId}</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${getStatusColor(firstOrder.status)}`}>
+                        {firstOrder.status}
+                    </span>
+                </div>
+                <h3 className="font-bold text-gray-900 text-lg leading-tight">
+                    {orderGroup.length} Item{orderGroup.length > 1 ? 's' : ''}
+                </h3>
+                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                    <FaClock className="text-gray-400 text-xs" />
+                    {orderDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} • {orderDate.toLocaleTimeString(undefined, { hour: '2-digit', minute:'2-digit' })}
+                </p>
             </div>
-            <p className="text-xs sm:text-sm text-gray-500">
-              {orderDate.toLocaleString("en-IN", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-base sm:text-lg font-bold text-red-600">
-              ₹{totalAmount.toFixed(2)}
-            </span>
-          </div>
+            <div className="text-right">
+                <span className="block text-xl font-extrabold text-gray-900">₹{totalAmount.toFixed(0)}</span>
+                <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-0.5 rounded-md mt-1 inline-block">Paid</span>
+            </div>
         </div>
 
-        {/* Order Summary */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 mb-3 pb-3 border-b border-gray-200">
-          <span className="hidden sm:inline text-gray-300">|</span>
-          <span>
-            {orderGroup.length} item{orderGroup.length > 1 ? "s" : ""}
-          </span>
+        {/* Mini Progress Bar (Visible even when collapsed) */}
+        <div className="flex items-center gap-1 mt-4 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            {statusSteps.map((step, idx) => (
+                <div 
+                    key={idx}
+                    className={`h-full flex-1 transition-all duration-500 ${idx <= currentStep ? `bg-${step.color}-500` : 'bg-transparent'}`}
+                />
+            ))}
         </div>
-
-        {/* Status Progress Indicator */}
-        <div className="mb-4 px-2">
-          <div className="relative flex items-start justify-between gap-1">
-            {statusSteps.map((step, index) => {
-              const isCompleted = index <= currentStep;
-              const isCurrent = index === currentStep;
-              const colorClasses = {
-                yellow: isCompleted ? "bg-yellow-500 text-white border-yellow-500" : "bg-gray-200 text-gray-400 border-gray-300",
-                blue: isCompleted ? "bg-blue-500 text-white border-blue-500" : "bg-gray-200 text-gray-400 border-gray-300",
-                purple: isCompleted ? "bg-purple-500 text-white border-purple-500" : "bg-gray-200 text-gray-400 border-gray-300",
-                green: isCompleted ? "bg-green-500 text-white border-green-500" : "bg-gray-200 text-gray-400 border-gray-300",
-              };
-
-              return (
-                <React.Fragment key={step.label}>
-                  <div className="flex flex-col items-center flex-1 relative z-10">
-                    {/* Step Icon */}
-                    <div
-                      className={`w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all border-2 ${
-                        colorClasses[step.color]
-                      } ${
-                        isCurrent ? "scale-110 shadow-lg" : ""
-                      }`}
-                    >
-                      {step.icon}
-                    </div>
-                    {/* Step Label */}
-                    <p
-                      className={`mt-1 text-[10px] sm:text-xs font-medium text-center ${
-                        isCompleted ? "text-gray-700" : "text-gray-400"
-                      }`}
-                    >
-                      {step.label}
-                    </p>
-                  </div>
-                  {/* Connector Line */}
-                  {index < statusSteps.length - 1 && (
-                    <div className="flex items-center" style={{ marginTop: "13px", flex: "0 0 auto", width: "20%" }}>
-                      <div
-                        className={`h-0.5 w-full transition-all ${
-                          isCompleted ? "bg-" + step.color + "-500" : "bg-gray-300"
-                        }`}
-                      ></div>
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors"
-          >
-            <FaShare className="text-xs" />
-            Share
-          </button>
-          <button
-            onClick={() => onViewSlip(orderGroup)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors"
-          >
-            <FaReceipt className="text-xs" />
-            Receipt
-          </button>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs sm:text-sm font-semibold transition-colors ml-auto"
-          >
-            {isExpanded ? (
-              <>
-                <FaChevronUp className="text-xs" />
-                Less
-              </>
-            ) : (
-              <>
-                <FaChevronDown className="text-xs" />
-                Details
-              </>
-            )}
-          </button>
+        
+        {/* Expand Icon */}
+        <div className="absolute bottom-1 right-1/2 translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
+            {isExpanded ? <FaChevronUp/> : <FaChevronDown/>}
         </div>
       </div>
 
-      {/* Expanded Details */}
+      {/* Expanded Actions & Details */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="overflow-hidden border-t border-gray-200 bg-gray-50"
+            className="border-t border-gray-100 bg-gray-50/50"
           >
-            <div className="p-4 sm:p-5 space-y-3">
-              {/* Order Items */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Order Items</h4>
-                <div className="space-y-2">
-                  {orderGroup.map((order) => (
-                    <div
-                      key={order._id}
-                      className="flex justify-between items-start bg-white p-2 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-sm text-gray-800">
-                          {order.foodName}
-                          {order.selectedSize && (
-                            <span className="ml-1 text-xs text-orange-600 font-semibold">
-                              ({order.selectedSize})
-                            </span>
-                          )}
-                          {" "}× {order.quantity}
-                        </p>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {order.category} • {order.type}
-                        </p>
+            <div className="p-5 space-y-5">
+              
+              {/* Detailed Progress */}
+               <div className="flex justify-between relative px-2">
+                 {/* Line */}
+                 <div className="absolute top-3 left-0 w-full h-0.5 bg-gray-200 -z-10" />
+                 
+                  {statusSteps.map((step, idx) => {
+                      const isAccomplished = idx <= currentStep;
+                      // Dynamic color class mapping
+                      const colorMap = {
+                          amber: "text-amber-600 border-amber-600 bg-amber-50",
+                          blue: "text-blue-600 border-blue-600 bg-blue-50",
+                          purple: "text-purple-600 border-purple-600 bg-purple-50",
+                          emerald: "text-emerald-600 border-emerald-600 bg-emerald-50"
+                      };
+
+                      return (
+                        <div key={idx} className="flex flex-col items-center gap-1 bg-gray-50 px-1">
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] transition-all ${isAccomplished ? colorMap[step.color] : "border-gray-300 bg-white text-gray-300"}`}>
+                                {isAccomplished ? step.icon : null}
+                            </div>
+                            <span className={`text-[10px] font-medium ${isAccomplished ? "text-gray-800" : "text-gray-400"}`}>{step.label}</span>
+                        </div>
+                      )
+                  })}
+               </div>
+
+              {/* Items List */}
+              <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Order Details</h4>
+                  {orderGroup.map((item) => (
+                      <div key={item._id} className="flex justify-between items-center group/item hover:bg-white hover:shadow-sm p-2 rounded-lg transition-all">
+                          <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-gray-200 flex items-center justify-center text-lg">🍲</div>
+                              <div>
+                                  <p className="text-sm font-semibold text-gray-800">{item.foodName}</p>
+                                  <p className="text-xs text-gray-500">{item.quantity} x ₹{item.price ? (item.price/item.quantity).toFixed(0) : 0} {item.selectedSize && `• ${item.selectedSize}`}</p>
+                              </div>
+                          </div>
+                          <span className="font-bold text-sm text-gray-900">₹{item.price}</span>
                       </div>
-                      <span className="font-semibold text-sm text-gray-700 ml-2">
-                        ₹{Number(order.price).toFixed(2)}
-                      </span>
-                    </div>
                   ))}
-                </div>
               </div>
 
-              {/* Order Timeline */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Order Timeline</h4>
-                <div className="space-y-1 text-xs text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <FaClock className="text-gray-400" />
-                    <span>Placed: {orderDate.toLocaleString()}</span>
-                  </div>
-                  {firstOrder.completedAt && (
-                    <div className="flex items-center gap-2">
-                      <FaCheckCircle className="text-green-500" />
-                      <span>
-                        Completed:{" "}
-                        {new Date(firstOrder.completedAt).toLocaleString()}
-                      </span>
+               {/* Location */}
+               {!firstOrder.isInRestaurant && firstOrder.deliveryLocation && (
+                    <div className="flex gap-2 items-start bg-blue-50 p-3 rounded-lg border border-blue-100">
+                        <FaMapMarkerAlt className="text-blue-500 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="text-xs font-bold text-blue-700 mb-0.5">Delivery Address</p>
+                            <p className="text-xs text-blue-800 leading-relaxed">{firstOrder.deliveryLocation}</p>
+                        </div>
                     </div>
-                  )}
-                </div>
+               )}
+
+              {/* Actions Footer */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                 <button 
+                    onClick={handleShare}
+                    className="flex justify-center items-center gap-2 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all active:scale-95"
+                 >
+                     <FaShare /> Share
+                 </button>
+                 <button 
+                    onClick={(e) => { e.stopPropagation(); onViewSlip(orderGroup); }}
+                    className="flex justify-center items-center gap-2 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95"
+                 >
+                     <FaReceipt /> Receipt
+                 </button>
               </div>
 
-              {/* Delivery Address (if delivery) */}
-              {firstOrder.isInRestaurant === false && firstOrder.deliveryLocation && (
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Delivery Address</h4>
-                  <div className="flex items-start gap-2 text-xs text-gray-600 bg-white p-2 rounded-lg">
-                    <FaMapMarkerAlt className="text-blue-500 mt-0.5" />
-                    <span className="flex-1">{firstOrder.deliveryLocation || "Address not available"}</span>
-                  </div>
-                </div>
-              )}
             </div>
           </motion.div>
         )}

@@ -938,13 +938,20 @@ const AdminPage = () => {
   ================================ */
   const updateStatus = async (id, status) => {
     try {
-      const res = await axios.put(`${API_BASE}/api/orders/${id}`, { status });
+      // ✅ If status is "Served", automatically mark as "Completed" to move to history
+      const finalStatus = status === "Served" ? "Completed" : status;
+      
+      const res = await axios.put(`${API_BASE}/api/orders/${id}`, { status: finalStatus });
       socketRef.current.emit("orderUpdated", res.data);
       
       // 🔊 Play notification sound when admin updates order status
       playNotificationSound();
       
-      toast(`Order marked as "${status}"`, { icon: "✅" });
+      const successMessage = finalStatus === "Completed" 
+        ? "Order served & moved to history! 🎉" 
+        : `Order marked as "${finalStatus}"`;
+        
+      toast(successMessage, { icon: "✅" });
       getAllData();
     } catch {
       toast.error("Failed to update order");

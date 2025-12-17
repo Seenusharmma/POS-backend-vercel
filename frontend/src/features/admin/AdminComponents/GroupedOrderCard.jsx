@@ -259,7 +259,6 @@ const GroupedOrderCard = ({
                                     <option>Order</option>
                                     <option>Preparing</option>
                                     <option>Served</option>
-                                    <option>Completed</option>
                                 </select>
                                 <div className="absolute left-1.5 sm:left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs sm:text-sm">
                                     {statusStyle.icon}

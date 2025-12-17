@@ -146,7 +146,6 @@ const OrderCard = ({
         >
           <option>Order</option>
           <option>Served</option>
-          <option>Complete</option>
         </select>
       </div>
     </div>

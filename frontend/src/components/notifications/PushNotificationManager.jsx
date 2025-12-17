@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAppSelector } from '../../store/hooks';
 import { initializePushNotifications } from '../../utils/pushNotifications';
 import API_BASE from '../../config/api';
@@ -9,13 +9,26 @@ import API_BASE from '../../config/api';
  */
 const PushNotificationManager = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
+    // Reset initialization when user changes (e.g. logout/login)
+    // but we only want to run once per user session mount
+    if (!user) {
+        initializedRef.current = false;
+        return;
+    }
+
+    if (initializedRef.current) return;
+
     const setupPushNotifications = async () => {
       // Only initialize if user is logged in
       if (!user || !user.email) {
         return;
       }
+      
+      // Mark as initialized immediately to prevent race conditions
+      initializedRef.current = true;
 
       try {
 
