@@ -59,8 +59,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Food App',
     body: 'You have a new notification',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: '/logo.png',
+    badge: '/logo.png',
     tag: 'default',
     requireInteraction: false,
     data: {}

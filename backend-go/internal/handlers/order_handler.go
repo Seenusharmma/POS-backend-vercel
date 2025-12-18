@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/foodfantasy/backend-go/internal/config"
 	"github.com/foodfantasy/backend-go/internal/models"
+	"github.com/foodfantasy/backend-go/internal/services"
 	"github.com/foodfantasy/backend-go/internal/websocket"
 	"github.com/foodfantasy/backend-go/pkg/utils"
 	"github.com/gofiber/fiber/v2"
@@ -71,6 +73,13 @@ func CreateOrder(c *fiber.Ctx) error {
 		websocket.MainHub.EmitToAdmins("newOrderPlaced", order)
 	}
 
+	// Send Push Notification to admins
+	services.SendPushToAdmins(
+		"New Order Placed! 🍔",
+		fmt.Sprintf("New order #%s for %s", order.ID.Hex(), order.FoodName),
+		map[string]interface{}{"orderId": order.ID.Hex(), "type": "new_order"},
+	)
+
 	return utils.SuccessResponse(c, fiber.StatusCreated, "Order placed successfully", order)
 }
 
@@ -115,6 +124,13 @@ func CreateMultipleOrders(c *fiber.Ctx) error {
 		if websocket.MainHub != nil {
 			websocket.MainHub.EmitToAdmins("newOrderPlaced", createdOrders[i])
 		}
+
+		// Send Push to admins for each order in multiple
+		services.SendPushToAdmins(
+			"New Order Placed! 🍔",
+			fmt.Sprintf("New order #%s for %s", createdOrders[i].ID.Hex(), createdOrders[i].FoodName),
+			map[string]interface{}{"orderId": createdOrders[i].ID.Hex(), "type": "new_order"},
+		)
 	}
 
 	return utils.SuccessResponse(c, fiber.StatusCreated, "Multiple orders created successfully", createdOrders)
@@ -178,6 +194,28 @@ func UpdateOrderStatus(c *fiber.Ctx) error {
 		if input.PaymentStatus == "Paid" {
 			websocket.MainHub.EmitToAdmins("paymentSuccess", updatedOrder)
 		}
+	}
+
+	// Send Push Notification to User about status update
+	if input.Status != "" {
+		statusMsg := map[string]string{
+			"Order Placed": "Your order has been placed successfully!",
+			"Preparing":    "Chef is preparing your delicious meal 👨‍🍳",
+			"Ready":        "Your food is ready for pickup/serving! 🍽️",
+			"Served":       "Enjoy your meal! It has been served.",
+			"Completed":    "Thank you for dining with us! ❤️",
+		}
+		msg := statusMsg[input.Status]
+		if msg == "" {
+			msg = fmt.Sprintf("Your order status is now: %s", input.Status)
+		}
+
+		services.SendPushToUser(
+			updatedOrder.UserEmail,
+			"Order Update 👨‍🍳",
+			fmt.Sprintf("%s: %s", msg, updatedOrder.FoodName),
+			map[string]interface{}{"orderId": updatedOrder.ID.Hex(), "status": input.Status},
+		)
 	}
 
 	return utils.SuccessResponse(c, fiber.StatusOK, "Order updated successfully", updatedOrder)

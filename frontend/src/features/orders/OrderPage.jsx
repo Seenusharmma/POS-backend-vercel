@@ -323,16 +323,29 @@ const OrderPage = () => {
   }, []);
 
   // 🔔 Helper to show system notification
-  const showSystemNotification = (title, body) => {
-    if ("Notification" in window && Notification.permission === "granted") {
+  const showSystemNotification = async (title, body) => {
+    if (!("Notification" in window)) return;
+
+    if (Notification.permission === "granted") {
       try {
-        new Notification(title, {
-          body,
-          icon: "/pwa-192x192.png",
-          vibrate: [200, 100, 200],
-        });
+        if ("serviceWorker" in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          registration.showNotification(title, {
+            body,
+            icon: "/logo.png",
+            badge: "/logo.png",
+            vibrate: [200, 100, 200],
+            tag: 'order-update',
+            renotify: true
+          });
+        } else {
+          new Notification(title, {
+            body,
+            icon: "/logo.png",
+          });
+        }
       } catch (e) {
-        // System notification error - non-critical
+        console.warn("System notification error:", e);
       }
     }
   };

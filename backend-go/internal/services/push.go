@@ -1,13 +1,16 @@
 package services
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
 	"github.com/foodfantasy/backend-go/internal/config"
 	"github.com/foodfantasy/backend-go/internal/models"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // SendPushNotification sends a push notification to a subscription
@@ -22,8 +25,8 @@ func SendPushNotification(subscription *models.Subscription, message, title stri
 	payload := map[string]interface{}{
 		"title": title,
 		"body":  message,
-		"icon":  "/icon-192x192.png", // Default icon
-		"badge": "/badge-72x72.png",  // Default badge
+		"icon":  "/logo.png", // Corrected icon path
+		"badge": "/logo.png", // Corrected badge path
 		"data":  options,
 	}
 
@@ -63,13 +66,95 @@ func SendPushNotification(subscription *models.Subscription, message, title stri
 
 // SendPushToUser sends a notification to a specific user
 func SendPushToUser(userEmail, title, message string, data map[string]interface{}) {
-	// This would require looking up subscriptions by email
-	// Implementation depends on how we query subscriptions
-	// For now, this is a placeholder
+	if userEmail == "" {
+		return
+	}
+
+	db, err := config.GetDatabase()
+	if err != nil {
+		log.Printf("❌ Database error in SendPushToUser: %v", err)
+		return
+	}
+
+	collection := db.Collection("subscriptions")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := collection.Find(ctx, bson.M{"userEmail": userEmail})
+	if err != nil {
+		log.Printf("❌ Error finding subscriptions for %s: %v", userEmail, err)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var subscriptions []models.Subscription
+	if err = cursor.All(ctx, &subscriptions); err != nil {
+		log.Printf("❌ Error decoding subscriptions: %v", err)
+		return
+	}
+
+	for _, sub := range subscriptions {
+		err := SendPushNotification(&sub, message, title, data)
+		if err != nil {
+			log.Printf("⚠️ Failed to send push to %s: %v", userEmail, err)
+		}
+	}
 }
 
 // SendPushToAdmins sends a notification to all admins
 func SendPushToAdmins(title, message string, data map[string]interface{}) {
-	// This would require looking up all admin subscriptions
-	// Placeholder
+	db, err := config.GetDatabase()
+	if err != nil {
+		log.Printf("❌ Database error in SendPushToAdmins: %v", err)
+		return
+	}
+
+	// 1. Get all admin emails
+	adminCollection := db.Collection("admins")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := adminCollection.Find(ctx, bson.M{"role": bson.M{"$in": []string{"admin", "superadmin"}}})
+	if err != nil {
+		log.Printf("❌ Error finding admins: %v", err)
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var admins []models.Admin
+	if err = cursor.All(ctx, &admins); err != nil {
+		log.Printf("❌ Error decoding admins: %v", err)
+		return
+	}
+
+	var emails []string
+	for _, admin := range admins {
+		emails = append(emails, admin.Email)
+	}
+
+	if len(emails) == 0 {
+		return
+	}
+
+	// 2. Find all subscriptions for these emails
+	subCollection := db.Collection("subscriptions")
+	subCursor, err := subCollection.Find(ctx, bson.M{"userEmail": bson.M{"$in": emails}})
+	if err != nil {
+		log.Printf("❌ Error finding admin subscriptions: %v", err)
+		return
+	}
+	defer subCursor.Close(ctx)
+
+	var subscriptions []models.Subscription
+	if err = subCursor.All(ctx, &subscriptions); err != nil {
+		log.Printf("❌ Error decoding admin subscriptions: %v", err)
+		return
+	}
+
+	for _, sub := range subscriptions {
+		err := SendPushNotification(&sub, message, title, data)
+		if err != nil {
+			log.Printf("⚠️ Failed to send admin push: %v", err)
+		}
+	}
 }
