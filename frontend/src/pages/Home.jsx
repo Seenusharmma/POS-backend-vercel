@@ -195,6 +195,7 @@ const Home = () => {
             </div>
           </div>
         </div>
+        
         <CafePinterestGrid />
 
         {/* Floating Cart Button */}

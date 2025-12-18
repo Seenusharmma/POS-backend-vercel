@@ -20,6 +20,7 @@ import { pollOrders } from "../../utils/polling";
 
 import PaymentModal from "./PaymentModal";
 import TableSelectionModal from "./Tables/TableSelectionModal";
+import MobileStatusNotification from "../../components/notifications/MobileStatusNotification";
 
 import orderPlacedSound from "../../assets/sounds/foodorderd.mp3";
 import orderPreparingSound from "../../assets/sounds/preparing.mp3";
@@ -86,6 +87,7 @@ const OrderPage = () => {
   const [selectedTables, setSelectedTables] = useState([]);
   const [showTableModal, setShowTableModal] = useState(false);
   const [contactNumber, setContactNumber] = useState("");
+  const [mobileNotification, setMobileNotification] = useState(null);
 
   const socketRef = useRef(null);
   const audioRef = useRef(null);
@@ -415,6 +417,11 @@ const OrderPage = () => {
             duration: 4000,
             position: "top-center",
           });
+          setMobileNotification({
+            type: 'success',
+            title: 'Order Placed 📦',
+            message: `Your order for ${newOrder.foodName} has been placed!`
+          });
           showSystemNotification(
             "Order Placed 📦",
             `Your order for ${newOrder.foodName} has been placed!`
@@ -521,6 +528,11 @@ const OrderPage = () => {
                 },
               }
             );
+            setMobileNotification({
+              type: normalized.toLowerCase(),
+              title: 'Order Update 👨‍🍳',
+              message: `${statusMessages[normalized] || "Status updated"}: ${updatedOrder.foodName}`
+            });
             showSystemNotification(
               "Order Update 👨‍🍳",
               `${
@@ -611,6 +623,11 @@ const OrderPage = () => {
         toast.success(`📦 Order Placed: ${newOrder.foodName}`, {
           duration: 4000,
           position: "top-center",
+        });
+        setMobileNotification({
+          type: 'success',
+          title: 'Order Placed 📦',
+          message: `Your order for ${newOrder.foodName} has been placed!`
         });
         showSystemNotification(
           "Order Placed 📦",
@@ -714,6 +731,11 @@ const OrderPage = () => {
             },
           }
         );
+        setMobileNotification({
+          type: normalized.toLowerCase(),
+          title: 'Order Update 👨‍🍳',
+          message: `${statusMessages[normalized] || "Status updated"}: ${updatedOrder.foodName}`
+        });
         showSystemNotification(
           "Order Update 👨‍🍳",
           `${
@@ -749,6 +771,11 @@ const OrderPage = () => {
             position: "top-center",
           }
         );
+        setMobileNotification({
+          type: 'success',
+          title: 'Payment Confirmed 💰',
+          message: 'Your payment has been successfully confirmed.'
+        });
         showSystemNotification(
           "Payment Confirmed 💰",
           "Your payment has been successfully confirmed."
@@ -785,6 +812,11 @@ const OrderPage = () => {
             position: "top-center",
           }
         );
+        setMobileNotification({
+          type: 'deleted',
+          title: 'Order Deleted 🗑️',
+          message: `Your order for ${deletedOrder.foodName} has been removed.`
+        });
         showSystemNotification(
           "Order Deleted 🗑️",
           `Your order for ${deletedOrder.foodName} has been removed.`
@@ -914,6 +946,10 @@ const OrderPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#fff8f3] to-white py-6 sm:py-8 md:py-12 px-3 sm:px-4 md:px-6 lg:px-10 mt-10 pb-20">
       <Toaster />
+      <MobileStatusNotification 
+        notification={mobileNotification} 
+        onClear={() => setMobileNotification(null)} 
+      />
 
       {/* ===== CART SECTION ===== */}
       {cart.length === 0 ? (

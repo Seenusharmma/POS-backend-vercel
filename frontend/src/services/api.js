@@ -18,10 +18,13 @@ const getApiBase = () => {
   
   // Production: use deployed backend URL
   // Update this to match your actual Vercel backend deployment URL
-  return 'https://pos-backend-vercel.vercel.app';
+  const fallbackUrl = 'https://pos-backend-vercel.vercel.app';
+  console.warn(`⚠️ API_BASE not set. Falling back to: ${fallbackUrl}. Set VITE_API_BASE_URL in your environment if this is incorrect.`);
+  return fallbackUrl;
 };
 
 const API_BASE = getApiBase();
+console.log("🔌 API Base URL:", API_BASE);
 
 export default API_BASE;
 

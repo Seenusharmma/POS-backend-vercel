@@ -9,7 +9,6 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "../store/hooks";
-// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import { checkAdminStatus } from "../services/adminApi";
 

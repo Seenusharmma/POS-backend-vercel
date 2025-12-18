@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import axios from "axios";
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 import { FaLeaf, FaDrumstickBite, FaStar, FaShoppingCart, FaArrowUp, FaMinus, FaPlus } from "react-icons/fa";
 import toast, { Toaster } from "react-hot-toast";
@@ -786,7 +785,7 @@ const Menu = () => {
           initial={{ y: 100 }}
           animate={{ y: 0 }}
           className="fixed bottom-20 sm:bottom-6 left-1/2 transform -translate-x-1/2 bg-red-600 hover:bg-red-700 text-white px-4 sm:px-8 py-2.5 sm:py-3 rounded-full shadow-lg flex items-center gap-2 font-semibold cursor-pointer z-40 text-sm sm:text-base"
-          onClick={() => (window.location.href = "/order")}
+          onClick={() => navigate("/order")}
         >
           <FaShoppingCart />
           View Cart ({cart.length})
