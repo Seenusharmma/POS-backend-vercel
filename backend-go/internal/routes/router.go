@@ -25,10 +25,10 @@ func SetupRoutes(app *fiber.App) {
 	app.Get("/ws", websocket.New(func(c *websocket.Conn) {
 		// Create client
 		client := &ws.Client{
-			ID:    c.Params("id"), // Need a way to identify, maybe from query param
+			ID:    c.Params("id"),
 			Conn:  c,
-			Send:  make(chan interface{}),
-			Type:  c.Query("type", "user"), // "admin" or "user"
+			Send:  make(chan interface{}, 256),
+			Type:  c.Query("type", "user"),
 			Hub:   ws.MainHub,
 			Rooms: make(map[string]bool),
 		}
@@ -36,22 +36,63 @@ func SetupRoutes(app *fiber.App) {
 		// Register
 		client.Hub.Register <- client
 
-		// Handle specific rooms
-		if client.Type == "admin" {
-			client.Hub.JoinRoom(client, "admins")
-		}
-
 		// Cleanup on close
 		defer func() {
 			client.Hub.Unregister <- client
 			c.Close()
 		}()
 
+		// Handle specific rooms from query params initially
+		if client.Type == "admin" {
+			client.Hub.JoinRoom(client, "admins")
+		}
+
+		// Write loop
+		go func() {
+			for {
+				msg, ok := <-client.Send
+				if !ok {
+					return
+				}
+				if err := c.WriteJSON(msg); err != nil {
+					return
+				}
+			}
+		}()
+
 		// Read loop
 		for {
-			_, _, err := c.ReadMessage()
-			if err != nil {
+			var msg struct {
+				Event string                 `json:"event"`
+				Data  map[string]interface{} `json:"data"`
+			}
+			if err := c.ReadJSON(&msg); err != nil {
 				break
+			}
+
+			// Handle "identify" event
+			if msg.Event == "identify" {
+				uType, _ := msg.Data["type"].(string)
+				uID, _ := msg.Data["userId"].(string)
+
+				if uType != "" {
+					client.Type = uType
+				}
+				if uID != "" {
+					client.UserID = uID
+					client.Hub.JoinRoom(client, "user:"+uID)
+				}
+				if uType == "admin" {
+					client.Hub.JoinRoom(client, "admins")
+				}
+
+				// Send identified acknowledgment
+				client.Send <- map[string]interface{}{
+					"event": "identified",
+					"data": map[string]interface{}{
+						"status": "success",
+					},
+				}
 			}
 		}
 	}))

@@ -34,8 +34,7 @@ const OrderHistory = () => {
       // Filter for user's completed orders (check both email and userId)
       const userOrders = res.data.filter(
         (o) =>
-          (o.userEmail === user.email || o.userId === user.uid) &&
-          o.status === "Completed"
+          (o.userEmail === user.email || o.userId === user.uid)
       );
       // Sort by creation date (newest first)
       const sortedOrders = userOrders.sort(
@@ -241,17 +240,15 @@ const OrderHistory = () => {
     });
 
     socket.on("newOrderPlaced", (newOrder) => {
-      if (newOrder.userEmail === user.email || newOrder.userId === user.uid) {
-        if (newOrder.status === "Completed") {
+        if (newOrder.userEmail === user.email || newOrder.userId === user.uid) {
           setOrders((prev) => {
             const exists = prev.find((o) => o._id === newOrder._id);
             if (!exists) return [newOrder, ...prev];
             return prev;
           });
+          toast.success(`📦 New Order: ${newOrder.foodName}`);
+          fetchHistory();
         }
-        toast.success(`📦 New Order: ${newOrder.foodName}`);
-        fetchHistory();
-      }
     });
 
     socket.on("orderStatusChanged", (updatedOrder) => {
@@ -276,7 +273,16 @@ const OrderHistory = () => {
           }
         });
       } else {
-        setOrders((prev) => prev.filter((o) => o._id !== updatedOrder._id));
+        // Just update it if it already exists
+        setOrders((prev) => {
+          const existingIndex = prev.findIndex((o) => o._id === updatedOrder._id);
+          if (existingIndex >= 0) {
+            const updated = [...prev];
+            updated[existingIndex] = { ...updated[existingIndex], ...updatedOrder };
+            return updated;
+          }
+          return [updatedOrder, ...prev].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        });
       }
     });
 

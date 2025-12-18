@@ -1,14 +1,27 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import PaymentQR from "../Payment/PaymentQR";
 
-const LiveOrderCard = ({ order, upiID, payeeName }) => {
+// Move static mapping outside component (no re-creation)
+const STATUS_COLOR = {
+  Order: "text-yellow-600",
+  Served: "text-green-600",
+  Completed: "text-gray-600",
+};
+
+const LiveOrderCard = React.memo(({ order, upiID, payeeName }) => {
   const [showQR, setShowQR] = useState(false);
 
-  const upiLink = `upi://pay?pa=${upiID}&pn=${payeeName}&am=${Number(
-    order.price
-  ).toFixed(2)}&cu=INR&tn=${encodeURIComponent(
-    `Order for ${order.foodName}`
-  )}`;
+  // Memoize expensive string creation
+  const upiLink = useMemo(() => {
+    return `upi://pay?pa=${upiID}&pn=${payeeName}&am=${Number(
+      order.price
+    ).toFixed(2)}&cu=INR&tn=${encodeURIComponent(
+      `Order for ${order.foodName}`
+    )}`;
+  }, [upiID, payeeName, order.price, order.foodName]);
+
+  const statusColor =
+    STATUS_COLOR[order.status] || "text-gray-600";
 
   return (
     <div className="bg-white border rounded-2xl p-5 shadow hover:shadow-md transition">
@@ -20,6 +33,7 @@ const LiveOrderCard = ({ order, upiID, payeeName }) => {
           </span>
         )}
       </h4>
+
       <p className="text-gray-500 capitalize">
         {order.category} • {order.type}
       </p>
@@ -35,19 +49,12 @@ const LiveOrderCard = ({ order, upiID, payeeName }) => {
 
       <p className="text-sm mt-1">
         Status:{" "}
-        <span
-          className={`font-semibold ${
-            order.status === "Order"
-              ? "text-yellow-600"
-              : order.status === "Served"
-              ? "text-green-600"
-              : "text-gray-600"
-          }`}
-        >
+        <span className={`font-semibold ${statusColor}`}>
           {order.status}
         </span>
       </p>
 
+      {/* Render QR only when needed */}
       {order.status === "Completed" && (
         <PaymentQR
           price={order.price}
@@ -59,6 +66,6 @@ const LiveOrderCard = ({ order, upiID, payeeName }) => {
       )}
     </div>
   );
-};
+});
 
 export default LiveOrderCard;

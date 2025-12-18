@@ -34,6 +34,7 @@ type Config struct {
 	// Push Notifications
 	VAPIDPublicKey  string
 	VAPIDPrivateKey string
+	VAPIDSubject    string
 }
 
 var AppConfig *Config
@@ -64,6 +65,7 @@ func LoadConfig() *Config {
 
 		VAPIDPublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
 		VAPIDPrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
+		VAPIDSubject:    getEnv("VAPID_SUBJECT", "mailto:roshansharma7250@gmail.com"),
 	}
 
 	AppConfig = config

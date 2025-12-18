@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -22,12 +23,18 @@ func SendPushNotification(subscription *models.Subscription, message, title stri
 	}
 
 	// Construct payload
+	frontendURL := config.AppConfig.FrontendURL
+	if frontendURL == "" {
+		frontendURL = "https://foodfantasy.vercel.app" // Fallback
+	}
+
 	payload := map[string]interface{}{
-		"title": title,
-		"body":  message,
-		"icon":  "/logo.png", // Corrected icon path
-		"badge": "/logo.png", // Corrected badge path
-		"data":  options,
+		"title":   title,
+		"body":    message,
+		"icon":    frontendURL + "/logo.png",
+		"badge":   frontendURL + "/logo.png",
+		"data":    options,
+		"vibrate": []int{100, 50, 100},
 	}
 
 	payloadBytes, err := json.Marshal(payload)
@@ -46,10 +53,10 @@ func SendPushNotification(subscription *models.Subscription, message, title stri
 
 	// Send notification
 	resp, err := webpush.SendNotification(payloadBytes, s, &webpush.Options{
-		Subscriber:      "mailto:support@foodfantasy.com", // Should be configured
+		Subscriber:      config.AppConfig.VAPIDSubject,
 		VAPIDPublicKey:  config.AppConfig.VAPIDPublicKey,
 		VAPIDPrivateKey: config.AppConfig.VAPIDPrivateKey,
-		TTL:             60, // Time to live in seconds
+		TTL:             86400, // 24 hours
 	})
 
 	if err != nil {
@@ -80,7 +87,7 @@ func SendPushToUser(userEmail, title, message string, data map[string]interface{
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cursor, err := collection.Find(ctx, bson.M{"userEmail": userEmail})
+	cursor, err := collection.Find(ctx, bson.M{"userEmail": strings.ToLower(userEmail)})
 	if err != nil {
 		log.Printf("❌ Error finding subscriptions for %s: %v", userEmail, err)
 		return
@@ -129,7 +136,7 @@ func SendPushToAdmins(title, message string, data map[string]interface{}) {
 
 	var emails []string
 	for _, admin := range admins {
-		emails = append(emails, admin.Email)
+		emails = append(emails, strings.ToLower(admin.Email))
 	}
 
 	if len(emails) == 0 {

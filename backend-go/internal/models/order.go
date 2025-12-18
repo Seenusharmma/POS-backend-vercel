@@ -9,6 +9,7 @@ import (
 // Order represents a food order
 type Order struct {
 	ID             primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	UserID         string             `json:"userId,omitempty" bson:"userId,omitempty"`
 	UserEmail      string             `json:"userEmail" bson:"userEmail" validate:"required,email"`
 	Username       string             `json:"userName,omitempty" bson:"username,omitempty"`
 	FoodName       string             `json:"foodName" bson:"foodName" validate:"required"`
@@ -47,6 +48,7 @@ type Address struct {
 
 // OrderInput is used for creating orders
 type OrderInput struct {
+	UserID         string           `json:"userId,omitempty"`
 	UserEmail      string           `json:"userEmail" validate:"required,email"`
 	Username       string           `json:"userName,omitempty"`
 	FoodName       string           `json:"foodName" validate:"required"`
@@ -81,6 +83,7 @@ func NewOrder(input OrderInput) *Order {
 	totalPrice := input.Price * float64(input.Quantity)
 
 	return &Order{
+		UserID:         input.UserID,
 		UserEmail:      input.UserEmail,
 		Username:       input.Username,
 		FoodName:       input.FoodName,

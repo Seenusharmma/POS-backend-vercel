@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/foodfantasy/backend-go/internal/config"
@@ -14,12 +15,28 @@ import (
 
 // SubscribePush handles push subscription
 func SubscribePush(c *fiber.Ctx) error {
-	var input models.SubscriptionInput
+	var input struct {
+		UserEmail    string `json:"userEmail"`
+		Subscription struct {
+			Endpoint string                  `json:"endpoint"`
+			Keys     models.SubscriptionKeys `json:"keys"`
+		} `json:"subscription"`
+	}
 	if err := c.BodyParser(&input); err != nil {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid input", err)
 	}
 
-	subscription := models.NewSubscription(input)
+	finalEndpoint := input.Subscription.Endpoint
+	if finalEndpoint == "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Missing subscription endpoint", nil)
+	}
+
+	subscription := &models.Subscription{
+		UserEmail: strings.ToLower(input.UserEmail),
+		Endpoint:  finalEndpoint,
+		Keys:      input.Subscription.Keys,
+		UpdatedAt: time.Now(),
+	}
 
 	db, err := config.GetDatabase()
 	if err != nil {
@@ -30,9 +47,9 @@ func SubscribePush(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Update or Insert (Upsert) based on endpoint or userEmail
-	filter := bson.M{"endpoint": input.Endpoint}
-	update := bson.M{"$set": subscription}
+	// Update or Insert (Upsert) based on endpoint
+	filter := bson.M{"endpoint": finalEndpoint}
+	update := bson.M{"$set": subscription, "$setOnInsert": bson.M{"createdAt": time.Now()}}
 	opts := options.Update().SetUpsert(true)
 
 	_, err = collection.UpdateOne(ctx, filter, update, opts)

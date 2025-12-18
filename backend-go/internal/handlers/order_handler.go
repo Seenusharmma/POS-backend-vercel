@@ -68,15 +68,18 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	order.ID = result.InsertedID.(primitive.ObjectID)
 
-	// Broadcast to admins
+	// Broadcast to admins and user
 	if websocket.MainHub != nil {
 		websocket.MainHub.EmitToAdmins("newOrderPlaced", order)
+		if order.UserID != "" {
+			websocket.MainHub.EmitToUser(order.UserID, "newOrderPlaced", order)
+		}
 	}
 
 	// Send Push Notification to admins
 	services.SendPushToAdmins(
-		"New Order Placed! 🍔",
-		fmt.Sprintf("New order #%s for %s", order.ID.Hex(), order.FoodName),
+		"🆕 New Order Placed!",
+		fmt.Sprintf("%s ordered %d x %s ($%.2f)", order.Username, order.Quantity, order.FoodName, order.TotalPrice),
 		map[string]interface{}{"orderId": order.ID.Hex(), "type": "new_order"},
 	)
 
@@ -123,12 +126,15 @@ func CreateMultipleOrders(c *fiber.Ctx) error {
 		// Broadcast individually
 		if websocket.MainHub != nil {
 			websocket.MainHub.EmitToAdmins("newOrderPlaced", createdOrders[i])
+			if createdOrders[i].UserID != "" {
+				websocket.MainHub.EmitToUser(createdOrders[i].UserID, "newOrderPlaced", createdOrders[i])
+			}
 		}
 
 		// Send Push to admins for each order in multiple
 		services.SendPushToAdmins(
-			"New Order Placed! 🍔",
-			fmt.Sprintf("New order #%s for %s", createdOrders[i].ID.Hex(), createdOrders[i].FoodName),
+			"🆕 New Multi-Order!",
+			fmt.Sprintf("%s ordered %d x %s ($%.2f)", createdOrders[i].Username, createdOrders[i].Quantity, createdOrders[i].FoodName, createdOrders[i].TotalPrice),
 			map[string]interface{}{"orderId": createdOrders[i].ID.Hex(), "type": "new_order"},
 		)
 	}
@@ -189,10 +195,16 @@ func UpdateOrderStatus(c *fiber.Ctx) error {
 	// Broadcast update
 	if websocket.MainHub != nil {
 		websocket.MainHub.EmitToAdmins("orderStatusChanged", updatedOrder)
+		if updatedOrder.UserID != "" {
+			websocket.MainHub.EmitToUser(updatedOrder.UserID, "orderStatusChanged", updatedOrder)
+		}
 
 		// Send payment success event if applicable
 		if input.PaymentStatus == "Paid" {
 			websocket.MainHub.EmitToAdmins("paymentSuccess", updatedOrder)
+			if updatedOrder.UserID != "" {
+				websocket.MainHub.EmitToUser(updatedOrder.UserID, "paymentSuccess", updatedOrder)
+			}
 		}
 	}
 
@@ -215,6 +227,16 @@ func UpdateOrderStatus(c *fiber.Ctx) error {
 			"Order Update 👨‍🍳",
 			fmt.Sprintf("%s: %s", msg, updatedOrder.FoodName),
 			map[string]interface{}{"orderId": updatedOrder.ID.Hex(), "status": input.Status},
+		)
+	}
+
+	// Send Push for Payment
+	if input.PaymentStatus == "Paid" {
+		services.SendPushToUser(
+			updatedOrder.UserEmail,
+			"💰 Payment Received!",
+			fmt.Sprintf("Payment for %s ($%.2f) was successful.", updatedOrder.FoodName, updatedOrder.TotalPrice),
+			map[string]interface{}{"orderId": updatedOrder.ID.Hex(), "type": "payment_success"},
 		)
 	}
 
