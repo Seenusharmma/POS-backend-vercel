@@ -53,7 +53,7 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur-lg shadow-lg border-b bg-white border-gray-200">
+    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur-lg shadow-lg border-b bg-white border-gray-200 rounded-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 flex justify-between items-center h-16">
         {/* 🍴 Logo */}
         <motion.div
@@ -66,9 +66,9 @@ const Navbar = () => {
             className="text-orange-500 text-2xl sm:text-3xl font-bold tracking-wide flex items-center gap-2"
           >
             {" "}
-            <span className="text-orange-500 hover:text-orange-600">
-              Food Fantasy
-            </span>
+            <span className="font-['Pacifico'] text-orange-500">
+  Food Fantasy
+</span>
           </Link>
         </motion.div>
 

@@ -252,7 +252,7 @@ const OfferZone = ({ isMobile = false }) => {
              active:scale-95 transition"
 >
   <FaPhone className="text-blue-300 text-[12px]" />
-  <span className="hidden sm:inline">+91 9876543210</span>
+  <span className="hidden sm:inline">+91 7008278701</span>
   <span className="sm:hidden">Call</span>
 </a>
 

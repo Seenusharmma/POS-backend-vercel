@@ -124,11 +124,11 @@ const Footer = () => {
                 </div>
               </a>
               <a 
-                href="tel:+919876543210"
+                href="tel:+917008278701"
                 className="flex items-center gap-3 text-gray-600 hover:text-orange-600 transition-colors duration-200 group"
               >
                 <FaPhone className="text-lg text-orange-500 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                <span className="text-sm sm:text-base">+91 98765 43210</span>
+                <span className="text-sm sm:text-base">+91 70082 78701</span>
               </a>
               <a 
                 href="mailto:info@foodfantasy.com"
