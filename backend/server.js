@@ -18,6 +18,7 @@ import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
 import cluster from "cluster";
+import "./utils/errorHandlers.js"; // 🚨 Global error handlers to prevent crashes
 
 
 // ✅ __dirname for ES Modules

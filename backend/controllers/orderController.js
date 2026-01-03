@@ -122,17 +122,11 @@ export const createOrder = async (req, res) => {
       )
     ];
 
-    // Execute background tasks concurrently
-    // ⚡ CRITICAL: We await with a SHORT TIMEOUT
-    // This ensures the user doesn't wait for slow push notifications
-    const backgroundTasksPromise = Promise.allSettled(backgroundTasks);
-    
-    // Wait max 1.5 seconds for background tasks, then proceed
-    // This allows Vercel some time to process, but doesn't block the UI
-    await Promise.race([
-      backgroundTasksPromise,
-      new Promise(resolve => setTimeout(resolve, 1500))
-    ]);
+    // ⚡ Fire background tasks in parallel WITHOUT WAITING
+    // This prevents ANY delay for the user
+    Promise.allSettled(backgroundTasks).catch(err => 
+      console.error("Background tasks error:", err)
+    );
 
     // ✅ Emit new order to Admin (real-time) - Sync emission is fast enough
     const io = req.app.get("io");
@@ -215,8 +209,9 @@ export const createMultipleOrders = async (req, res) => {
     }
 
     // 📢 Send push notification to Admins for multiple orders
-    // ⚡ CRITICAL: We await with a SHORT TIMEOUT
-    const pushPromise = sendPushToAdmins(
+    // ⚡ FIRE-AND-FORGET: Don't wait AT ALL
+    // This ensures zero delay for the user
+    sendPushToAdmins(
       "📢 New Orders Placed!",
       `${req.body.length} new orders received from ${req.body[0].userEmail || "Guest"}`,
       {
@@ -224,12 +219,6 @@ export const createMultipleOrders = async (req, res) => {
         data: { count: req.body.length, type: "new_orders_admin" }
       }
     ).catch(err => console.error("Admin push notification error:", err));
-
-    // Wait max 1.5 seconds for push notification
-    await Promise.race([
-      pushPromise,
-      new Promise(resolve => setTimeout(resolve, 1500))
-    ]);
 
     res.status(201).json({
       success: true,
