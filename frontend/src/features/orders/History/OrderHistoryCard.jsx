@@ -179,7 +179,7 @@ const statusSteps = [
                         <FaMapMarkerAlt className="text-blue-500 mt-0.5 shrink-0" />
                         <div>
                             <p className="text-xs font-bold text-blue-700 mb-0.5">Delivery Address</p>
-                            <p className="text-xs text-blue-800 leading-relaxed">{firstOrder.deliveryLocation}</p>
+                            <p className="text-xs text-blue-800 leading-relaxed">{firstOrder.deliveryLocation?.address || "Address not available"}</p>
                         </div>
                     </div>
                )}
