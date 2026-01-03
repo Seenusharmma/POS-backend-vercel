@@ -215,8 +215,8 @@ export const createMultipleOrders = async (req, res) => {
     }
 
     // 📢 Send push notification to Admins for multiple orders
-    // ⚡ CRITICAL: Await this for Vercel
-    await sendPushToAdmins(
+    // ⚡ CRITICAL: We await with a SHORT TIMEOUT
+    const pushPromise = sendPushToAdmins(
       "📢 New Orders Placed!",
       `${req.body.length} new orders received from ${req.body[0].userEmail || "Guest"}`,
       {
@@ -224,6 +224,12 @@ export const createMultipleOrders = async (req, res) => {
         data: { count: req.body.length, type: "new_orders_admin" }
       }
     ).catch(err => console.error("Admin push notification error:", err));
+
+    // Wait max 1.5 seconds for push notification
+    await Promise.race([
+      pushPromise,
+      new Promise(resolve => setTimeout(resolve, 1500))
+    ]);
 
     res.status(201).json({
       success: true,

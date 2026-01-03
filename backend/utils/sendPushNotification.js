@@ -160,11 +160,14 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
     // 1. Get all admin emails
     const admins = await Admin.find({}, "email");
     
+    console.log(`📊 [Push Diagnostics] Found ${admins.length} admins in database`);
+    
     if (!admins.length) {
-      // No admins found
+      console.warn("⚠️ [Push] No admins found in Admin collection");
       return { success: true, sent: 0, message: "No admins found" };
     }
     const adminEmails = admins.map(admin => admin.email);
+    console.log(`📧 [Push] Admin emails:`, adminEmails);
 
     // 2. Find subscriptions for these emails
     const subscriptions = await Subscription.find({ 
@@ -172,8 +175,11 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
       platform: 'web-push'
     });
     
+    console.log(`🔔 [Push] Found ${subscriptions.length} admin subscriptions`);
+    console.log(`📋 [Push] Subscribed admin emails:`, subscriptions.map(s => s.userEmail));
+    
     if (subscriptions.length === 0) {
-      // No active subscriptions
+      console.warn(`⚠️ [Push] No subscriptions found for admins. Admins: ${adminEmails.join(', ')}`);
       return { success: true, sent: 0, message: "No admin subscriptions found" };
     }
 
@@ -226,6 +232,7 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
     }
 
     // Admin push result
+    console.log(`✅ [Push] Admin notifications: ${sent} sent, ${failed} failed (total: ${subscriptions.length})`);
     return { success: true, sent, failed, total: subscriptions.length };
   } catch (error) {
     console.error("❌ Error sending admin push notifications:", error);
