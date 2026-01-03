@@ -16,14 +16,21 @@ export const getOrders = async (req, res) => {
     //   return res.status(200).json(cachedOrders);
     // }
 
-    // ✅ Ensure database connection (centralized logic handles retries)
+    // ✅ Ensure database connection
     if (mongoose.connection.readyState !== 1) {
       await connectDB();
     }
 
-    // Query orders with timeout protection
+    // ✅ Query params for filtering
+    const { userId, userEmail, limit = 500 } = req.query;
+    
+    const query = {};
+    if (userId) query.userId = userId;
+    if (userEmail) query.userEmail = userEmail;
+
+    // Query orders with timeout protection and limit
     const orders = await Promise.race([
-      Order.find().sort({ createdAt: -1 }),
+      Order.find(query).sort({ createdAt: -1 }).limit(Number(limit)),
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error("Query timeout")), 10000)
       )
@@ -33,7 +40,7 @@ export const getOrders = async (req, res) => {
     // await setCache(CACHE_KEYS.ORDERS, orders, CACHE_TTL.ORDERS);
     // console.log(`✅ Orders cached for ${CACHE_TTL.ORDERS} seconds`);
     
-    console.log(`✅ Fetched ${orders.length} orders successfully`);
+    console.log(`✅ Fetched ${orders.length} orders successfully (Filter: ${JSON.stringify(query)})`);
     res.status(200).json(orders);
   } catch (error) {
     console.error("❌ Error fetching orders:", error);

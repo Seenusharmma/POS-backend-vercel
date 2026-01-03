@@ -295,7 +295,7 @@ const AdminPage = () => {
     // Socket connections are unreliable on serverless platforms
     // Polling ensures we ALWAYS get real-time updates
     const shouldUsePollingAsPrimary = true; // Always use polling for admin
-    const pollingInterval = 2000; // ⚡ 2s polling for faster updates
+    const pollingInterval = 500; // ⚡ 500ms polling for near-instant updates
     
     
     // ⚡ Start polling

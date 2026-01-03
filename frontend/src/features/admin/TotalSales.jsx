@@ -65,12 +65,12 @@ const TotalSales = () => {
     const socket = socketRef.current;
     fetchOrders();
 
-    socket.on("newOrderPlaced", fetchOrders);
-    socket.on("orderStatusChanged", fetchOrders);
-    socket.on("paymentSuccess", fetchOrders);
-    socket.on("orderDeleted", fetchOrders);
-
-    return () => socket.disconnect();
+    return () => {
+      socket.off("newOrderPlaced", fetchOrders);
+      socket.off("orderStatusChanged", fetchOrders);
+      socket.off("paymentSuccess", fetchOrders);
+      socket.off("orderDeleted", fetchOrders);
+    };
   }, []);
 
   if (pageLoading) return <LogoLoader />;

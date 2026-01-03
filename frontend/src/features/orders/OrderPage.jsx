@@ -21,6 +21,7 @@ import { pollOrders } from "../../utils/polling";
 import PaymentModal from "./PaymentModal";
 import TableSelectionModal from "./Tables/TableSelectionModal";
 import MobileStatusNotification from "../../components/notifications/MobileStatusNotification";
+import OrderSlip from "./OrderSlip"; // Added for direct slip display
 
 import orderPlacedSound from "../../assets/sounds/foodorderd.mp3";
 import orderPreparingSound from "../../assets/sounds/preparing.mp3";
@@ -81,8 +82,9 @@ const OrderPage = () => {
   const navigate = useNavigate();
 
   const [orders, setOrders] = useState([]);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [pendingCartData, setPendingCartData] = useState(null);
+  const [showOrderSlip, setShowOrderSlip] = useState(false); // For direct order slip
+  const [createdOrders, setCreatedOrders] = useState([]); // For direct order slip
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [orderType, setOrderType] = useState("dine-in"); // 'dine-in' | 'parcel'
   const [selectedTables, setSelectedTables] = useState([]);
   const [showTableModal, setShowTableModal] = useState(false);
@@ -355,12 +357,14 @@ const OrderPage = () => {
   ============================ */
   const fetchAllOrders = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE}/api/orders`);
+      const params = {};
+      if (user?.uid) params.userId = user.uid;
+      else if (user?.email) params.userEmail = user.email;
+      
+      const res = await axios.get(`${API_BASE}/api/orders`, { params });
 
       const userOrders = res.data.filter(
-        (o) =>
-          (o.userId === user?.uid || o.userEmail === user?.email) &&
-          !isCompletedStatus(o.status)
+        (o) => !isCompletedStatus(o.status)
       );
       setOrders(userOrders);
     } catch {
@@ -406,11 +410,13 @@ const OrderPage = () => {
 
     const fetchUserOrdersForPolling = async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/orders`);
+        const params = {};
+        if (user?.uid) params.userId = user.uid;
+        else if (user?.email) params.userEmail = user.email;
+        
+        const res = await axios.get(`${API_BASE}/api/orders`, { params });
         return res.data.filter(
-          (o) =>
-            (o.userId === user?.uid || o.userEmail === user?.email) &&
-            !isCompletedStatus(o.status)
+          (o) => !isCompletedStatus(o.status)
         );
       } catch {
         return [];
@@ -799,42 +805,42 @@ const OrderPage = () => {
 
     // orderDeleted
     socket.on("orderDeleted", (deletedOrderId) => {
-      const deletedOrder = orders.find((o) => o._id === deletedOrderId);
-
-      if (
-        deletedOrder &&
-        user &&
-        (deletedOrder.userId === user.uid ||
-          deletedOrder.userEmail === user.email)
-      ) {
-        playOrderDeletedSound();
-
-        setOrders((prev) => prev.filter((o) => o._id !== deletedOrderId));
-
-        toast.error(
-          `🗑️ Order Deleted: ${deletedOrder.foodName} has been removed by admin.`,
-          {
-            duration: 5000,
-            icon: "❌",
-            style: {
-              background: "#ef4444",
-              color: "#fff",
-              fontSize: "16px",
-              fontWeight: "600",
-            },
-            position: "top-center",
-          }
-        );
-        setMobileNotification({
-          type: 'deleted',
-          title: 'Order Deleted 🗑️',
-          message: `Your order for ${deletedOrder.foodName} has been removed.`
-        });
-        showSystemNotification(
-          "Order Deleted 🗑️",
-          `Your order for ${deletedOrder.foodName} has been removed.`
-        );
-      }
+      setOrders((prev) => {
+        const deletedOrder = prev.find((o) => o._id === deletedOrderId);
+        if (
+          deletedOrder &&
+          user &&
+          (deletedOrder.userId === user.uid ||
+            deletedOrder.userEmail === user.email)
+        ) {
+          playOrderDeletedSound();
+          toast.error(
+            `🗑️ Order Deleted: ${deletedOrder.foodName} has been removed by admin.`,
+            {
+              duration: 5000,
+              icon: "❌",
+              style: {
+                background: "#ef4444",
+                color: "#fff",
+                fontSize: "16px",
+                fontWeight: "600",
+              },
+              position: "top-center",
+            }
+          );
+          setMobileNotification({
+            type: 'deleted',
+            title: 'Order Deleted 🗑️',
+            message: `Your order for ${deletedOrder.foodName} has been removed.`
+          });
+          showSystemNotification(
+            "Order Deleted 🗑️",
+            `Your order for ${deletedOrder.foodName} has been removed.`
+          );
+          return prev.filter((o) => o._id !== deletedOrderId);
+        }
+        return prev;
+      });
 
       fetchAllOrders();
     });
@@ -853,7 +859,11 @@ const OrderPage = () => {
         pollingStopRef.current = null;
       }
     };
-  }, [fetchAllOrders, user, orders]);
+  }, [fetchAllOrders, user]); // ✅ Fixed: Removed 'orders' dependency to prevent re-registration loops
+
+  useEffect(() => {
+    fetchAllOrders();
+  }, [fetchAllOrders]);
 
   useEffect(() => {
     fetchAllOrders();
@@ -903,9 +913,9 @@ const OrderPage = () => {
   };
 
   /* ===========================
-      🧾 SUBMIT ORDER / PAYMENT
+      🧾 SUBMIT ORDER (DIRECT)
   ============================ */
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const isDineIn = orderType === "dine-in";
 
     if (!user) return toast.error("Please login first!");
@@ -929,27 +939,59 @@ const OrderPage = () => {
       }
     }
 
-    setPendingCartData({
-      cart,
-      user,
-      selectedTables: isDineIn ? selectedTables : [],
-      contactNumber: !isDineIn ? contactNumber.trim() : "",
-    });
+    setIsCreatingOrder(true);
+    
+    try {
+      const primaryTable = isDineIn ? selectedTables[0] : null;
+      
+      const validatedPayload = cart.map((i) => ({
+        foodName: i.name || i.foodName,
+        category: i.category || "Uncategorized",
+        type: i.type || "Veg",
+        tables: isDineIn ? selectedTables : [],
+        tableNumber: primaryTable ? primaryTable.tableNumber : 0,
+        chairsBooked: primaryTable ? primaryTable.chairsBooked : 0,
+        chairIndices: primaryTable ? primaryTable.chairIndices : [],
+        chairLetters: primaryTable ? primaryTable.chairLetters : "",
+        quantity: Number(i.quantity) || 1,
+        price: Number(i.price) * Number(i.quantity) || 0,
+        userId: user?.uid || "",
+        userEmail: user?.email || "",
+        userName: user?.displayName || "Guest User",
+        image: i.image || "",
+        selectedSize: i.selectedSize || null,
+        isInRestaurant: isDineIn,
+        contactNumber: !isDineIn ? contactNumber.trim() : "",
+        deliveryLocation: null,
+      }));
+      
+      const response = await axios.post(`${API_BASE}/api/orders/create-multiple`, validatedPayload);
+      
+      const newOrders = response.data.orders || [];
+      setCreatedOrders(newOrders);
+      
+      // Clear Cart
+      await dispatch(clearCartAsync(user.email)).unwrap();
+      
+      playOrderSuccessSound();
+      toast.success(`✅ Order placed successfully!`, {
+        duration: 4000,
+        icon: '🎉',
+      });
+      
+      setIsCreatingOrder(false);
+      
+      // Show order slip after a short delay
+      setTimeout(() => {
+        setShowOrderSlip(true);
+      }, 100);
 
-    setShowPaymentModal(true);
-  };
-
-  const handlePaymentComplete = async () => {
-    if (user && user.email) {
-      try {
-        await dispatch(clearCartAsync(user.email)).unwrap();
-      } catch (error) {
-        // Error clearing cart - non-critical
-      }
+      fetchAllOrders();
+    } catch (error) {
+      console.error("Error creating order:", error);
+      toast.error(error.response?.data?.message || "Failed to place order. Try again.");
+      setIsCreatingOrder(false);
     }
-    setShowPaymentModal(false);
-    setPendingCartData(null);
-    fetchAllOrders();
   };
 
   /* ===========================
@@ -1166,10 +1208,19 @@ const OrderPage = () => {
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleSubmit}
-              disabled={!user}
+              disabled={!user || isCreatingOrder}
               className="w-full mt-4 sm:mt-6 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white py-2.5 sm:py-3 rounded-full font-semibold flex items-center justify-center gap-2 text-sm sm:text-base"
             >
-              <FaShoppingBag /> Place Order
+              {isCreatingOrder ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Placing Order...
+                </>
+              ) : (
+                <>
+                  <FaShoppingBag /> Place Order
+                </>
+              )}
             </motion.button>
           </div>
         </div>
@@ -1225,23 +1276,20 @@ const OrderPage = () => {
         </div>
       )}
 
-      {/* Payment Modal */}
-      {pendingCartData && (
-        <PaymentModal
-          isOpen={showPaymentModal}
-          onClose={() => {
-            setShowPaymentModal(false);
-            setPendingCartData(null);
-          }}
-          cartData={pendingCartData.cart}
-          totalAmount={cartTotal}
-          user={pendingCartData.user}
-          socketRef={socketRef}
-          onPaymentComplete={handlePaymentComplete}
-          selectedTables={pendingCartData.selectedTables}
-          contactNumber={pendingCartData.contactNumber}
-        />
-      )}
+      {/* Order Slip */}
+      <OrderSlip
+        isOpen={showOrderSlip}
+        onClose={() => {
+          setShowOrderSlip(false);
+          // Auto scroll to live orders or navigate back to menu
+          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }}
+        orders={createdOrders}
+        totalAmount={cartTotal}
+        userName={user?.displayName || "Guest User"}
+        userEmail={user?.email || ""}
+        orderDate={createdOrders[0]?.createdAt || new Date()}
+      />
 
       {/* Table Selection Modal */}
       <TableSelectionModal
