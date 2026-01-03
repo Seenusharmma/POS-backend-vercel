@@ -129,11 +129,13 @@ export const createOrder = async (req, res) => {
       )
     ];
 
-    // ⚡ Fire background tasks in parallel WITHOUT WAITING
-    // This prevents ANY delay for the user
-    Promise.allSettled(backgroundTasks).catch(err => 
-      console.error("Background tasks error:", err)
-    );
+    // ⚡ On Vercel, we must await background tasks to guarantee execution
+    // before the function finishes and the environment is suspended.
+    try {
+      await Promise.allSettled(backgroundTasks);
+    } catch (err) {
+      console.error("Background tasks error:", err);
+    }
 
     // ✅ Emit new order to Admin (real-time) - Sync emission is fast enough
     const io = req.app.get("io");
@@ -216,16 +218,19 @@ export const createMultipleOrders = async (req, res) => {
     }
 
     // 📢 Send push notification to Admins for multiple orders
-    // ⚡ FIRE-AND-FORGET: Don't wait AT ALL
-    // This ensures zero delay for the user
-    sendPushToAdmins(
-      "📢 New Orders Placed!",
-      `${req.body.length} new orders received from ${req.body[0].userEmail || "Guest"}`,
-      {
-        tag: `admin-multiple-orders-${Date.now()}`,
-        data: { count: req.body.length, type: "new_orders_admin" }
-      }
-    ).catch(err => console.error("Admin push notification error:", err));
+    // ⚡ On Vercel, we MUST await this to guarantee delivery
+    try {
+      await sendPushToAdmins(
+        "📢 New Orders Placed!",
+        `${req.body.length} new orders received from ${req.body[0].userEmail || "Guest"}`,
+        {
+          tag: `admin-multiple-orders-${Date.now()}`,
+          data: { count: req.body.length, type: "new_orders_admin" }
+        }
+      );
+    } catch (err) {
+      console.error("Admin push notification error:", err);
+    }
 
     res.status(201).json({
       success: true,

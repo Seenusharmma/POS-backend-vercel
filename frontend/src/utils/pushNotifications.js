@@ -105,14 +105,28 @@ export const subscribeToPush = async (vapidPublicKey, registration = null) => {
     let subscription = await serviceWorkerRegistration.pushManager.getSubscription();
     
     if (subscription) {
-      // Check if subscription is still valid (has keys)
-      const subscriptionKeys = subscription.toJSON().keys;
-      if (subscriptionKeys && subscriptionKeys.p256dh && subscriptionKeys.auth) {
-        return subscription;
-      } else {
-        // Subscription exists but is invalid, unsubscribe first
+      // ⚡ CRITICAL FIX: Check if subscription keys match current VAPID key
+      // If VAPID keys were changed/rotated, we MUST re-subscribe
+      const currentKey = urlBase64ToUint8Array(vapidPublicKey);
+      const subKey = new Uint8Array(subscription.options.applicationServerKey);
+      
+      const keyMatches = currentKey.length === subKey.length && 
+                         currentKey.every((v, i) => v === subKey[i]);
+
+      if (!keyMatches) {
+        console.warn('[Push] VAPID key mismatch detected. Re-subscribing...');
         await subscription.unsubscribe();
         subscription = null;
+      } else {
+        // Check if subscription is still valid (has keys)
+        const subscriptionKeys = subscription.toJSON().keys;
+        if (subscriptionKeys && subscriptionKeys.p256dh && subscriptionKeys.auth) {
+          return subscription;
+        } else {
+          // Subscription exists but is invalid, unsubscribe first
+          await subscription.unsubscribe();
+          subscription = null;
+        }
       }
     }
 

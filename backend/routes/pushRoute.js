@@ -62,11 +62,12 @@ router.post("/subscribe", async (req, res) => {
 
     // Always store subscription with platform: "web-push"
     const platform = "web-push";
+    const normalizedEmail = userEmail.toLowerCase().trim();
 
     const result = await Subscription.findOneAndUpdate(
-      { userEmail },
+      { userEmail: normalizedEmail },
       {
-        userEmail,
+        userEmail: normalizedEmail,
         platform,
         subscription,
         updatedAt: new Date(),
@@ -128,7 +129,8 @@ router.post("/unsubscribe", async (req, res) => {
       return res.status(400).json({ error: "userEmail is required" });
     }
 
-    await Subscription.deleteOne({ userEmail, platform: "web-push" });
+    const normalizedEmail = userEmail.toLowerCase().trim();
+    await Subscription.deleteOne({ userEmail: normalizedEmail, platform: "web-push" });
 
     console.log("🗑️ Subscription removed:", userEmail);
     res.json({ success: true, message: "Unsubscribed" });
@@ -150,9 +152,10 @@ router.post("/send", async (req, res) => {
       return res.status(400).json({ error: "userEmail, title, body required" });
     }
 
+    const normalizedEmail = userEmail.toLowerCase().trim();
     // Retrieve only web-push subscriptions
     const subscriptionDoc = await Subscription.findOne({
-      userEmail,
+      userEmail: normalizedEmail,
       platform: "web-push",
     });
 

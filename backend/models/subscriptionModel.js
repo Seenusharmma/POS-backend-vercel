@@ -5,6 +5,7 @@ const subscriptionSchema = new mongoose.Schema(
     userEmail: {
       type: String,
       required: true,
+      lowercase: true,
     },
 
     subscription: {

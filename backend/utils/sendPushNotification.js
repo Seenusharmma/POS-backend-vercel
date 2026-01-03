@@ -29,7 +29,8 @@ export const sendPushToUser = async (userEmail, title, body, options = {}) => {
     }
 
     // Get user's web-push subscription
-    const subscriptionDoc = await Subscription.findOne({ userEmail, platform: 'web-push' });
+    const normalizedEmail = userEmail.toLowerCase().trim();
+    const subscriptionDoc = await Subscription.findOne({ userEmail: normalizedEmail, platform: 'web-push' });
     if (!subscriptionDoc) {
       return { success: false, error: "User subscription not found" };
     }
@@ -159,15 +160,15 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
 
     // 1. Get all admin emails
     const admins = await Admin.find({}, "email");
+    const adminEmails = admins.map(admin => admin.email.toLowerCase().trim());
     
     console.log(`📊 [Push Diagnostics] Found ${admins.length} admins in database`);
+    console.log(`📧 [Push] Normalized Admin emails:`, adminEmails);
     
     if (!admins.length) {
       console.warn("⚠️ [Push] No admins found in Admin collection");
       return { success: true, sent: 0, message: "No admins found" };
     }
-    const adminEmails = admins.map(admin => admin.email);
-    console.log(`📧 [Push] Admin emails:`, adminEmails);
 
     // 2. Find subscriptions for these emails
     const subscriptions = await Subscription.find({ 
@@ -175,8 +176,10 @@ export const sendPushToAdmins = async (title, body, options = {}) => {
       platform: 'web-push'
     });
     
-    console.log(`🔔 [Push] Found ${subscriptions.length} admin subscriptions`);
-    console.log(`📋 [Push] Subscribed admin emails:`, subscriptions.map(s => s.userEmail));
+    console.log(`🔔 [Push] Found ${subscriptions.length} matching admin subscriptions`);
+    if (subscriptions.length > 0) {
+      console.log(`📋 [Push] Subscribed admin emails:`, subscriptions.map(s => s.userEmail));
+    }
     
     if (subscriptions.length === 0) {
       console.warn(`⚠️ [Push] No subscriptions found for admins. Admins: ${adminEmails.join(', ')}`);

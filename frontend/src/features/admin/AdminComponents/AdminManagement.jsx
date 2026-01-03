@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useAppSelector } from "../../../store/hooks";
 import { getAllAdmins, addAdmin, removeAdmin } from "../../../services/adminApi";
 import LogoLoader from "../../../components/ui/LogoLoader";
+import API_BASE from "../../../config/api";
 
 /**
  * Admin Management Component
@@ -248,6 +249,66 @@ const AdminManagement = () => {
             </AnimatePresence>
           </div>
         )}
+      </div>
+      <hr className="my-6 border-gray-100" />
+      
+      {/* 🔔 Notification Diagnostics */}
+      <div>
+        <h4 className="text-sm sm:text-base font-semibold text-gray-800 mb-2 sm:mb-3">
+          🔔 Notification Diagnostics
+        </h4>
+        <div className="p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="flex items-center justify-between p-2 bg-white rounded border border-gray-100">
+              <span className="text-sm text-gray-600">Browser Support:</span>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${'Notification' in window ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                {'Notification' in window ? '✅ Supported' : '❌ Unsupported'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-white rounded border border-gray-100">
+              <span className="text-sm text-gray-600">Permission:</span>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${
+                Notification.permission === 'granted' ? 'bg-green-100 text-green-700' : 
+                Notification.permission === 'denied' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+              }`}>
+                {Notification.permission === 'granted' ? '✅ Granted' : 
+                 Notification.permission === 'denied' ? '🚫 Denied' : '⏳ Prompt/Default'}
+              </span>
+            </div>
+          </div>
+          
+          <p className="text-xs text-gray-500 mb-4">
+            If you are not receiving order notifications, ensure you have allowed notifications in your browser settings and your system is not in "Concentration" or "Do Not Disturb" mode.
+          </p>
+          
+          <button
+            onClick={async () => {
+              try {
+                const toastId = toast.loading("Sending test push...");
+                const response = await axios.post(`${API_BASE}/api/push/send`, {
+                  userEmail: user.email,
+                  title: "🧪 Test Notification",
+                  body: "If you see this, push notifications are working correctly for your account!",
+                  tag: "test-notification-" + Date.now()
+                });
+                
+                if (response.data.success) {
+                  toast.success("✅ Test notification sent to your browser!", { id: toastId });
+                } else {
+                  toast.error("❌ " + (response.data.error || "Failed to send"), { id: toastId });
+                }
+              } catch (error) {
+                console.error("Test push error:", error);
+                const msg = error.response?.data?.error || "Connection error. Make sure your browser is subscribed.";
+                toast.error("❌ " + msg);
+              }
+            }}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold transition-all shadow-sm flex items-center justify-center gap-2"
+          >
+            <span>🚀</span>
+            <span>Send Test Push to My Device</span>
+          </button>
+        </div>
       </div>
     </motion.div>
   );
