@@ -260,56 +260,90 @@ if (!isVercel && io) {
     
     // ✅ Order Updates - Broadcast to all admins and specific user
     socket.on("orderUpdated", (updatedOrder) => {
-      clientInfo.lastActivity = Date.now();
-      
-      // Broadcast to admins room
-      io.to("admins").emit("orderStatusChanged", updatedOrder);
-      
-      // ✅ Broadcast to specific user by userId (if available)
-      if (updatedOrder.userId) {
-        io.to(`user:${updatedOrder.userId}`).emit("orderStatusChanged", updatedOrder);
+      try {
+        clientInfo.lastActivity = Date.now();
+        
+        if (!updatedOrder) {
+          console.warn("⚠️ Received empty orderUpdated event");
+          return;
+        }
+
+        // Broadcast to admins room
+        io.to("admins").emit("orderStatusChanged", updatedOrder);
+        
+        // ✅ Broadcast to specific user by userId (if available)
+        if (updatedOrder.userId) {
+          io.to(`user:${updatedOrder.userId}`).emit("orderStatusChanged", updatedOrder);
+        }
+        
+        // ✅ Also broadcast to "users" room as fallback - clients filter by userEmail
+        io.to("users").emit("orderStatusChanged", updatedOrder);
+      } catch (error) {
+        console.error("❌ Error in orderUpdated socket handler:", error);
       }
-      
-      // ✅ Also broadcast to "users" room as fallback - clients filter by userEmail
-      io.to("users").emit("orderStatusChanged", updatedOrder);
     });
 
     // Food Updates - Broadcast to all clients
     socket.on("foodUpdated", (food) => {
-      clientInfo.lastActivity = Date.now();
-      // Use to() for efficient room-based broadcasting instead of emit()
-      io.emit("foodUpdated", food); // All clients need food updates
+      try {
+        clientInfo.lastActivity = Date.now();
+        if (food) io.emit("foodUpdated", food);
+      } catch (error) {
+        console.error("❌ Error in foodUpdated socket handler:", error);
+      }
     });
 
     // Food Deleted - Broadcast to all clients
     socket.on("foodDeleted", (id) => {
-      clientInfo.lastActivity = Date.now();
-      io.emit("foodDeleted", id);
+      try {
+        clientInfo.lastActivity = Date.now();
+        if (id) io.emit("foodDeleted", id);
+      } catch (error) {
+        console.error("❌ Error in foodDeleted socket handler:", error);
+      }
     });
 
     // ✅ New Order Placed - Notify admins and user
     socket.on("newOrderPlaced", (newOrder) => {
-      clientInfo.lastActivity = Date.now();
-      
-      // Notify all admins
-      io.to("admins").emit("newOrderPlaced", newOrder);
-      
-      // Notify the specific user who placed the order
-      if (newOrder.userId) {
-        io.to(`user:${newOrder.userId}`).emit("newOrderPlaced", newOrder);
+      try {
+        clientInfo.lastActivity = Date.now();
+        
+        if (!newOrder) {
+          console.warn("⚠️ Received empty newOrderPlaced event");
+          return;
+        }
+
+        // Notify all admins
+        io.to("admins").emit("newOrderPlaced", newOrder);
+        
+        // Notify the specific user who placed the order
+        if (newOrder.userId) {
+          io.to(`user:${newOrder.userId}`).emit("newOrderPlaced", newOrder);
+        }
+      } catch (error) {
+        console.error("❌ Error in newOrderPlaced socket handler:", error);
       }
     });
 
     // ✅ Payment Success - Notify admins and user
     socket.on("paymentSuccess", (orderData) => {
-      clientInfo.lastActivity = Date.now();
-      
-      // Notify all admins
-      io.to("admins").emit("paymentSuccess", orderData);
-      
-      // Notify the specific user
-      if (orderData.userId) {
-        io.to(`user:${orderData.userId}`).emit("paymentSuccess", orderData);
+      try {
+        clientInfo.lastActivity = Date.now();
+        
+        if (!orderData) {
+          console.warn("⚠️ Received empty paymentSuccess event");
+          return;
+        }
+
+        // Notify all admins
+        io.to("admins").emit("paymentSuccess", orderData);
+        
+        // Notify the specific user
+        if (orderData.userId) {
+          io.to(`user:${orderData.userId}`).emit("paymentSuccess", orderData);
+        }
+      } catch (error) {
+        console.error("❌ Error in paymentSuccess socket handler:", error);
       }
     });
 

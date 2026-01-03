@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE from "../config/api";
 import LogoLoader from "../components/ui/LogoLoader";
@@ -13,61 +12,43 @@ import { addToCartAsync } from "../store/slices/cartSlice";
 import toast from "react-hot-toast";
 import Footer from "../components/common/Footer";
 import CafePinterestGrid from "../components/CafePinterestGrid";
+import { useFoods } from "../hooks/useFoods";
 
 const Home = () => {
   const { user } = useAppSelector((state) => state.auth);
   const cart = useAppSelector((state) => state.cart.items);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [foods, setFoods] = useState([]);
-  const [vegFoods, setVegFoods] = useState([]);
-  const [nonVegFoods, setNonVegFoods] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const { data: allFoods = [], isLoading } = useFoods();
   const [selectedCategory, setSelectedCategory] = useState(null);
 
-  // Fetch foods
-  useEffect(() => {
-    const fetchFoods = async () => {
-      try {
-        const res = await axios.get(`${API_BASE}/api/foods`);
-        const allFoods = res.data.filter(f => f.available !== false);
-        setFoods(allFoods);
+  // Derived state
+  const foods = React.useMemo(() => allFoods.filter(f => f.available !== false), [allFoods]);
+  
+  const vegFoods = React.useMemo(() => foods.filter(f => f.type === "Veg"), [foods]);
+  
+  const nonVegFoods = React.useMemo(() => foods.filter(f => f.type === "Non-Veg"), [foods]);
 
-        // Separate veg and non-veg
-        const veg = allFoods.filter(f => f.type === "Veg");
-        const nonVeg = allFoods.filter(f => f.type === "Non-Veg");
-        setVegFoods(veg);
-        setNonVegFoods(nonVeg);
-
-        // Get categories with counts and images
-        const categoryMap = {};
-        allFoods.forEach(f => {
-          if (!categoryMap[f.category]) {
-            categoryMap[f.category] = {
-              count: 0,
-              image: f.image, // Use first food's image as category image
-              foods: []
-            };
-          }
-          categoryMap[f.category].count += 1;
-          categoryMap[f.category].foods.push(f);
-        });
-        setCategories(Object.entries(categoryMap).map(([name, data]) => ({ 
-          name, 
-          count: data.count,
-          image: data.image,
-          foods: data.foods
-        })));
-
-        setTimeout(() => setLoading(false), 800);
-      } catch (err) {
-        console.error("Error fetching foods:", err);
-        setLoading(false);
+  const categories = React.useMemo(() => {
+    const categoryMap = {};
+    foods.forEach(f => {
+      if (!categoryMap[f.category]) {
+        categoryMap[f.category] = {
+          count: 0,
+          image: f.image,
+          foods: []
+        };
       }
-    };
-    fetchFoods();
-  }, []);
+      categoryMap[f.category].count += 1;
+      categoryMap[f.category].foods.push(f);
+    });
+    return Object.entries(categoryMap).map(([name, data]) => ({ 
+      name, 
+      count: data.count,
+      image: data.image,
+      foods: data.foods
+    }));
+  }, [foods]);
 
   const addToCart = async (food) => {
     if (!user || !user.email) {
@@ -107,7 +88,7 @@ const Home = () => {
   };
 
 
-  if (loading) return <LogoLoader />;
+  if (isLoading) return <LogoLoader />;
 
   return (
     <div className="relative overflow-hidden min-h-screen">

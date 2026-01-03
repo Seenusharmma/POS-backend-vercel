@@ -123,9 +123,16 @@ export const createOrder = async (req, res) => {
     ];
 
     // Execute background tasks concurrently
-    // ⚡ CRITICAL: We MUST await this on Vercel/Serverless
-    // Otherwise the function freezes/terminates before tasks complete
-    await Promise.allSettled(backgroundTasks);
+    // ⚡ CRITICAL: We await with a SHORT TIMEOUT
+    // This ensures the user doesn't wait for slow push notifications
+    const backgroundTasksPromise = Promise.allSettled(backgroundTasks);
+    
+    // Wait max 1.5 seconds for background tasks, then proceed
+    // This allows Vercel some time to process, but doesn't block the UI
+    await Promise.race([
+      backgroundTasksPromise,
+      new Promise(resolve => setTimeout(resolve, 1500))
+    ]);
 
     // ✅ Emit new order to Admin (real-time) - Sync emission is fast enough
     const io = req.app.get("io");

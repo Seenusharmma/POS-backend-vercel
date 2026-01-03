@@ -97,7 +97,7 @@ const PaymentModal = ({
       // Show order slip after a short delay to ensure modal closes
       setTimeout(() => {
         setShowOrderSlip(true);
-      }, 300);
+      }, 50);
       
       // Call payment complete handler to clear cart
       if (onPaymentComplete) {
@@ -226,7 +226,7 @@ const PaymentModal = ({
         onClose();
         setTimeout(() => {
           navigate("/admin");
-        }, 300);
+        }, 50);
       }}
       orders={createdOrders}
       totalAmount={totalAmount}

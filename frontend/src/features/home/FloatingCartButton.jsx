@@ -1,8 +1,11 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { FaShoppingCart } from "react-icons/fa";
 
 const FloatingCartButton = ({ cartCount }) => {
+  const navigate = useNavigate();
+
   if (cartCount === 0) return null;
 
   return (
@@ -16,7 +19,7 @@ const FloatingCartButton = ({ cartCount }) => {
                  text-white px-5 lg:px-6 py-2.5 lg:py-3 rounded-full shadow-lg hover:shadow-xl 
                  flex items-center gap-2 text-sm lg:text-base font-semibold cursor-pointer z-50 
                  border border-orange-400/30 transition-all duration-200"
-      onClick={() => (window.location.href = "/order")}
+      onClick={() => navigate("/order")}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
     >
