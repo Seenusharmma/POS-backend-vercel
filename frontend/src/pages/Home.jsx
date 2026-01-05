@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE from "../config/api";
 import LogoLoader from "../components/ui/LogoLoader";
@@ -13,6 +13,8 @@ import toast from "react-hot-toast";
 import Footer from "../components/common/Footer";
 import CafePinterestGrid from "../components/CafePinterestGrid";
 import { useFoods } from "../hooks/useFoods";
+import OfferModal from "../features/home/OfferModal";
+import axios from "axios";
 
 const Home = () => {
   const { user } = useAppSelector((state) => state.auth);
@@ -21,6 +23,43 @@ const Home = () => {
   const navigate = useNavigate();
   const { data: allFoods = [], isLoading } = useFoods();
   const [selectedCategory, setSelectedCategory] = useState(null);
+  
+  // Offer Modal State
+  const [selectedOffer, setSelectedOffer] = useState(null);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+
+  // Auto-popup logic for offers
+  useEffect(() => {
+    const showAutoOffer = async () => {
+      // Check if we've already shown an offer this session
+      const hasShownOffer = sessionStorage.getItem("hasShownOffer");
+      if (hasShownOffer) return;
+
+      try {
+        const res = await axios.get(`${API_BASE}/api/offers/active`);
+        if (res.data && res.data.length > 0) {
+          // Show the most recent active offer
+          const latestOffer = res.data[0];
+          setSelectedOffer(latestOffer);
+          setIsOfferModalOpen(true);
+          sessionStorage.setItem("hasShownOffer", "true");
+        }
+      } catch (error) {
+        console.error("Error fetching auto-offer:", error);
+      }
+    };
+
+    if (!isLoading) {
+      // Add a slight delay before showing the modal for better UX
+      const timer = setTimeout(showAutoOffer, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
+  const handleOfferClick = (offer) => {
+    setSelectedOffer(offer);
+    setIsOfferModalOpen(true);
+  };
 
   // Derived state
   const foods = React.useMemo(() => allFoods.filter(f => f.available !== false), [allFoods]);
@@ -140,12 +179,12 @@ const Home = () => {
 
               {/* Special Offers - Desktop: Fixed just below food cards */}
               <div className="hidden md:block md:shrink-0">
-                <OfferZone isMobile={false} />
+                <OfferZone isMobile={false} onOfferClick={handleOfferClick} />
               </div>
 
               {/* Mobile: Offer Zone - Top Right */}
               <div className="md:hidden">
-                <OfferZone isMobile={true} />
+                <OfferZone isMobile={true} onOfferClick={handleOfferClick} />
               </div>
             </div>
 
@@ -184,6 +223,12 @@ const Home = () => {
         
         <Footer />
       </div>
+
+      <OfferModal 
+        offer={selectedOffer} 
+        isOpen={isOfferModalOpen} 
+        onClose={() => setIsOfferModalOpen(false)} 
+      />
     </div>
   );
 };
