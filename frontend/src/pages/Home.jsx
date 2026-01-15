@@ -23,7 +23,7 @@ const Home = () => {
   const navigate = useNavigate();
   const { data: allFoods = [], isLoading } = useFoods();
   const [selectedCategory, setSelectedCategory] = useState(null);
-  
+
   // Offer Modal State
   const [selectedOffer, setSelectedOffer] = useState(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
@@ -62,30 +62,39 @@ const Home = () => {
   };
 
   // Derived state
-  const foods = React.useMemo(() => allFoods.filter(f => f.available !== false), [allFoods]);
-  
-  const vegFoods = React.useMemo(() => foods.filter(f => f.type === "Veg"), [foods]);
-  
-  const nonVegFoods = React.useMemo(() => foods.filter(f => f.type === "Non-Veg"), [foods]);
+  const foods = React.useMemo(
+    () => allFoods.filter((f) => f.available !== false),
+    [allFoods]
+  );
+
+  const vegFoods = React.useMemo(
+    () => foods.filter((f) => f.type === "Veg"),
+    [foods]
+  );
+
+  const nonVegFoods = React.useMemo(
+    () => foods.filter((f) => f.type === "Non-Veg"),
+    [foods]
+  );
 
   const categories = React.useMemo(() => {
     const categoryMap = {};
-    foods.forEach(f => {
+    foods.forEach((f) => {
       if (!categoryMap[f.category]) {
         categoryMap[f.category] = {
           count: 0,
           image: f.image,
-          foods: []
+          foods: [],
         };
       }
       categoryMap[f.category].count += 1;
       categoryMap[f.category].foods.push(f);
     });
-    return Object.entries(categoryMap).map(([name, data]) => ({ 
-      name, 
+    return Object.entries(categoryMap).map(([name, data]) => ({
+      name,
       count: data.count,
       image: data.image,
-      foods: data.foods
+      foods: data.foods,
     }));
   }, [foods]);
 
@@ -104,14 +113,17 @@ const Home = () => {
           quantity: 1,
         })
       ).unwrap();
-      
+
       toast.success(`${food.name} added to cart! 🛒`, {
         duration: 2000,
         position: "top-center",
       });
     } catch (error) {
       console.error("Error adding to cart:", error);
-      const errorMessage = error?.message || error?.response?.data?.message || "Failed to add item to cart. Please try again.";
+      const errorMessage =
+        error?.message ||
+        error?.response?.data?.message ||
+        "Failed to add item to cart. Please try again.";
       toast.error(errorMessage);
     }
   };
@@ -126,23 +138,25 @@ const Home = () => {
     }
   };
 
-
   if (isLoading) return <LogoLoader />;
 
   return (
     <div className="relative overflow-hidden min-h-screen">
       {/* Pure white background */}
       <div className="fixed inset-0 bg-white -z-10"></div>
-      
+
       <div className="min-h-screen text-gray-900 pb-30 pt-12 relative">
         <div className="container mx-auto px-3 sm:px-4 md:px-5 lg:px-8 py-5 sm:py-7 lg:py-8 max-w-[1920px]">
           {/* Desktop: 2 main columns - Left (Offer Zone, Food cards, Special Offers), Right (Menu slider) */}
           {/* Mobile: Expand menu slider when category is selected */}
-          <div className={`grid gap-3 sm:gap-4 md:gap-5 lg:gap-7 transition-all duration-300 ease-in-out
-            ${selectedCategory 
-              ? 'grid-cols-[1fr_1.3fr] sm:grid-cols-[1fr_1.4fr] md:grid-cols-[1.8fr_1fr] lg:grid-cols-[2fr_1fr]'
-              : 'grid-cols-[1.5fr_1fr] sm:grid-cols-[1.6fr_1fr] md:grid-cols-[1.8fr_1fr] lg:grid-cols-[2fr_1fr]'
-            }`}>
+          <div
+            className={`grid gap-3 sm:gap-4 md:gap-5 lg:gap-7 transition-all duration-300 ease-in-out
+            ${
+              selectedCategory
+                ? "grid-cols-[1fr_1.3fr] sm:grid-cols-[1fr_1.4fr] md:grid-cols-[1.8fr_1fr] lg:grid-cols-[2fr_1fr]"
+                : "grid-cols-[1.5fr_1fr] sm:grid-cols-[1.6fr_1fr] md:grid-cols-[1.8fr_1fr] lg:grid-cols-[2fr_1fr]"
+            }`}
+          >
             {/* Left Column - Desktop: Food cards at top, Special Offers below */}
             <div className="col-span-1 md:col-span-1 flex flex-col md:space-y-3 lg:space-y-4 gap-3 md:gap-0">
               {/* Desktop: Food cards side by side at top */}
@@ -193,8 +207,8 @@ const Home = () => {
               {/* Menu slider - Mobile: Bottom aligned with offer zone, Desktop: Top aligns with food cards */}
               <div className="md:hidden flex flex-col justify-end">
                 <div className="h-[600px] sm:h-[320px]">
-                  <MenuSlider 
-                    categories={categories} 
+                  <MenuSlider
+                    categories={categories}
                     selectedCategory={selectedCategory}
                     onCategoryClick={handleCategoryClick}
                     foods={foods}
@@ -204,8 +218,8 @@ const Home = () => {
               </div>
               {/* Desktop: Top aligns with food cards, bottom aligns with special offers */}
               <div className="hidden md:flex md:flex-col md:h-[calc(135vh-320px)]">
-                <MenuSlider 
-                  categories={categories} 
+                <MenuSlider
+                  categories={categories}
                   selectedCategory={selectedCategory}
                   onCategoryClick={handleCategoryClick}
                   foods={foods}
@@ -215,19 +229,19 @@ const Home = () => {
             </div>
           </div>
         </div>
-        
+
         <CafePinterestGrid />
 
         {/* Floating Cart Button */}
         <FloatingCartButton cartCount={cart.length} />
-        
+
         <Footer />
       </div>
 
-      <OfferModal 
-        offer={selectedOffer} 
-        isOpen={isOfferModalOpen} 
-        onClose={() => setIsOfferModalOpen(false)} 
+      <OfferModal
+        offer={selectedOffer}
+        isOpen={isOfferModalOpen}
+        onClose={() => setIsOfferModalOpen(false)}
       />
     </div>
   );

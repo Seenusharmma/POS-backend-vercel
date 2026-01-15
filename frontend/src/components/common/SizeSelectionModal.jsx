@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaTimes } from "react-icons/fa";
 
@@ -29,12 +30,16 @@ const SizeSelectionModal = ({ food, isOpen, onClose, onConfirm }) => {
       return;
     }
     const selectedPrice = sizePrices[selectedSize];
-    
-    if (!selectedPrice || selectedPrice === null || selectedPrice === undefined) {
+
+    if (
+      !selectedPrice ||
+      selectedPrice === null ||
+      selectedPrice === undefined
+    ) {
       console.error("❌ Invalid price for selected size:", selectedSize);
       return;
     }
-    
+
     onConfirm(selectedSize, Number(selectedPrice)); // Ensure price is a number
     setSelectedSize(null);
   };
@@ -44,7 +49,7 @@ const SizeSelectionModal = ({ food, isOpen, onClose, onConfirm }) => {
     onClose();
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -54,7 +59,7 @@ const SizeSelectionModal = ({ food, isOpen, onClose, onConfirm }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
             transition={{ duration: 0.15 }}
           >
             {/* Modal */}
@@ -69,8 +74,12 @@ const SizeSelectionModal = ({ food, isOpen, onClose, onConfirm }) => {
               {/* Header */}
               <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between rounded-t-2xl z-10">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-800">{food.name}</h3>
-                  <p className="text-sm text-gray-500 capitalize">{food.category}</p>
+                  <h3 className="text-xl font-bold text-gray-800">
+                    {food.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 capitalize">
+                    {food.category}
+                  </p>
                 </div>
                 <button
                   onClick={handleClose}
@@ -165,9 +174,9 @@ const SizeSelectionModal = ({ food, isOpen, onClose, onConfirm }) => {
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 };
 
 export default SizeSelectionModal;
-

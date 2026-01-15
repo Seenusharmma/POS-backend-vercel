@@ -17,9 +17,24 @@ const OfferZone = ({ isMobile = false, onOfferClick }) => {
 
   // Default slider images (fallback if no offers)
   const defaultSlides = [
-    { _id: "default1", image: Slider1, title: "Special Combo", description: "30% OFF" },
-    { _id: "default2", image: Slider2, title: "Weekend Special", description: "25% OFF" },
-    { _id: "default3", image: Hero, title: "Family Pack", description: "40% OFF" },
+    {
+      _id: "default1",
+      image: Slider1,
+      title: "Special Combo",
+      description: "30% OFF",
+    },
+    {
+      _id: "default2",
+      image: Slider2,
+      title: "Weekend Special",
+      description: "25% OFF",
+    },
+    {
+      _id: "default3",
+      image: Hero,
+      title: "Family Pack",
+      description: "40% OFF",
+    },
   ];
 
   // Fetch active offers from API
@@ -40,13 +55,17 @@ const OfferZone = ({ isMobile = false, onOfferClick }) => {
         } else {
           // No offers, use default slides
           setRawOffers(defaultSlides);
-          setOffers(defaultSlides.map(s => ({ ...s, discount: s.description })));
+          setOffers(
+            defaultSlides.map((s) => ({ ...s, discount: s.description }))
+          );
         }
       } catch (error) {
         console.error("Error fetching offers:", error);
         // On error, use default slides
         setRawOffers(defaultSlides);
-        setOffers(defaultSlides.map(s => ({ ...s, discount: s.description })));
+        setOffers(
+          defaultSlides.map((s) => ({ ...s, discount: s.description }))
+        );
       } finally {
         setLoading(false);
       }
@@ -56,7 +75,10 @@ const OfferZone = ({ isMobile = false, onOfferClick }) => {
   }, []);
 
   // Use offers or default slides
-  const slides = offers.length > 0 ? offers : defaultSlides.map(s => ({ ...s, discount: s.description }));
+  const slides =
+    offers.length > 0
+      ? offers
+      : defaultSlides.map((s) => ({ ...s, discount: s.description }));
 
   // Auto-play slider
   useEffect(() => {
@@ -170,37 +192,49 @@ const OfferZone = ({ isMobile = false, onOfferClick }) => {
                   />
                   {/* Gradient Overlay */}
                   <div className="absolute inset-0 bg-linear-to-br from-orange-600/85 via-orange-500/75 to-orange-600/85"></div>
-                  
+
                   {/* Content - Responsive */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-2 sm:p-3 md:p-4 z-10">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-1 z-10 sm:p-3 md:p-4">
                     <motion.h3
                       initial={{ y: 10, opacity: 0, scale: 0.9 }}
                       animate={{ y: 0, opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.1, duration: 0.5, type: "spring", stiffness: 100 }}
-                      className="text-sm sm:text-xl md:text-3xl lg:text-4xl font-black text-white mb-1 sm:mb-2 md:mb-3 text-center
-                                tracking-tight leading-tight
+                      transition={{
+                        delay: 0.1,
+                        duration: 0.5,
+                        type: "spring",
+                        stiffness: 100,
+                      }}
+                      className="text-sm sm:text-xl md:text-3xl lg:text-4xl font-black text-white mb-0.5 sm:mb-2 text-center
+                                tracking-tight leading-none
                                 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] sm:drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]
                                 [text-shadow:0_2px_10px_rgba(0,0,0,0.8)] sm:[text-shadow:0_2px_20px_rgba(0,0,0,0.9),0_0_30px_rgba(255,255,255,0.3)]
-                                uppercase"
+                                uppercase px-1 w-full"
                     >
                       {slide.title}
                     </motion.h3>
                     <motion.div
                       initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
                       animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                      transition={{ delay: 0.2, duration: 0.4, type: "spring", stiffness: 200 }}
-                      className="relative"
+                      transition={{
+                        delay: 0.2,
+                        duration: 0.4,
+                        type: "spring",
+                        stiffness: 200,
+                      }}
+                      className="relative w-full px-1 sm:max-w-[75%]"
                     >
                       {/* Discount Badge - Responsive */}
-                      <div className="relative inline-block">
+                      <div className="relative inline-block w-full">
                         <div className="absolute inset-0 bg-yellow-400/30 blur-xl rounded-full"></div>
-                        <span className="relative text-xs sm:text-lg md:text-2xl lg:text-3xl font-black text-yellow-300 
+                        <span
+                          className="relative text-[10px] sm:text-sm md:text-base lg:text-xl font-black text-yellow-300 
                                        drop-shadow-[0_2px_6px_rgba(0,0,0,0.7)] sm:drop-shadow-[0_3px_10px_rgba(0,0,0,0.7)]
                                        [text-shadow:0_0_15px_rgba(255,255,0,0.5),0_2px_8px_rgba(0,0,0,0.8)] sm:[text-shadow:0_0_20px_rgba(255,255,0,0.6),0_3px_12px_rgba(0,0,0,0.9)]
-                                       tracking-wider px-2 py-0.5 sm:px-3 sm:py-1
+                                       tracking-wide px-1 py-0.5
                                        border-2 border-yellow-300/50 rounded-md sm:rounded-lg
                                        bg-linear-to-br from-yellow-400/20 to-yellow-500/20
-                                       backdrop-blur-sm">
+                                       backdrop-blur-sm block text-center leading-tight mx-auto max-w-fit"
+                        >
                           {slide.discount}
                         </span>
                       </div>
@@ -214,14 +248,20 @@ const OfferZone = ({ isMobile = false, onOfferClick }) => {
 
         {/* Navigation Arrows - Responsive */}
         <button
-          onClick={(e) => { e.stopPropagation(); goToPrevious(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            goToPrevious();
+          }}
           className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 active:bg-white/40 text-white p-1.5 sm:p-2 rounded-full transition-all duration-200 z-20 hover:scale-110 active:scale-95 touch-manipulation min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
           aria-label="Previous slide"
         >
           <FaChevronLeft className="text-xs sm:text-sm" />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); goToNext(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            goToNext();
+          }}
           className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-sm hover:bg-white/30 active:bg-white/40 text-white p-1.5 sm:p-2 rounded-full transition-all duration-200 z-20 hover:scale-110 active:scale-95 touch-manipulation min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
           aria-label="Next slide"
         >
@@ -233,7 +273,10 @@ const OfferZone = ({ isMobile = false, onOfferClick }) => {
           {slides.map((_, index) => (
             <button
               key={index}
-              onClick={(e) => { e.stopPropagation(); goToSlide(index); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                goToSlide(index);
+              }}
               className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 touch-manipulation ${
                 index === currentSlide
                   ? "w-6 sm:w-8 bg-white shadow-lg"
@@ -268,7 +311,6 @@ const OfferZone = ({ isMobile = false, onOfferClick }) => {
         <span className="hidden sm:inline">+91 7008278701</span>
         <span className="sm:hidden">Call</span>
       </a>
-
     </div>
   );
 };
