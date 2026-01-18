@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaChair, FaCheckCircle } from "react-icons/fa";
@@ -23,8 +24,8 @@ const TableSelect = ({
   compact = false 
 }) => {
   const [tables, setTables] = useState([]);
-  // Initialize selectedChairs from props if provided
-  const [selectedChairs, setSelectedChairs] = useState(() => {
+  // Derive selectedChairs from selectedTables prop
+  const selectedChairs = useMemo(() => {
     const initial = {};
     if (Array.isArray(selectedTables)) {
       selectedTables.forEach(t => {
@@ -34,7 +35,9 @@ const TableSelect = ({
       });
     }
     return initial;
-  }); // { tableNumber: [chairNumbers] }
+  }, [selectedTables]);
+
+
   const [loading, setLoading] = useState(true);
   const [showLegend, setShowLegend] = useState(true);
 
@@ -107,7 +110,8 @@ const TableSelect = ({
     };
 
     fetchTableAvailability();
-  }, [availableTables]);
+  }, []); // Only fetch on mount, availableTables will be handled separately if needed
+
 
   // TABLE OPTIONS: Handle chair selection (chairs 0-3 per table, tables 1-40)
   const handleChairClick = (tableNum, chairIndex) => {
@@ -123,32 +127,45 @@ const TableSelect = ({
       return; // Can't select booked chair
     }
 
-    // TABLE OPTIONS: Toggle chair selection - allow multiple chairs at same table (max 4 chairs per table)
-    setSelectedChairs((prev) => {
-      const tableChairs = prev[tableNum] || [];
-      const isSelected = tableChairs.includes(chairIndex);
-      let updated;
+    // TABLE OPTIONS: Calculate new chair selection
+    const tableChairs = selectedChairs[tableNum] || [];
+    const isSelected = tableChairs.includes(chairIndex);
+    let updatedSelection = { ...selectedChairs };
 
-      if (isSelected) {
-        // Deselect chair
-        updated = { ...prev };
-        updated[tableNum] = tableChairs.filter((c) => c !== chairIndex);
-        if (updated[tableNum].length === 0) {
-          delete updated[tableNum];
-        }
-      } else {
-        // Select chair - Add to current table (can select multiple)
-        // MULTI-TABLE UPDATE: Do NOT clear other tables
-        updated = { ...prev };
-        updated[tableNum] = [...tableChairs, chairIndex].sort((a, b) => a - b);
+    if (isSelected) {
+      // Deselect chair
+      updatedSelection[tableNum] = tableChairs.filter((c) => c !== chairIndex);
+      if (updatedSelection[tableNum].length === 0) {
+        delete updatedSelection[tableNum];
       }
-      return updated;
+    } else {
+      // Select chair
+      updatedSelection[tableNum] = [...tableChairs, chairIndex].sort((a, b) => a - b);
+    }
+
+    // Convert back to tablesList format for parent
+    const tablesList = Object.keys(updatedSelection).map(tNumStr => {
+      const tNum = Number(tNumStr);
+      const indices = updatedSelection[tNum];
+      return {
+        tableNumber: tNum,
+        chairIndices: indices,
+        chairLetters: getChairLetters(indices),
+        chairsBooked: indices.length
+      };
     });
+
+    if (onSelectionChange) {
+      onSelectionChange(tablesList);
+    }
   };
 
   const clearSelection = () => {
-    setSelectedChairs({});
+    if (onSelectionChange) {
+      onSelectionChange([]);
+    }
   };
+
 
   // TABLE OPTIONS: Get chair state (available/selected/booked) for chairs 0-3 at tables 1-11
   const getChairState = (tableNum, chairIndex) => {
@@ -188,22 +205,8 @@ const TableSelect = ({
     return indices.map(idx => String.fromCharCode(97 + idx)).join(' '); // 97 is 'a' in ASCII
   };
 
-  // Notify parent component of selected chairs (both count and indices)
-  useEffect(() => {
-    if (onSelectionChange) {
-        const tablesList = Object.keys(selectedChairs).map(tableNum => {
-            const tNum = Number(tableNum);
-            const indices = selectedChairs[tNum];
-            return {
-                tableNumber: tNum,
-                chairIndices: indices,
-                chairLetters: getChairLetters(indices),
-                chairsBooked: indices.length
-            };
-        });
-        onSelectionChange(tablesList);
-    }
-  }, [selectedChairs, onSelectionChange]);
+
+
 
   if (loading) {
   return (

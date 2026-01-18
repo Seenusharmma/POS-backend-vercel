@@ -26,6 +26,13 @@ const TableSelectionModal = ({
   const [occupiedTables, setOccupiedTables] = useState({});
   const [loading, setLoading] = useState(false);
 
+  // Memoize the selection change handler
+  const handleSelectionChange = React.useCallback((tables) => {
+    setSelectedTables(tables);
+    if (onChairsSelected) onChairsSelected(tables);
+  }, [setSelectedTables, onChairsSelected]);
+
+
   // Fetch occupied tables when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -80,15 +87,13 @@ const TableSelectionModal = ({
             <div className="overflow-y-auto flex-1 p-2 sm:p-3">
               <TableSelect
                 selectedTables={selectedTables}
-                onSelectionChange={(tables) => {
-                  setSelectedTables(tables);
-                  if (onChairsSelected) onChairsSelected(tables);
-                }}
+                onSelectionChange={handleSelectionChange}
                 availableTables={availableTables}
                 occupiedTables={occupiedTables}
                 compact={true}
               />
             </div>
+
 
             {/* ✅ Confirm Button (only when table selected) */}
             {selectedTables.length > 0 && (

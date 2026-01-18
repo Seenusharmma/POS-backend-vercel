@@ -36,6 +36,9 @@ const STATUS = {
   COMPLETED: "Completed",
 };
 
+const EMPTY_ARRAY = [];
+
+
 // Normalize backend / legacy statuses to new flow
 const normalizeStatus = (status) => {
   if (!status) return STATUS.ORDER;
@@ -1297,9 +1300,11 @@ const OrderPage = () => {
         onClose={() => setShowTableModal(false)}
         selectedTables={selectedTables}
         setSelectedTables={setSelectedTables}
-        availableTables={[]}
+        availableTables={EMPTY_ARRAY}
+
         onChairsSelected={() => {}}
       />
+
     </div>
   );
 };
